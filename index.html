@@ -428,6 +428,14 @@
           </div>
         </div>
 
+        <div class="dg-card p-5">
+          <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-gradexits-title">卒業・退所推移</h3>
+          <p class="text-xs text-dg-desc mb-4">月次卒業者数（棒グラフ・青）と退所者数（折れ線・赤）（単位：名）</p>
+          <div class="chart-container" style="height:240px;">
+            <canvas id="chartGradExits" role="img" aria-label="卒業・退所推移混合グラフ、棒グラフが卒業者数、折れ線が退所者数"></canvas>
+          </div>
+        </div>
+
       </div>
 
       <!-- 4-2. 売上推移（損益分岐点ライン付き） -->
@@ -443,17 +451,6 @@
         </p>
         <div class="chart-container" style="height:280px;">
           <canvas id="chartSales" role="img" aria-label="売上推移棒グラフ、損益分岐点230万円の赤破線付き"></canvas>
-        </div>
-      </div>
-
-      <!-- 4-3. 卒業・退所推移（混合グラフ） -->
-      <div class="dg-card p-5 mt-6">
-        <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-gradexits-title">卒業・退所推移</h3>
-        <p class="text-xs text-dg-desc mb-4">
-          月次卒業者数（棒グラフ・青）と退所者数（折れ線・赤）（単位：名）
-        </p>
-        <div class="chart-container" style="height:280px;">
-          <canvas id="chartGradExits" role="img" aria-label="卒業・退所推移混合グラフ、棒グラフが卒業者数、折れ線が退所者数"></canvas>
         </div>
       </div>
     </section>
