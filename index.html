@@ -348,7 +348,7 @@
     <!-- ===== 2b. 予測サマリーカード（予測ON時のみ） ===== -->
     <section id="forecast-summary-section" aria-labelledby="forecast-summary-title" style="display:none;">
       <h2 id="forecast-summary-title" class="section-title">
-        📈 2026年度 予測サマリー
+        📈 予測サマリー
         <span class="text-sm font-normal text-dg-desc ml-2">（単価 ¥10,200 確定）</span>
       </h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="forecast-summary-cards"></div>
@@ -543,9 +543,42 @@
       });
     }
 
-    // 年間合計予測売上
+    // フィルタに連動した予測月リストを返す
+    function getFilteredForecastMonths() {
+      const allForecastMonths = FORECAST_DATA.months;
+      if (selectedFy === 'all' || selectedFy === null || selectedFy === undefined) {
+        return allForecastMonths;
+      }
+      if (filterMode === 'dc') {
+        // 決算期: startYear/06 〜 (startYear+1)/05
+        const sy = Number(selectedFy);
+        return allForecastMonths.filter(m => {
+          const [y, mo] = m.split('-').map(Number);
+          const periodStart = sy * 100 + 6;   // e.g. 202506
+          const periodEnd   = (sy + 1) * 100 + 5; // e.g. 202605
+          const mNum = y * 100 + mo;
+          return mNum >= periodStart && mNum <= periodEnd;
+        });
+      } else {
+        // 年度: fy/04 〜 (fy+1)/03
+        const fy = Number(selectedFy);
+        return allForecastMonths.filter(m => {
+          const [y, mo] = m.split('-').map(Number);
+          const periodStart = fy * 100 + 4;    // e.g. 202604
+          const periodEnd   = (fy + 1) * 100 + 3; // e.g. 202703
+          const mNum = y * 100 + mo;
+          return mNum >= periodStart && mNum <= periodEnd;
+        });
+      }
+    }
+
+    // 年間合計予測売上（フィルタ済み月のみ）
     function calcForecastAnnualSales(scenario) {
-      return calcForecastSales(scenario).reduce((a, b) => a + b, 0);
+      const filteredMonths = getFilteredForecastMonths();
+      return filteredMonths.map(m => {
+        const s = FORECAST_DATA.scenarios[scenario];
+        return Math.round(s.users * s.attendance * FORECAST_DATA.unit_price);
+      }).reduce((a, b) => a + b, 0);
     }
 
     // 損益分岐ライン安全余裕（基準シナリオで何名まで減っても黒字か）
@@ -586,18 +619,44 @@
 
     // 予測サマリーカード描画
     function renderForecastSummaryCards() {
+      const filteredMonths = getFilteredForecastMonths();
+      const monthCount = filteredMonths.length;
+
+      if (monthCount === 0) {
+        const el = document.getElementById('forecast-summary-cards');
+        if (el) el.innerHTML = '<div class="col-span-3 text-center py-4 text-sm" style="color:#626264;">選択期間に予測月がありません</div>';
+        // タイトル更新
+        const titleEl = document.getElementById('forecast-summary-title');
+        if (titleEl) titleEl.innerHTML = '📈 予測サマリー <span class="text-sm font-normal text-dg-desc ml-2">（選択期間に予測月なし）</span>';
+        return;
+      }
+
       const annualOpt  = calcForecastAnnualSales('optimistic');
       const annualBase = calcForecastAnnualSales('baseline');
       const annualPess = calcForecastAnnualSales('pessimistic');
-      const breakevenAnnual = FORECAST_DATA.breakeven * 12;
+      const breakevenPeriod = FORECAST_DATA.breakeven * monthCount;
       const margin = calcBreakevenMargin();
+
+      // タイトルをフィルタ期間に連動して更新
+      const titleEl = document.getElementById('forecast-summary-title');
+      if (titleEl) {
+        let periodText = '全予測期間';
+        if (selectedFy !== 'all' && selectedFy !== null && selectedFy !== undefined) {
+          if (filterMode === 'dc') {
+            periodText = dcPeriodLabel(selectedFy);
+          } else {
+            periodText = `${selectedFy}年度（${selectedFy}/4〜${Number(selectedFy)+1}/3）`;
+          }
+        }
+        titleEl.innerHTML = `📈 予測サマリー（${periodText}） <span class="text-sm font-normal text-dg-desc ml-2">（${monthCount}ヶ月分・単価 ¥10,200 確定）</span>`;
+      }
 
       const el = document.getElementById('forecast-summary-cards');
       if (!el) return;
 
       el.innerHTML = `
         <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">2026年度 年間売上予測</div>
+          <div class="kpi-label" style="color:#795548;">${monthCount}ヶ月 売上予測合計</div>
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size:0.75rem; color:#388E3C; font-weight:600;">楽観</span>
@@ -614,20 +673,17 @@
           </div>
         </div>
         <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">年間累計損益予測（損益分岐 ¥${(breakevenAnnual/10000).toFixed(0)}万/年）</div>
+          <div class="kpi-label" style="color:#795548;">累計損益予測（損益分岐 ¥230万×${monthCount}ヶ月=¥${(breakevenPeriod/10000).toFixed(0)}万）</div>
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:0.75rem; color:#388E3C; font-weight:600;">楽観</span>
-              <span style="font-size:1.1rem; font-weight:700; color:#0031D8;">+¥${(annualOpt - breakevenAnnual).toLocaleString('ja-JP')}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:0.75rem; color:#1976D2; font-weight:600;">基準</span>
-              <span style="font-size:1.1rem; font-weight:700; color:#0031D8;">+¥${(annualBase - breakevenAnnual).toLocaleString('ja-JP')}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:0.75rem; color:#D32F2F; font-weight:600;">悲観</span>
-              <span style="font-size:1.1rem; font-weight:700; color:#0031D8;">+¥${(annualPess - breakevenAnnual).toLocaleString('ja-JP')}</span>
-            </div>
+            ${[['楽観','#388E3C',annualOpt],['基準','#1976D2',annualBase],['悲観','#D32F2F',annualPess]].map(([label,color,val]) => {
+              const pl = val - breakevenPeriod;
+              const plColor = pl >= 0 ? '#0031D8' : '#FA0000';
+              const sign = pl >= 0 ? '+' : '';
+              return `<div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:${color}; font-weight:600;">${label}</span>
+              <span style="font-size:1.1rem; font-weight:700; color:${plColor};">${sign}¥${pl.toLocaleString('ja-JP')}</span>
+            </div>`;
+            }).join('')}
           </div>
         </div>
         <div class="forecast-card p-5">
@@ -997,32 +1053,27 @@
       // -----------------------------------------------------------------------
       // 予測データセット生成ヘルパー
       // -----------------------------------------------------------------------
+      // フィルタ済み予測月
+      const filteredForecastMonths = getFilteredForecastMonths();
+
       function makeForecastDatasets_Sales(actualLabels) {
-        if (!forecastEnabled) return [];
+        if (!forecastEnabled || filteredForecastMonths.length === 0) return [];
         // 実績の最後の値 → 予測の最初に繋ぐための接続点
         const lastActualSales = sorted.filter(d => d.sales !== null).slice(-1)[0]?.sales || null;
         const lastActualMonth = sorted.filter(d => d.sales !== null).slice(-1)[0]?.month || null;
 
-        // 予測月を表示範囲に追加（全期間 or 2026年度フィルタ時）
-        const forecastMonths = FORECAST_DATA.months;
-        const paddingOpt  = new Array(actualLabels.length).fill(null);
-        const paddingBase = new Array(actualLabels.length).fill(null);
-        const paddingPess = new Array(actualLabels.length).fill(null);
-
-        const optSales  = calcForecastSales('optimistic');
-        const baseSales = calcForecastSales('baseline');
-        const pessSales = calcForecastSales('pessimistic');
-
-        // 接続ポイント付きデータ（実績の最終値→予測開始）
-        function buildForecastArr(vals) {
-          const arr = [...paddingOpt]; // null×実績数
-          // 接続線のために最終実績点を追加
-          if (lastActualMonth && actualLabels.includes(lastActualMonth)) {
-            const idx = actualLabels.indexOf(lastActualMonth);
-            arr[idx] = lastActualSales;
-          }
-          return arr;
-        }
+        const optSales  = filteredForecastMonths.map(() => {
+          const s = FORECAST_DATA.scenarios.optimistic;
+          return Math.round(s.users * s.attendance * FORECAST_DATA.unit_price);
+        });
+        const baseSales = filteredForecastMonths.map(() => {
+          const s = FORECAST_DATA.scenarios.baseline;
+          return Math.round(s.users * s.attendance * FORECAST_DATA.unit_price);
+        });
+        const pessSales = filteredForecastMonths.map(() => {
+          const s = FORECAST_DATA.scenarios.pessimistic;
+          return Math.round(s.users * s.attendance * FORECAST_DATA.unit_price);
+        });
 
         return [
           {
@@ -1059,10 +1110,10 @@
       }
 
       function makeForecastDatasets_Users(actualLabels) {
-        if (!forecastEnabled) return [];
-        const optUsers  = FORECAST_DATA.months.map(() => FORECAST_DATA.scenarios.optimistic.users);
-        const baseUsers = FORECAST_DATA.months.map(() => FORECAST_DATA.scenarios.baseline.users);
-        const pessUsers = FORECAST_DATA.months.map(() => FORECAST_DATA.scenarios.pessimistic.users);
+        if (!forecastEnabled || filteredForecastMonths.length === 0) return [];
+        const optUsers  = filteredForecastMonths.map(() => FORECAST_DATA.scenarios.optimistic.users);
+        const baseUsers = filteredForecastMonths.map(() => FORECAST_DATA.scenarios.baseline.users);
+        const pessUsers = filteredForecastMonths.map(() => FORECAST_DATA.scenarios.pessimistic.users);
         return [
           {
             label: '楽観予測',
@@ -1083,10 +1134,22 @@
       }
 
       function makeForecastDatasets_Koma(actualLabels) {
-        if (!forecastEnabled) return [];
-        const optKoma  = calcForecastKoma('optimistic');
-        const baseKoma = calcForecastKoma('baseline');
-        const pessKoma = calcForecastKoma('pessimistic');
+        if (!forecastEnabled || filteredForecastMonths.length === 0) return [];
+        const optKoma  = filteredForecastMonths.map(m => {
+          const mm = m.split('-')[1];
+          const days = MONTHLY_AVG_DAYS[mm] || 19.0;
+          return Math.round(FORECAST_DATA.scenarios.optimistic.users * days);
+        });
+        const baseKoma = filteredForecastMonths.map(m => {
+          const mm = m.split('-')[1];
+          const days = MONTHLY_AVG_DAYS[mm] || 19.0;
+          return Math.round(FORECAST_DATA.scenarios.baseline.users * days);
+        });
+        const pessKoma = filteredForecastMonths.map(m => {
+          const mm = m.split('-')[1];
+          const days = MONTHLY_AVG_DAYS[mm] || 19.0;
+          return Math.round(FORECAST_DATA.scenarios.pessimistic.users * days);
+        });
         return [
           {
             label: '楽観予測',
@@ -1106,11 +1169,12 @@
         ];
       }
 
-      // 予測有効時はラベルに予測月を追加
+      // 予測有効時はラベルに予測月を追加（フィルタ連動）
       function extendLabels(labels) {
         if (!forecastEnabled) return labels;
         // 既にラベルに含まれている予測月を除外してから追加
-        const extra = FORECAST_DATA.months.filter(m => !labels.includes(m));
+        const filteredForecastMonths = getFilteredForecastMonths();
+        const extra = filteredForecastMonths.filter(m => !labels.includes(m));
         return [...labels, ...extra];
       }
 
@@ -1337,7 +1401,7 @@
       let forecastRows = [];
       if (forecastEnabled) {
         const filterVal2 = document.getElementById('filter-input').value.trim().toLowerCase();
-        forecastRows = FORECAST_DATA.months
+        forecastRows = getFilteredForecastMonths()
           .filter(m => !filterVal2 || m.includes(filterVal2))
           .map(m => {
             const mm = m.split('-')[1];
@@ -1480,9 +1544,14 @@
       const tdStyle = 'px-4 py-2.5 text-right tabular-nums text-sm font-bold';
       const nullCell = '<span class="null-val">—</span>';
 
+      // 実績合計行（予測ON時はラベルを明示）
+      const actualRowLabel = (forecastEnabled && forecastRows.length > 0)
+        ? '合計 / 平均（実績）'
+        : '合計 / 平均';
+
       let footerHtml = `
         <tr style="background:#D9E6FF; border-top:2px solid #4979F5;" role="row">
-          <td class="px-4 py-2.5 text-sm font-bold" style="color:#0031D8; white-space:nowrap;">合計 / 平均</td>
+          <td class="px-4 py-2.5 text-sm font-bold" style="color:#0031D8; white-space:nowrap;">${actualRowLabel}</td>
           <td class="${tdStyle}">${filtered.some(d => d.koma !== null) ? totalKoma.toLocaleString('ja-JP') : nullCell}</td>
           <td class="${tdStyle}">${filtered.some(d => d.absence !== null) ? totalAbsence.toLocaleString('ja-JP') : nullCell}</td>
           <td class="${tdStyle}">${weightedAbsRate !== null ? weightedAbsRate.toFixed(2) + '%' : nullCell}</td>
@@ -1496,19 +1565,81 @@
         </tr>
       `;
 
-      // 予測行が表示されている場合は凡例を追加
+      // 予測ON時：楽観/基準/悲観の各合計行を追加
       if (forecastEnabled && forecastRows.length > 0) {
-        footerHtml += `
-          <tr style="background:#FFFDE7;">
-            <td colspan="11" class="px-4 py-2 text-xs" style="color:#795548;">
-              ※予測行の見方：
-              <span style="color:#388E3C; font-weight:600;">緑=楽観（${FORECAST_DATA.scenarios.optimistic.users}名）</span> /
-              <span style="color:#1976D2; font-weight:600;">青=基準（${FORECAST_DATA.scenarios.baseline.users}名）</span> /
-              <span style="color:#D32F2F; font-weight:600;">赤=悲観（${FORECAST_DATA.scenarios.pessimistic.users}名）</span>
-              　単価 ¥${FORECAST_DATA.unit_price.toLocaleString('ja-JP')}（確定）
-            </td>
-          </tr>
-        `;
+        const fMonths = forecastRows; // already filtered by getFilteredForecastMonths() + text filter
+        const n = fMonths.length;
+        const unit = FORECAST_DATA.unit_price;
+
+        // シナリオ別集計
+        const scenarios = [
+          {
+            key:    'optimistic',
+            label:  '合計 / 平均（楽観）',
+            bgColor: '#E8F5E9',
+            borderColor: '#388E3C',
+            textColor: '#1B5E20',
+            komaKey:   'koma_opt',
+            usersKey:  'users_opt',
+            salesKey:  'sales_opt',
+            absRateKey: 'absence_rate_opt',
+            attendKey: 'avg_attendance_opt',
+          },
+          {
+            key:    'baseline',
+            label:  '合計 / 平均（基準）',
+            bgColor: '#E3F0FF',
+            borderColor: '#1976D2',
+            textColor: '#0031D8',
+            borderStyle: '2px dashed',
+            komaKey:   'koma_base',
+            usersKey:  'users_base',
+            salesKey:  'sales_base',
+            absRateKey: 'absence_rate_base',
+            attendKey: 'avg_attendance_base',
+          },
+          {
+            key:    'pessimistic',
+            label:  '合計 / 平均（悲観）',
+            bgColor: '#FFEBEE',
+            borderColor: '#D32F2F',
+            textColor: '#B71C1C',
+            komaKey:   'koma_pess',
+            usersKey:  'users_pess',
+            salesKey:  'sales_pess',
+            absRateKey: 'absence_rate_pess',
+            attendKey: 'avg_attendance_pess',
+          },
+        ];
+
+        scenarios.forEach(sc => {
+          const totalFKoma  = fMonths.reduce((s, f) => s + f[sc.komaKey], 0);
+          const totalFSales = fMonths.reduce((s, f) => s + f[sc.salesKey], 0);
+          // 利用者数は全月同一シナリオ値なので代表値（最初の行）を平均として表示
+          const avgFUsers   = fMonths.length > 0 ? fMonths[0][sc.usersKey] : null;
+          // 欠席率・出席日数も全月同一シナリオ値
+          const absRate     = fMonths.length > 0 ? fMonths[0][sc.absRateKey] : null;
+          const attendance  = fMonths.length > 0 ? fMonths[0][sc.attendKey] : null;
+          const borderTop   = sc.borderStyle
+            ? `border-top:${sc.borderStyle} ${sc.borderColor};`
+            : `border-top:2px solid ${sc.borderColor};`;
+
+          footerHtml += `
+            <tr style="background:${sc.bgColor}; ${borderTop}" role="row">
+              <td class="px-4 py-2.5 text-sm font-bold" style="color:${sc.textColor}; white-space:nowrap;">${sc.label}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">${totalFKoma.toLocaleString('ja-JP')}</td>
+              <td class="${tdStyle}">${nullCell}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">${absRate !== null ? absRate + '%' : nullCell}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">${avgFUsers !== null ? avgFUsers : nullCell}</td>
+              <td class="${tdStyle}">${nullCell}</td>
+              <td class="${tdStyle}">${nullCell}</td>
+              <td class="${tdStyle}">${nullCell}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">${attendance !== null ? attendance.toFixed(1) : nullCell}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">¥${unit.toLocaleString('ja-JP')}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">¥${totalFSales.toLocaleString('ja-JP')}</td>
+            </tr>
+          `;
+        });
       }
 
       footer.innerHTML = footerHtml;
