@@ -533,13 +533,11 @@
       });
     }
 
-    // 予測データからシナリオ別月次コマ数を計算
+    // 予測データからシナリオ別月次コマ数を計算（売上と統一: users × attendance）
     function calcForecastKoma(scenario) {
       return FORECAST_DATA.months.map(m => {
         const s = FORECAST_DATA.scenarios[scenario];
-        const mm = m.split('-')[1];
-        const days = MONTHLY_AVG_DAYS[mm] || 19.0;
-        return Math.round(s.users * days);
+        return Math.round(s.users * s.attendance);
       });
     }
 
@@ -1404,23 +1402,26 @@
         forecastRows = getFilteredForecastMonths()
           .filter(m => !filterVal2 || m.includes(filterVal2))
           .map(m => {
-            const mm = m.split('-')[1];
-            const days = MONTHLY_AVG_DAYS[mm] || 19.0;
             const opt  = FORECAST_DATA.scenarios.optimistic;
             const base = FORECAST_DATA.scenarios.baseline;
             const pess = FORECAST_DATA.scenarios.pessimistic;
+            // コマ数・売上ともにシナリオ固定の attendance_days ベースで統一
+            // koma = users × attendance, sales = koma × unit_price
+            const komaOpt  = Math.round(opt.users  * opt.attendance);
+            const komaBase = Math.round(base.users * base.attendance);
+            const komaPess = Math.round(pess.users * pess.attendance);
             return {
               month: m,
               isForecast: true,
-              koma_opt:  Math.round(opt.users  * days),
-              koma_base: Math.round(base.users * days),
-              koma_pess: Math.round(pess.users * days),
+              koma_opt:  komaOpt,
+              koma_base: komaBase,
+              koma_pess: komaPess,
               users_opt:  opt.users,
               users_base: base.users,
               users_pess: pess.users,
-              sales_opt:  Math.round(opt.users  * opt.attendance  * FORECAST_DATA.unit_price),
-              sales_base: Math.round(base.users * base.attendance * FORECAST_DATA.unit_price),
-              sales_pess: Math.round(pess.users * pess.attendance * FORECAST_DATA.unit_price),
+              sales_opt:  komaOpt  * FORECAST_DATA.unit_price,
+              sales_base: komaBase * FORECAST_DATA.unit_price,
+              sales_pess: komaPess * FORECAST_DATA.unit_price,
               absence_rate_opt:  opt.absence_rate,
               absence_rate_base: base.absence_rate,
               absence_rate_pess: pess.absence_rate,
