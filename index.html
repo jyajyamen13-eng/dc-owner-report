@@ -445,6 +445,17 @@
           <canvas id="chartSales" role="img" aria-label="売上推移棒グラフ、損益分岐点230万円の赤破線付き"></canvas>
         </div>
       </div>
+
+      <!-- 4-3. 卒業・退所推移（混合グラフ） -->
+      <div class="dg-card p-5 mt-6">
+        <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-gradexits-title">卒業・退所推移</h3>
+        <p class="text-xs text-dg-desc mb-4">
+          月次卒業者数（棒グラフ・青）と退所者数（折れ線・赤）（単位：名）
+        </p>
+        <div class="chart-container" style="height:280px;">
+          <canvas id="chartGradExits" role="img" aria-label="卒業・退所推移混合グラフ、棒グラフが卒業者数、折れ線が退所者数"></canvas>
+        </div>
+      </div>
     </section>
 
     <!-- ===== 5. 月次データ一覧テーブル ===== -->
@@ -604,7 +615,7 @@
       if (forecastEnabled) renderForecastSummaryCards();
 
       // グラフ再描画
-      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays'].forEach(id => {
+      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays', 'chartGradExits'].forEach(id => {
         const el = document.getElementById(id);
         const chart = Chart.getChart(el);
         if (chart) chart.destroy();
@@ -1041,10 +1052,10 @@
       const periodLabel = selectedFy === 'all'
         ? '全期間'
         : (filterMode === 'dc' ? dcPeriodLabel(selectedFy) : `${selectedFy}年度`);
-      ['chart-koma-title', 'chart-absence-title', 'chart-users-title', 'chart-new-title', 'chart-avgdays-title', 'chart-sales-title'].forEach((id, i) => {
+      ['chart-koma-title', 'chart-absence-title', 'chart-users-title', 'chart-new-title', 'chart-avgdays-title', 'chart-sales-title', 'chart-gradexits-title'].forEach((id, i) => {
         const el = document.getElementById(id);
         if (!el) return;
-        const baseNames = ['コマ数推移', '欠席率推移', '利用者数推移', '新規契約者数推移', '平均通所日数推移（レポート値）', '売上推移'];
+        const baseNames = ['コマ数推移', '欠席率推移', '利用者数推移', '新規契約者数推移', '平均通所日数推移（レポート値）', '売上推移', '卒業・退所推移'];
         el.textContent = `${baseNames[i]}（${periodLabel}）`;
       });
 
@@ -1373,6 +1384,76 @@
           }
         }
       });
+
+      // 卒業・退所推移 — 混合グラフ（棒: 卒業者数 / 折れ線: 退所者数）
+      // 予測データには graduates/exits がないため予測期間は表示しない
+      const gradExitsData = sorted.filter(d => d.graduates !== null || d.exits !== null);
+      // ラベルは実績月のみ（予測期間は含めない）
+      const gradExitsLabels = gradExitsData.map(d => d.month);
+      new Chart(document.getElementById('chartGradExits'), {
+        type: 'bar',
+        data: {
+          labels: gradExitsLabels,
+          datasets: [
+            {
+              label: '卒業者数',
+              type: 'bar',
+              data: gradExitsData.map(d => d.graduates),
+              backgroundColor: 'rgba(73,121,245,0.7)',
+              borderColor: '#4979F5',
+              borderWidth: 1,
+              borderRadius: 2,
+              yAxisID: 'y',
+            },
+            {
+              label: '退所者数',
+              type: 'line',
+              data: gradExitsData.map(d => d.exits),
+              borderColor: '#FA0000',
+              backgroundColor: 'rgba(250,0,0,0.08)',
+              borderWidth: 2,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+              pointBackgroundColor: '#FA0000',
+              pointBorderColor: '#FFFFFF',
+              pointBorderWidth: 1.5,
+              tension: 0.3,
+              fill: false,
+              yAxisID: 'y',
+            }
+          ]
+        },
+        options: {
+          ...baseChartOpts('人数', '名'),
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'end',
+              labels: {
+                color: '#626264',
+                font: { size: 11 },
+                boxWidth: 24,
+                padding: 12,
+              }
+            },
+            tooltip: {
+              backgroundColor: '#FFFFFF',
+              titleColor: '#1A1A1A',
+              bodyColor: '#626264',
+              borderColor: '#E5E7EB',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: ctx => {
+                  if (ctx.parsed.y === null) return null;
+                  return ` ${ctx.dataset.label}: ${ctx.parsed.y}名`;
+                }
+              }
+            }
+          }
+        }
+      });
     }
 
     // -----------------------------------------------------------------------
@@ -1686,7 +1767,7 @@
       renderKpiCards(data);
 
       // グラフ再描画
-      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays'].forEach(id => {
+      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays', 'chartGradExits'].forEach(id => {
         const el = document.getElementById(id);
         const chart = Chart.getChart(el);
         if (chart) chart.destroy();
@@ -1778,7 +1859,7 @@
       initFySelects(data);
 
       // グラフ再描画のためキャンバスリセット
-      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays'].forEach(id => {
+      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays', 'chartGradExits'].forEach(id => {
         const el = document.getElementById(id);
         const chart = Chart.getChart(el);
         if (chart) chart.destroy();
