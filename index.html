@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>オーナーレポート分析 — DC盛岡</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // デジタル庁 Design System カラーパレット
+            'dg-blue-100': '#D9E6FF',
+            'dg-blue-300': '#9DB7F9',
+            'dg-blue-500': '#4979F5',
+            'dg-blue-700': '#264AF4',
+            'dg-blue-900': '#0017C1',
+            'dg-body':     '#1A1A1A',
+            'dg-desc':     '#626264',
+            'dg-bg':       '#F8F8F8',
+            'dg-positive': '#0031D8',
+            'dg-negative': '#FA0000',
+            'dg-primary':  '#0031D8',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* ベーススタイル — デジタル庁ガイドブック準拠 */
+    body {
+      background-color: #F8F8F8;
+      color: #1A1A1A;
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+    }
+
+    /* カードスタイル — シンプルで装飾なし */
+    .dg-card {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 6px;
+    }
+
+    /* テーブルスタイル */
+    th {
+      cursor: pointer;
+      user-select: none;
+    }
+    th:hover {
+      background: #D9E6FF;
+    }
+    .sort-asc::after  { content: ' ▲'; opacity: 0.7; font-size: 0.7em; }
+    .sort-desc::after { content: ' ▼'; opacity: 0.7; font-size: 0.7em; }
+
+    /* スクロールバー */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #F8F8F8; }
+    ::-webkit-scrollbar-thumb { background: #9DB7F9; border-radius: 3px; }
+
+    /* ユーティリティ */
+    .null-val { color: #9CA3AF; }
+
+    .badge-fmt {
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+    /* バッジ — 色だけでなくテキストでも区別 */
+    
+    
+    .fmt-new  { background: #D1FAE5; color: #065F46; border: 1px solid #34D399; }
+
+    /* KPIカード値 — 十分なフォントサイズ（14px以上） */
+    .kpi-value { font-size: 1.375rem; font-weight: 700; color: #1A1A1A; line-height: 1.2; }
+    .kpi-label { font-size: 0.75rem; color: #626264; margin-bottom: 4px; }
+    .kpi-sub   { font-size: 0.75rem; color: #626264; margin-top: 4px; }
+
+    /* 入力フィールド */
+    input[type="number"], input[type="text"], select {
+      border: 1px solid #D1D5DB;
+      background: #FFFFFF;
+      color: #1A1A1A;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 0.875rem;
+    }
+    input[type="number"]:focus,
+    input[type="text"]:focus,
+    select:focus {
+      outline: 2px solid #4979F5;
+      outline-offset: 1px;
+      border-color: #4979F5;
+    }
+
+    /* ボタン — アクセシビリティ (44x44px以上のタップ領域) */
+    .btn-primary {
+      background: #0031D8;
+      color: #FFFFFF;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .btn-primary:hover { background: #264AF4; }
+    .btn-secondary {
+      background: #FFFFFF;
+      color: #626264;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: 1px solid #D1D5DB;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .btn-secondary:hover { background: #F8F8F8; }
+
+    /* 差分カラー */
+    .diff-positive { color: #0031D8; font-weight: 600; }
+    .diff-negative { color: #FA0000; font-weight: 600; }
+    .diff-neutral  { color: #626264; }
+
+    /* セクション区切り */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1A1A1A;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #4979F5;
+      margin-bottom: 16px;
+    }
+
+    /* グラフコンテナ */
+    .chart-container {
+      position: relative;
+    }
+
+    /* ヘッダー */
+    .page-header {
+      background: #FFFFFF;
+      border-bottom: 1px solid #E5E7EB;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- ===== PASSWORD PROTECTION OVERLAY ===== -->
+<div id="pw-overlay" style="
+  position: fixed; inset: 0; z-index: 9999;
+  background: #F8F8F8;
+  display: flex; align-items: center; justify-content: center;
+">
+  <div style="
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 40px 48px;
+    width: 360px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    text-align: center;
+  ">
+    <div style="margin-bottom: 24px;">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 12px;">
+        <rect width="40" height="40" rx="8" fill="#0031D8" fill-opacity="0.08"/>
+        <path d="M20 10C17.24 10 15 12.24 15 15V18H13C11.9 18 11 18.9 11 20V29C11 30.1 11.9 31 13 31H27C28.1 31 29 30.1 29 29V20C29 18.9 28.1 18 27 18H25V15C25 12.24 22.76 10 20 10ZM20 12C21.66 12 23 13.34 23 15V18H17V15C17 13.34 18.34 12 20 12ZM20 23C21.1 23 22 23.9 22 25C22 26.1 21.1 27 20 27C18.9 27 18 26.1 18 25C18 23.9 18.9 23 20 23Z" fill="#0031D8"/>
+      </svg>
+      <p style="color: #1A1A1A; font-size: 18px; font-weight: 700; margin: 0 0 4px; font-family: 'Hiragino Sans','Noto Sans JP',sans-serif;">オーナーレポート</p>
+      <p style="color: #626264; font-size: 13px; margin: 0; font-family: 'Hiragino Sans','Noto Sans JP',sans-serif;">DC盛岡 — アクセス制限</p>
+    </div>
+    <input
+      id="pw-input"
+      type="password"
+      placeholder="パスワードを入力"
+      autocomplete="current-password"
+      style="
+        width: 100%; box-sizing: border-box;
+        border: 1px solid #D1D5DB; border-radius: 4px;
+        padding: 10px 14px; font-size: 15px;
+        outline: none; margin-bottom: 12px;
+        font-family: 'Hiragino Sans','Noto Sans JP',sans-serif;
+        color: #1A1A1A;
+      "
+      onkeydown="if(event.key==='Enter')checkPassword()"
+    />
+    <p id="pw-error" style="
+      color: #FA0000; font-size: 13px; margin: 0 0 12px;
+      display: none;
+      font-family: 'Hiragino Sans','Noto Sans JP',sans-serif;
+    ">パスワードが違います</p>
+    <button
+      onclick="checkPassword()"
+      style="
+        width: 100%; background: #0031D8; color: #fff;
+        border: none; border-radius: 4px;
+        padding: 11px 0; font-size: 15px; font-weight: 600;
+        cursor: pointer;
+        font-family: 'Hiragino Sans','Noto Sans JP',sans-serif;
+      "
+    >アクセス</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  // SHA-256 hash of "dc2025morioka"
+  var HASH = '90023ad424bf6bae98c9d490d71835578c523acc06bf378233c38296bf4e1834';
+  var SESSION_KEY = 'dc_owner_report_auth';
+
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    document.getElementById('pw-overlay').style.display = 'none';
+  }
+
+  window.checkPassword = async function() {
+    var input = document.getElementById('pw-input').value;
+    var errEl = document.getElementById('pw-error');
+    var msgBuf = new TextEncoder().encode(input);
+    var hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
+    var hashArr = Array.from(new Uint8Array(hashBuf));
+    var hashHex = hashArr.map(b => b.toString(16).padStart(2, '0')).join('');
+    if (hashHex === HASH) {
+      sessionStorage.setItem(SESSION_KEY, '1');
+      document.getElementById('pw-overlay').style.display = 'none';
+      errEl.style.display = 'none';
+    } else {
+      errEl.style.display = 'block';
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  };
+})();
+</script>
+<!-- ===== END PASSWORD PROTECTION ===== -->
+
+  <!-- ページヘッダー — シンプル、装飾なし -->
+  <header class="page-header" role="banner">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="index.html"
+           aria-label="ランチャーに戻る"
+           class="text-sm text-dg-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-dg-blue-500 rounded">
+          ← ランチャー
+        </a>
+        <span aria-hidden="true" class="text-gray-300">|</span>
+        <div>
+          <h1 class="text-lg font-bold text-dg-body" style="line-height:1.3;">
+            オーナーレポート分析
+          </h1>
+          <p class="text-xs text-dg-desc">
+            ディーキャリアいわて・盛岡オフィス — 2021年8月〜2026年2月
+          </p>
+        </div>
+      </div>
+      <div id="data-status" class="text-xs text-dg-desc" aria-live="polite"></div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 space-y-10" role="main">
+
+    <!-- ===== 1. 報酬単価設定 ===== -->
+    <section aria-labelledby="unit-price-title">
+      <h2 id="unit-price-title" class="section-title">
+        年度別 報酬単価設定
+      </h2>
+      <p class="text-xs text-dg-desc mb-4">
+        4月〜3月が1年度。入力値はブラウザに保存されます。
+      </p>
+      <div class="dg-card p-5">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="unit-price-inputs"></div>
+        <div class="mt-4 flex gap-3">
+          <button onclick="applyUnitPrices()" class="btn-primary" aria-label="報酬単価を適用して売上を再計算">
+            適用して再計算
+          </button>
+          <button onclick="resetUnitPrices()" class="btn-secondary" aria-label="報酬単価設定をリセット">
+            リセット
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 2. 月別 KPI サマリー（最上部の全体指標） ===== -->
+    <section aria-labelledby="kpi-title">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="kpi-title" class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+          月別 KPI サマリー
+        </h2>
+        <div class="flex items-center gap-2">
+          <label for="kpi-month-select" class="text-sm text-dg-desc">対象月：</label>
+          <select id="kpi-month-select" aria-label="KPI表示月を選択"></select>
+        </div>
+      </div>
+      <div style="border-bottom: 2px solid #4979F5; margin-bottom: 16px;"></div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3" id="kpi-cards"
+           role="list" aria-label="KPI指標カード一覧"></div>
+    </section>
+
+    <!-- ===== 3. 前月比・前年同月比 ===== -->
+    <section aria-labelledby="compare-title">
+      <h2 id="compare-title" class="section-title">
+        前月比 / 前年同月比
+        <span id="compare-month-label" class="text-sm font-normal text-dg-desc ml-2"></span>
+      </h2>
+      <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="compare-cards"></div>
+    </section>
+
+    <!-- ===== 4. 推移グラフ（詳細） ===== -->
+    <section aria-labelledby="charts-title">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="charts-title" class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+          推移グラフ
+        </h2>
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          <div class="flex items-center gap-1 border border-gray-200 rounded overflow-hidden" style="font-size:0.8rem;">
+            <button id="btn-mode-fy" onclick="switchFilterMode('fy')"
+              class="px-3 py-1" style="background:#0031D8; color:#fff; border:none; cursor:pointer; min-height:unset;">年度（4月始）</button>
+            <button id="btn-mode-dc" onclick="switchFilterMode('dc')"
+              class="px-3 py-1" style="background:#fff; color:#626264; border:none; cursor:pointer; min-height:unset;">決算期（6月始）</button>
+          </div>
+          <label id="chart-period-label" for="chart-fy-select" class="text-sm text-dg-desc">年度：</label>
+          <select id="chart-fy-select" aria-label="グラフ表示年度/決算期を選択"></select>
+        </div>
+      </div>
+      <div style="border-bottom: 2px solid #4979F5; margin-bottom: 16px;"></div>
+
+      <!-- 4-1. コマ数・欠席率・利用者数・新規契約・平均通所日数 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <div class="dg-card p-5">
+          <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-koma-title">コマ数推移</h3>
+          <p class="text-xs text-dg-desc mb-4">月次コマ数（単位：コマ）</p>
+          <div class="chart-container" style="height:240px;">
+            <canvas id="chartKoma" role="img" aria-label="コマ数推移折れ線グラフ"></canvas>
+          </div>
+        </div>
+
+        <div class="dg-card p-5">
+          <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-absence-title">欠席率推移</h3>
+          <p class="text-xs text-dg-desc mb-4">月次欠席率（単位：%）</p>
+          <div class="chart-container" style="height:240px;">
+            <canvas id="chartAbsence" role="img" aria-label="欠席率推移折れ線グラフ"></canvas>
+          </div>
+        </div>
+
+        <div class="dg-card p-5">
+          <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-users-title">利用者数推移</h3>
+          <p class="text-xs text-dg-desc mb-4">月末在籍利用者数（単位：名）</p>
+          <div class="chart-container" style="height:240px;">
+            <canvas id="chartUsers" role="img" aria-label="利用者数推移折れ線グラフ"></canvas>
+          </div>
+        </div>
+
+        <div class="dg-card p-5">
+          <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-new-title">新規契約者数推移</h3>
+          <p class="text-xs text-dg-desc mb-4">月次新規契約者数（単位：名）</p>
+          <div class="chart-container" style="height:240px;">
+            <canvas id="chartNewContracts" role="img" aria-label="新規契約者数推移棒グラフ"></canvas>
+          </div>
+        </div>
+
+        <div class="dg-card p-5">
+          <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-avgdays-title">平均通所日数推移（レポート値）</h3>
+          <p class="text-xs text-dg-desc mb-4">月次平均通所日数（単位：日）</p>
+          <div class="chart-container" style="height:240px;">
+            <canvas id="chartAvgDays" role="img" aria-label="平均通所日数推移折れ線グラフ"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 4-2. 売上推移（損益分岐点ライン付き） -->
+      <div class="dg-card p-5">
+        <div class="flex items-start justify-between mb-1">
+          <h3 class="text-sm font-bold text-dg-body" id="chart-sales-title">売上推移</h3>
+          <span id="cumulative-pl" style="font-size:0.8rem; background:#F8F8F8; border:1px solid #E5E7EB; border-radius:4px; padding:3px 10px; white-space:nowrap;"></span>
+        </div>
+        <p class="text-xs text-dg-desc mb-4">
+          月次売上（単位：円）。
+          <span style="color:#FA0000; font-weight:600;">赤破線</span>
+          は損益分岐点 ¥2,300,000。損益分岐点以上の月は青、未満は赤で表示。
+        </p>
+        <div class="chart-container" style="height:280px;">
+          <canvas id="chartSales" role="img" aria-label="売上推移棒グラフ、損益分岐点230万円の赤破線付き"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 5. 月次データ一覧テーブル ===== -->
+    <section aria-labelledby="table-title">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="table-title" class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+          月次データ一覧
+        </h2>
+        <div class="flex items-center gap-3 flex-wrap justify-end">
+          <label id="table-period-label" for="fy-select" class="text-sm text-dg-desc">年度：</label>
+          <select id="fy-select" aria-label="テーブル表示年度/決算期を選択"></select>
+          <label for="filter-input" class="text-sm text-dg-desc">絞り込み：</label>
+          <input id="filter-input" type="text" placeholder="例: 2024"
+            aria-label="年月で絞り込み（例: 2024）"
+            style="width:160px;" />
+          <span id="row-count" class="text-xs text-dg-desc" aria-live="polite"></span>
+        </div>
+      </div>
+      <div style="border-bottom: 2px solid #4979F5; margin-bottom: 16px;"></div>
+
+      <div class="dg-card overflow-x-auto">
+        <table class="w-full text-sm text-left" role="grid" aria-label="月次KPIデータ一覧">
+          <thead style="background:#D9E6FF; color:#1A1A1A;">
+            <tr>
+              <th class="px-4 py-3 text-xs font-bold" data-col="month" scope="col">年月</th>
+
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="koma" scope="col">コマ数</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="absence" scope="col">欠席コマ</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="absence_rate" scope="col">欠席率</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="total_users" scope="col">利用者数</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="new_contracts" scope="col">新規契約</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="graduates" scope="col">就職</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="exits" scope="col">退所</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="avg_attendance_days" scope="col">平均通所</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="basic_unit" scope="col">報酬単価</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" data-col="sales" scope="col">売上</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+          <tfoot id="table-footer"></tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- メタ情報フッター -->
+    <footer class="text-xs text-dg-desc border-t border-gray-200 pt-4 pb-8" role="contentinfo">
+      <p>出典：ディーキャリアいわて・盛岡オフィス 月次オーナーレポート（2021年8月〜2026年2月）</p>
+      <p class="mt-1">注記：推計値を含む月は利用者数に「(推計)」と表示。売上は報酬単価×コマ数で算出（一部実績値）。</p>
+    </footer>
+
+  </main>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // データ読み込み
+    // -----------------------------------------------------------------------
+    const DATA_URL = null; // embedded
+    const EMBEDDED_DATA = [{"month": "2021-08", "basic_unit": 8200.0, "koma": 0.0, "absence": 0.0, "absence_rate": 0.0, "avg_attendance_days": 0.0, "visit": 5.0, "experience": 5.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": null, "graduates": 0.0}, {"month": "2021-09", "basic_unit": 8200.0, "sales": 24600, "koma": 3.0, "absence": 1.0, "absence_rate": 25.0, "avg_attendance_days": 3.0, "visit": 8.0, "experience": 5.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 1.0}, {"month": "2021-10", "basic_unit": 8200.0, "sales": 131200, "koma": 16.0, "absence": 0.0, "absence_rate": 0.0, "avg_attendance_days": 16.0, "visit": 13.0, "experience": 6.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 1.0}, {"month": "2021-11", "basic_unit": 8200.0, "sales": 147600, "koma": 18.0, "absence": 0.0, "absence_rate": 0.0, "avg_attendance_days": 18.0, "visit": 17.0, "experience": 18.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 1.0}, {"month": "2021-12", "basic_unit": 8200.0, "sales": 328000, "koma": 40.0, "absence": 3.0, "absence_rate": 7.0, "avg_attendance_days": 20.0, "visit": 13.0, "experience": 20.0, "accepted": 1.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 2.0}, {"month": "2022-01", "basic_unit": 8200.0, "sales": 451000, "koma": 55.0, "absence": 3.0, "absence_rate": 5.2, "avg_attendance_days": 18.3, "visit": 2.0, "experience": 23.0, "accepted": 2.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 3.0}, {"month": "2022-02", "basic_unit": 8200.0, "sales": 582200, "koma": 71.0, "absence": 3.0, "absence_rate": 4.1, "avg_attendance_days": 14.2, "visit": 6.0, "experience": 1.0, "accepted": 0.0, "new_contracts": 1.0, "exits": 1.0, "total_users": 5.0}, {"month": "2022-03", "basic_unit": 8200.0, "sales": 606800, "koma": 74.0, "absence": 14.0, "absence_rate": 15.9, "avg_attendance_days": 10.0, "visit": 11.0, "experience": 17.0, "accepted": 4.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 6}, {"month": "2022-04", "basic_unit": 8200.0, "sales": 541200, "koma": 66.0, "absence": 30.0, "absence_rate": 31.3, "avg_attendance_days": 11.0, "visit": 10.0, "experience": 8.0, "accepted": 5.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 6.0}, {"month": "2022-05", "basic_unit": 8200.0, "sales": 656000, "koma": 80.0, "absence": 25.0, "absence_rate": 23.8, "avg_attendance_days": 6.9, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 8}, {"month": "2022-06", "basic_unit": 8200.0, "sales": 647800, "koma": 79.0, "absence": 10.0, "absence_rate": 11.2, "avg_attendance_days": 8.6, "visit": 23.0, "experience": 22.0, "accepted": 4.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 8}, {"month": "2022-07", "basic_unit": 8200.0, "sales": 984000, "koma": 120.0, "absence": 20.0, "absence_rate": 14.3, "avg_attendance_days": 13.3, "visit": 12.0, "experience": 9.0, "accepted": 1.0, "new_contracts": 5.0, "exits": 0.0, "total_users": 9.0}, {"month": "2022-08", "basic_unit": 8200.0, "sales": 1353000, "koma": 165.0, "absence": 15.0, "absence_rate": 8.3, "avg_attendance_days": 16.7, "visit": 24.0, "experience": 18.0, "accepted": 2.0, "new_contracts": 0.0, "exits": 1.0, "total_users": 9}, {"month": "2022-09", "basic_unit": 8200.0, "koma": 146.0, "absence": 11.0, "absence_rate": 7.0, "total_users": 9.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.2, "visit": 8.0, "experience": 9.0, "accepted": 4.0, "exits": 0.0, "sales": 1197200}, {"month": "2022-10", "basic_unit": 8200.0, "koma": 189.0, "absence": 5.0, "absence_rate": 2.6, "total_users": 10, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 18.4, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 1549800}, {"month": "2022-11", "basic_unit": 8200.0, "koma": 188.0, "absence": 26.0, "absence_rate": 12.2, "total_users": 11.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 17.1, "visit": 10.0, "experience": 8.0, "accepted": 0.0, "exits": 0.0, "sales": 1541600}, {"month": "2022-12", "basic_unit": 8200.0, "koma": 165.0, "absence": 26.0, "absence_rate": 13.6, "total_users": 10.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.5, "visit": 2.0, "experience": 6.0, "accepted": 1.0, "exits": 0.0, "sales": 1353000}, {"month": "2023-01", "basic_unit": 8200.0, "koma": 193.0, "absence": 22.0, "absence_rate": 10.2, "total_users": 11.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 17.5, "visit": 4.0, "experience": 3.0, "accepted": 1.0, "exits": 0.0, "sales": 1582600}, {"month": "2023-02", "basic_unit": 8200.0, "koma": 208.0, "absence": 16.0, "absence_rate": 7.1, "total_users": 12, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.0, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 1705600}, {"month": "2023-03", "basic_unit": 8200.0, "koma": 256.0, "absence": 29.0, "absence_rate": 10.2, "total_users": 14.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 18.3, "visit": 7.0, "experience": 3.0, "accepted": 2.0, "exits": 0.0, "sales": 2099200}, {"month": "2023-04", "basic_unit": 8200.0, "koma": 260.0, "absence": 27.0, "absence_rate": 9.4, "total_users": 16.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 16.3, "visit": 1.0, "experience": 1.0, "accepted": 0.0, "exits": 0.0, "sales": 2132000}, {"month": "2023-05", "basic_unit": 8200.0, "koma": 270.0, "absence": 30.0, "absence_rate": 10.0, "total_users": 15.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 18.0, "visit": 5.0, "experience": 2.0, "accepted": 1.0, "exits": 0.0, "sales": 2214000}, {"month": "2023-06", "basic_unit": 8200.0, "koma": 272.0, "absence": 60.0, "absence_rate": 18.1, "total_users": 14, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 15.1, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 2230400}, {"month": "2023-07", "basic_unit": 8200.0, "koma": 244.0, "absence": 29.0, "absence_rate": 10.6, "total_users": 13, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.5, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 2000800}, {"month": "2023-08", "basic_unit": 8200.0, "koma": 247.0, "absence": 14.0, "absence_rate": 5.4, "total_users": 12.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 20.6, "visit": 1.0, "experience": 4.0, "accepted": 3.0, "exits": 1.0, "sales": 2025400}, {"month": "2023-09", "basic_unit": 8200.0, "koma": 252.0, "absence": 22.0, "absence_rate": 8.0, "total_users": 12.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 21.0, "visit": 2.0, "experience": 3.0, "accepted": 3.0, "exits": 0.0, "sales": 2066400}, {"month": "2023-10", "basic_unit": 8200.0, "koma": 282.0, "absence": 32.0, "absence_rate": 10.2, "total_users": 14.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 20.1, "visit": 3.0, "experience": 3.0, "accepted": 2.0, "exits": 1.0, "sales": 2312400}, {"month": "2023-11", "basic_unit": 8200.0, "koma": 278.0, "absence": 24.0, "absence_rate": 8.0, "total_users": 15.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 18.5, "visit": 4.0, "experience": 4.0, "accepted": 1.0, "exits": 0.0, "sales": 2279600}, {"month": "2023-12", "basic_unit": 8200.0, "koma": 281.0, "absence": 37.0, "absence_rate": 11.6, "total_users": 14.0, "new_contracts": 1.0, "graduates": 1.0, "avg_attendance_days": 20.1, "visit": 4.0, "experience": 4.0, "accepted": 1.0, "exits": 0.0, "sales": 2304200}, {"month": "2024-01", "basic_unit": 8200.0, "koma": 293.0, "absence": 31.0, "absence_rate": 9.6, "total_users": 16.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 18.3, "visit": 3.0, "experience": 3.0, "accepted": 3.0, "exits": 2.0, "sales": 2402600}, {"month": "2024-02", "basic_unit": 8200.0, "koma": 245.0, "absence": 10.0, "absence_rate": 3.9, "total_users": 13.0, "new_contracts": 0.0, "graduates": 4.0, "avg_attendance_days": 18.8, "visit": 5.0, "experience": 5.0, "accepted": 4.0, "exits": 0.0, "sales": 2009000}, {"month": "2024-03", "basic_unit": 8200.0, "koma": 162.0, "absence": 37.0, "absence_rate": 18.6, "total_users": 9.0, "new_contracts": 2.0, "graduates": 2.0, "avg_attendance_days": 18.0, "visit": 7.0, "experience": 6.0, "accepted": 2.0, "exits": 2.0, "sales": 1328400}, {"month": "2024-04", "basic_unit": 8200.0, "koma": 151.0, "absence": 23.0, "absence_rate": 13.2, "total_users": 9.0, "new_contracts": 3.0, "graduates": 1.0, "avg_attendance_days": 16.8, "visit": 4.0, "experience": 6.0, "accepted": 4.0, "exits": 1.0, "sales": 1238200}, {"month": "2024-05", "basic_unit": 5190.0, "koma": 190.0, "absence": 24.0, "absence_rate": 11.2, "total_users": 11.0, "new_contracts": 4.0, "graduates": 0.0, "avg_attendance_days": 17.3, "visit": 3.0, "experience": 3.0, "accepted": 0.0, "exits": 1.0, "sales": 986100}, {"month": "2024-06", "basic_unit": 5190.0, "koma": 214.0, "absence": 21.0, "absence_rate": 8.9, "total_users": 12.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 17.8, "visit": 8.0, "experience": 3.0, "accepted": 0.0, "exits": 0.0, "sales": 1110660}, {"month": "2024-07", "basic_unit": 5190.0, "koma": 219.0, "absence": 23.0, "absence_rate": 9.5, "total_users": 12.0, "new_contracts": 0.0, "graduates": 1.0, "avg_attendance_days": 18.3, "visit": 3.0, "experience": 5.0, "accepted": 1.0, "exits": 0.0, "sales": 1136610}, {"month": "2024-08", "basic_unit": 5190.0, "koma": 216.0, "absence": 12.0, "absence_rate": 5.3, "total_users": 11.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 19.6, "visit": 5.0, "experience": 5.0, "accepted": 2.0, "exits": 0.0, "sales": 1121040}, {"month": "2024-09", "basic_unit": 5190.0, "koma": 264.0, "absence": 15.0, "absence_rate": 5.4, "total_users": 14.0, "new_contracts": 3.0, "graduates": 1.0, "avg_attendance_days": 18.9, "visit": 13.0, "experience": 5.0, "accepted": 4.0, "exits": 1.0, "sales": 1370160}, {"month": "2024-10", "basic_unit": 5190.0, "koma": 299.0, "absence": 20.0, "absence_rate": 6.3, "total_users": 14.0, "new_contracts": 2.0, "graduates": 1.0, "avg_attendance_days": 21.4, "visit": 3.0, "experience": 2.0, "accepted": 1.0, "exits": 0.0, "sales": 1551810}, {"month": "2024-11", "basic_unit": 5190.0, "koma": 323.0, "absence": 21.0, "absence_rate": 6.1, "total_users": 16.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 20.2, "visit": 1.0, "experience": 1.0, "accepted": 0.0, "exits": 0.0, "sales": 1676370}, {"month": "2024-12", "basic_unit": 5190.0, "koma": 342.0, "absence": 4.0, "absence_rate": 1.2, "total_users": 16.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 21.4, "visit": 3.0, "experience": 4.0, "accepted": 4.0, "exits": 0.0, "sales": 1774980}, {"month": "2025-01", "basic_unit": 5190.0, "koma": 373.0, "absence": 14.0, "absence_rate": 3.6, "total_users": 19.0, "new_contracts": 3.0, "graduates": 0.0, "avg_attendance_days": 19.6, "visit": 1.0, "experience": 1.0, "accepted": 1.0, "exits": 0.0, "sales": 1935870}, {"month": "2025-02", "basic_unit": 5190.0, "koma": 378.0, "absence": 20.0, "absence_rate": 5.0, "total_users": 20.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 18.9, "visit": 1.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 1961820}, {"month": "2025-03", "basic_unit": 5190.0, "koma": 429.0, "absence": 23.0, "absence_rate": 5.1, "total_users": 20.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 21.5, "visit": 14.0, "experience": 9.0, "accepted": 2.0, "exits": 0.0, "sales": 2226510}, {"month": "2025-04", "basic_unit": 7190.0, "koma": 398.0, "absence": 22.0, "absence_rate": 5.2, "total_users": 21.0, "new_contracts": 2.0, "graduates": 1.0, "avg_attendance_days": 19.0, "visit": 5.0, "experience": 5.0, "accepted": 2.0, "exits": 1.0, "sales": 2861620}, {"month": "2025-05", "basic_unit": 7190.0, "koma": 417.0, "absence": 24.0, "absence_rate": 5.4, "total_users": 21.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 19.9, "visit": 5.0, "experience": 4.0, "accepted": 4.0, "exits": 0.0, "sales": 2998230}, {"month": "2025-06", "basic_unit": 7190.0, "sales": 3776400, "new_contracts": 3.0, "total_users": 23.0, "koma": 470.0, "absence": 23.0, "absence_rate": 4.67, "avg_attendance_days": 21.4, "exits": 0.0, "visit": 1.0, "experience": 1.0, "accepted": 0.0, "graduates": 0.0}, {"month": "2025-07", "basic_unit": 7190.0, "sales": 3483400, "new_contracts": 0.0, "total_users": 23.0, "koma": 434.0, "absence": 33.0, "absence_rate": 7.07, "avg_attendance_days": 18.9, "exits": 3.0, "visit": 3.0, "experience": 2.0, "accepted": 2.0, "graduates": 0.0}, {"month": "2025-08", "basic_unit": 7190.0, "sales": 3000840, "new_contracts": 2.0, "total_users": 20.0, "koma": 372.0, "absence": 16.0, "absence_rate": 4.12, "avg_attendance_days": 18.6, "exits": 0.0, "visit": 4.0, "experience": 4.0, "accepted": 2.0, "graduates": 3.0}, {"month": "2025-09", "basic_unit": 7190.0, "sales": 2903520, "new_contracts": 3.0, "total_users": 22.0, "koma": 365.0, "absence": 21.0, "absence_rate": 5.44, "avg_attendance_days": 16.6, "exits": 0.0, "visit": 4.0, "experience": 4.0, "accepted": 3.0, "graduates": 3.0}, {"month": "2025-10", "basic_unit": 7190.0, "sales": 2987930, "new_contracts": 1.0, "total_users": 19.0, "koma": 370.0, "absence": 15.0, "absence_rate": 3.9, "avg_attendance_days": 19.5, "exits": 3.0, "visit": 4.0, "experience": 4.0, "accepted": 3.0, "graduates": 3.0}, {"month": "2025-11", "basic_unit": 7190.0, "sales": 2691910, "new_contracts": 3.0, "total_users": 17.0, "koma": 333.0, "absence": 15.0, "absence_rate": 4.31, "avg_attendance_days": 19.6, "exits": 0.0, "visit": 3.0, "experience": 3.0, "accepted": 3.0, "graduates": 0.0}, {"month": "2025-12", "basic_unit": 7190.0, "sales": 3280680, "new_contracts": 3.0, "total_users": 21.0, "koma": 408.0, "absence": 6.0, "absence_rate": 1.45, "avg_attendance_days": 19.4, "exits": 1.0, "visit": 6.0, "experience": 6.0, "accepted": 3.0, "graduates": 0.0}, {"month": "2026-01", "basic_unit": 7190.0, "sales": 3294290, "new_contracts": 0.0, "total_users": 21.0, "koma": 409.0, "absence": 19.0, "absence_rate": 4.44, "avg_attendance_days": 19.5, "exits": 0.0, "visit": 0.0, "experience": 1.0, "accepted": 0.0, "graduates": 1.0}, {"month": "2026-02", "basic_unit": 7190.0, "sales": 2664970, "new_contracts": 0.0, "total_users": 18.0, "koma": 331.0, "absence": 15.0, "absence_rate": 4.34, "avg_attendance_days": 18.4, "exits": 2.0, "visit": 3.0, "experience": 4.0, "accepted": 2.0, "graduates": 1.0}];
+
+    let allData = [];
+    let sortCol = 'month';
+    let sortDir = 'desc';
+    let selectedFy = 'all'; // 年度フィルタ状態（'all' or 年度数値の文字列）
+    let filterMode = 'fy'; // 'fy' = 年度（4月始）, 'dc' = 決算期（6月始）
+
+    // -----------------------------------------------------------------------
+    // 年度別 報酬単価管理（4月〜3月が1年度）
+    // -----------------------------------------------------------------------
+    const STORAGE_KEY = 'dc-morioka-unit-prices';
+
+    function getFiscalYear(monthStr) {
+      const [y, m] = monthStr.split('-').map(Number);
+      return m >= 4 ? y : y - 1;
+    }
+
+    function getFiscalYears(data) {
+      const years = new Set(data.map(d => getFiscalYear(d.month)));
+      return [...years].sort();
+    }
+
+    // 年度でデータを絞り込む（4月〜翌3月）
+    function filterByFiscalYear(data, fy) {
+      if (fy === 'all' || fy === null || fy === undefined) return data;
+      if (filterMode === 'dc') {
+        return filterByDcPeriod(data, fy);
+      }
+      const fyNum = Number(fy);
+      return data.filter(d => getFiscalYear(d.month) === fyNum);
+    }
+
+    // 年度ラベルテキスト生成
+    function fyLabel(fy) {
+      if (fy === 'all') return '全期間';
+      return `${fy}年度（${fy}/4〜${Number(fy)+1}/3）`;
+    }
+
+    // DC盛岡 決算期（6月始〜翌5月末）
+    // 期番号: 2021-06〜2022-05 = 第1期（startYear=2021）
+    const DC_PERIOD_START_YEAR = 2021; // 第1期開始年
+
+    function getDcPeriod(monthStr) {
+      // 6月〜翌5月が1期。6〜12月 → startYear=その年、1〜5月 → startYear=前年
+      const [y, m] = monthStr.split('-').map(Number);
+      return m >= 6 ? y : y - 1;
+    }
+
+    function getDcPeriods(data) {
+      const periods = new Set(data.map(d => getDcPeriod(d.month)));
+      return [...periods].sort();
+    }
+
+    function filterByDcPeriod(data, startYear) {
+      if (startYear === 'all') return data;
+      const sy = Number(startYear);
+      return data.filter(d => getDcPeriod(d.month) === sy);
+    }
+
+    function dcPeriodLabel(startYear) {
+      if (startYear === 'all') return '全期間';
+      const num = Number(startYear) - DC_PERIOD_START_YEAR + 1;
+      return `第${num}期（${startYear}/06〜${Number(startYear)+1}/05）`;
+    }
+
+    // 累計損益を計算する（選択期間のデータから）
+    function calcCumulativePL(data) {
+      const filtered = filterByFiscalYear(data, selectedFy);
+      const withSales = filtered.filter(d => d.sales !== null && d.sales !== undefined);
+      const totalSales = withSales.reduce((sum, d) => sum + d.sales, 0);
+      const months = withSales.length;
+      const breakeven = 2300000;
+      const totalBreakeven = breakeven * months;
+      const pl = totalSales - totalBreakeven;
+      return { totalSales, months, pl };
+    }
+
+    // 累計損益バッジを更新する
+    function updateCumulativePL(data) {
+      const el = document.getElementById('cumulative-pl');
+      if (!el) return;
+      const { totalSales, months, pl } = calcCumulativePL(data);
+      if (months === 0) { el.style.display = 'none'; return; }
+      el.style.display = '';
+      const sign = pl >= 0 ? '' : '-';
+      const absVal = Math.abs(pl).toLocaleString('ja-JP');
+      const label = pl >= 0 ? '黒字' : '赤字';
+      const color = pl >= 0 ? '#0031D8' : '#FA0000';
+      el.innerHTML = `累計損益: <strong style="color:${color};">${sign}¥${absVal}（${label}）</strong>`;
+    }
+
+    function loadSavedPrices() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
+    }
+
+    function savePrices(prices) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prices));
+    }
+
+    function renderUnitPriceInputs(data) {
+      const years = getFiscalYears(data);
+      const saved = loadSavedPrices();
+      const defaults = {};
+      data.forEach(d => {
+        const fy = getFiscalYear(d.month);
+        if (d.basic_unit && !defaults[fy]) defaults[fy] = d.basic_unit;
+      });
+
+      document.getElementById('unit-price-inputs').innerHTML = years.map(fy => {
+        const val = saved[fy] || defaults[fy] || '';
+        return `
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-dg-desc font-medium" for="unit-price-${fy}">${fy}年度<br><span class="font-normal">${fy}/4〜${fy+1}/3</span></label>
+            <div class="flex items-center gap-1">
+              <span class="text-xs text-dg-desc">¥</span>
+              <input type="number" id="unit-price-${fy}" data-fy="${fy}" value="${val}" placeholder="単価"
+                aria-label="${fy}年度報酬単価（円）"
+                style="width:100%;" />
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function applyUnitPrices() {
+      const inputs = document.querySelectorAll('#unit-price-inputs input[data-fy]');
+      const prices = {};
+      inputs.forEach(el => {
+        const fy = el.dataset.fy;
+        const val = parseFloat(el.value);
+        if (!isNaN(val) && val > 0) prices[fy] = val;
+      });
+      savePrices(prices);
+
+      allData.forEach(d => {
+        const fy = getFiscalYear(d.month);
+        if (prices[fy]) {
+          d.basic_unit = prices[fy];
+          if (d.koma !== null) {
+            d.estimated_sales = Math.round(d.koma * prices[fy]);
+          }
+        }
+      });
+
+      renderAll(allData);
+    }
+
+    function resetUnitPrices() {
+      localStorage.removeItem(STORAGE_KEY);
+      location.reload();
+    }
+
+    // -----------------------------------------------------------------------
+    // ユーティリティ
+    // -----------------------------------------------------------------------
+    function fmt(v, digits = 0, suffix = '') {
+      if (v === null || v === undefined) return '<span class="null-val">—</span>';
+      const n = Number(v);
+      return n.toLocaleString('ja-JP', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + suffix;
+    }
+
+    function fmtRate(v) {
+      if (v === null || v === undefined) return '<span class="null-val">—</span>';
+      return Number(v).toFixed(2) + '%';
+    }
+
+    function fmtSales(v) {
+      if (v === null || v === undefined) return '<span class="null-val">—</span>';
+      return '¥' + Number(v).toLocaleString('ja-JP');
+    }
+
+    function fmtBadge(fmt) {
+      return '';
+    }
+
+    // -----------------------------------------------------------------------
+    // KPI サマリーカード
+    // -----------------------------------------------------------------------
+    let selectedKpiMonth = null;
+
+    function renderKpiCards(data) {
+      // 年度フィルタが選択されている場合はその年度のデータのみ対象
+      const filtered = filterByFiscalYear(data, selectedFy);
+      const sorted = [...filtered].filter(d => d.koma !== null).sort((a,b) => b.month.localeCompare(a.month));
+      if (!sorted.length) return;
+
+      // 年度切替時は月選択をリセット（選択中の月が新しい年度にない場合）
+      if (selectedKpiMonth && !sorted.find(d => d.month === selectedKpiMonth)) {
+        selectedKpiMonth = null;
+      }
+
+      // 月セレクタ
+      const select = document.getElementById('kpi-month-select');
+      const currentVal = selectedKpiMonth || sorted[0].month;
+      select.innerHTML = sorted.map(d =>
+        `<option value="${d.month}" ${d.month === currentVal ? 'selected' : ''}>${d.month}</option>`
+      ).join('');
+      select.onchange = () => { selectedKpiMonth = select.value; renderKpiCards(data); };
+
+      const latest = sorted.find(d => d.month === currentVal) || sorted[0];
+      const estLabel = latest.total_users_estimated ? ' (推計)' : '';
+
+      const cards = [
+        { label: 'コマ数',      value: fmt(latest.koma),             unit: 'コマ',  sub: '' },
+        { label: '当月売上',     value: fmtSales(latest.sales),       unit: '',      sub: latest.unit_price ? `単価 ¥${fmt(latest.unit_price)}` : '' },
+        { label: '利用者数',     value: fmt(latest.total_users) + estLabel, unit: '名', sub: `新規 ${fmt(latest.new_contracts)} 名` },
+        { label: '平均通所日数', value: latest.avg_attendance_days !== null && latest.avg_attendance_days !== undefined ? latest.avg_attendance_days + '日' : '<span class="null-val">—</span>', unit: '', sub: `営業日数 ${latest.business_days || '—'}日` },
+        { label: '欠席率',      value: fmtRate(latest.absence_rate), unit: '',      sub: latest.absence !== null ? `欠席${fmt(latest.absence)}コマ` : '' },
+        { label: '就職者数',     value: fmt(latest.graduates),        unit: '名',    sub: '' },
+        { label: '退所者数',     value: fmt(latest.exits),            unit: '名',    sub: '' },
+        { label: '見学/体験',    value: `${fmt(latest.visit)} / ${fmt(latest.experience)}`, unit: '名', sub: `内諾 ${latest.accepted !== null ? fmt(latest.accepted) : '—'} 名` },
+      ];
+
+      document.getElementById('kpi-cards').innerHTML = cards.map(c => `
+        <div class="dg-card p-4" role="listitem">
+          <div class="kpi-label">${c.label}</div>
+          <div class="kpi-value">${c.value}</div>
+          <div class="kpi-sub">${c.sub}</div>
+        </div>
+      `).join('');
+    }
+
+    // -----------------------------------------------------------------------
+    // 前月比・前年同月比
+    // -----------------------------------------------------------------------
+    function renderCompareCards(data) {
+      const sorted = [...data].sort((a,b) => a.month.localeCompare(b.month));
+      const latest = sorted[sorted.length - 1];
+      if (!latest) return;
+
+      document.getElementById('compare-month-label').textContent = `（${latest.month} 基準）`;
+
+      const prev = sorted.find(d => d.month === prevMonth(latest.month));
+      const prevYear = sorted.find(d => d.month === prevYearMonth(latest.month));
+
+      function prevMonth(ym) {
+        const [y, m] = ym.split('-').map(Number);
+        const d = new Date(y, m - 2, 1);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      }
+      function prevYearMonth(ym) {
+        const [y, m] = ym.split('-');
+        return `${Number(y)-1}-${m}`;
+      }
+
+      const comparisons = [
+        { label: 'コマ数（前月比）',     cur: latest.koma,         base: prev?.koma,              unit: 'コマ', hib: true },
+        { label: '欠席率（前月比）',     cur: latest.absence_rate, base: prev?.absence_rate,      unit: '%',   hib: false },
+        { label: 'コマ数（前年同月比）', cur: latest.koma,         base: prevYear?.koma,          unit: 'コマ', hib: true },
+        { label: '欠席率（前年同月比）', cur: latest.absence_rate, base: prevYear?.absence_rate,  unit: '%',   hib: false },
+      ];
+
+      document.getElementById('compare-cards').innerHTML = comparisons.map(c => {
+        const diff = (c.cur !== null && c.base !== null) ? (c.cur - c.base) : null;
+        const positive = diff !== null && diff > 0;
+        const good = diff !== null && (c.hib ? positive : !positive);
+        const diffClass = diff === null ? 'diff-neutral' : good ? 'diff-positive' : 'diff-negative';
+        const arrow = diff === null ? '' : positive ? '↑' : '↓';
+        const diffAbs = diff !== null ? Math.abs(diff).toLocaleString('ja-JP', {maximumFractionDigits:2}) : null;
+        const sign = diff !== null ? (positive ? '+' : '-') : '';
+
+        return `
+          <div class="dg-card p-4">
+            <div class="kpi-label">${c.label}</div>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span class="kpi-value">${c.cur !== null ? c.cur.toLocaleString('ja-JP', {maximumFractionDigits:2}) + c.unit : '—'}</span>
+              ${diff !== null ? `<span class="${diffClass}" style="font-size:0.875rem;">${arrow}${diffAbs}${c.unit}</span>` : '<span class="diff-neutral" style="font-size:0.875rem;">—</span>'}
+            </div>
+            <div class="kpi-sub mt-1">基準: ${c.base !== null ? c.base.toLocaleString('ja-JP', {maximumFractionDigits:2}) + c.unit : '—'}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // -----------------------------------------------------------------------
+    // グラフ — デジタル庁ガイドブック準拠
+    // カラーパレット: Blue-500 #4979F5 メイン
+    // グリッド線最小限、原点は0、3D/影なし
+    // -----------------------------------------------------------------------
+    Chart.defaults.color = '#626264';
+    Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
+    Chart.defaults.font.family = '"Hiragino Sans", "Noto Sans JP", sans-serif';
+    Chart.defaults.font.size = 11;
+
+    const DG_BLUE_500 = '#4979F5';
+    const DG_BLUE_300 = '#9DB7F9';
+    const DG_BLUE_100 = '#D9E6FF';
+    const DG_NEGATIVE = '#FA0000';
+    const DG_POSITIVE_FILL = 'rgba(73,121,245,0.1)';
+
+    const baseChartOpts = (yLabel, suffix = '') => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#FFFFFF',
+          titleColor: '#1A1A1A',
+          bodyColor: '#626264',
+          borderColor: '#E5E7EB',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y?.toLocaleString('ja-JP', {maximumFractionDigits:2})}${suffix}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { color: '#E5E7EB' },
+          ticks: {
+            maxRotation: 45,
+            color: '#626264',
+            font: { size: 10 }
+          }
+        },
+        y: {
+          grid: {
+            color: 'rgba(0,0,0,0.06)',
+            drawBorder: false
+          },
+          border: { display: false },
+          title: {
+            display: true,
+            text: yLabel,
+            color: '#626264',
+            font: { size: 10 }
+          },
+          beginAtZero: true,
+          ticks: { color: '#626264' }
+        }
+      }
+    });
+
+    function renderCharts(data) {
+      // 年度フィルタ適用
+      const displayData = filterByFiscalYear(data, selectedFy);
+      const sorted = [...displayData].sort((a,b) => a.month.localeCompare(b.month));
+
+      // グラフタイトル更新
+      const periodLabel = selectedFy === 'all'
+        ? '全期間'
+        : (filterMode === 'dc' ? dcPeriodLabel(selectedFy) : `${selectedFy}年度`);
+      ['chart-koma-title', 'chart-absence-title', 'chart-users-title', 'chart-new-title', 'chart-avgdays-title', 'chart-sales-title'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const baseNames = ['コマ数推移', '欠席率推移', '利用者数推移', '新規契約者数推移', '平均通所日数推移（レポート値）', '売上推移'];
+        el.textContent = `${baseNames[i]}（${periodLabel}）`;
+      });
+
+      // コマ数 — 折れ線（時間変化・傾向を表現）
+      const komaData = sorted.filter(d => d.koma !== null);
+      new Chart(document.getElementById('chartKoma'), {
+        type: 'line',
+        data: {
+          labels: komaData.map(d => d.month),
+          datasets: [{
+            data: komaData.map(d => d.koma),
+            borderColor: DG_BLUE_500,
+            backgroundColor: DG_POSITIVE_FILL,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: DG_BLUE_500,
+            pointBorderColor: '#FFFFFF',
+            pointBorderWidth: 1.5,
+          }]
+        },
+        options: baseChartOpts('コマ数', 'コマ')
+      });
+
+      // 欠席率 — 折れ線
+      const absData = sorted.filter(d => d.absence_rate !== null);
+      new Chart(document.getElementById('chartAbsence'), {
+        type: 'line',
+        data: {
+          labels: absData.map(d => d.month),
+          datasets: [{
+            data: absData.map(d => d.absence_rate),
+            borderColor: '#264AF4',
+            backgroundColor: 'rgba(38,74,244,0.08)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#264AF4',
+            pointBorderColor: '#FFFFFF',
+            pointBorderWidth: 1.5,
+          }]
+        },
+        options: baseChartOpts('欠席率', '%')
+      });
+
+      // 利用者数 — 折れ線
+      const usersData = sorted.filter(d => d.total_users !== null);
+      new Chart(document.getElementById('chartUsers'), {
+        type: 'line',
+        data: {
+          labels: usersData.map(d => d.month),
+          datasets: [{
+            data: usersData.map(d => d.total_users),
+            borderColor: '#264AF4',
+            backgroundColor: 'rgba(38,74,244,0.08)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#264AF4',
+            pointBorderColor: '#FFFFFF',
+            pointBorderWidth: 1.5,
+          }]
+        },
+        options: baseChartOpts('利用者数', '名')
+      });
+
+      // 新規契約者数 — 棒グラフ（数量比較）
+      const newData = sorted.filter(d => d.new_contracts !== null);
+      new Chart(document.getElementById('chartNewContracts'), {
+        type: 'bar',
+        data: {
+          labels: newData.map(d => d.month),
+          datasets: [{
+            data: newData.map(d => d.new_contracts),
+            backgroundColor: DG_BLUE_300,
+            borderColor: DG_BLUE_500,
+            borderWidth: 1,
+            borderRadius: 2,
+          }]
+        },
+        options: baseChartOpts('新規契約者数', '名')
+      });
+
+      // 平均通所日数 — 折れ線
+      const avgDaysData = sorted.filter(d => d.avg_attendance_days !== null && d.avg_attendance_days !== undefined);
+      new Chart(document.getElementById('chartAvgDays'), {
+        type: 'line',
+        data: {
+          labels: avgDaysData.map(d => d.month),
+          datasets: [{
+            data: avgDaysData.map(d => d.avg_attendance_days),
+            borderColor: DG_BLUE_500,
+            backgroundColor: DG_POSITIVE_FILL,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: DG_BLUE_500,
+            pointBorderColor: '#FFFFFF',
+            pointBorderWidth: 1.5,
+          }]
+        },
+        options: baseChartOpts('平均通所日数', '日')
+      });
+
+      // 売上（損益分岐点ライン付き）— 棒グラフ
+      // 損益分岐点以上: Blue-500, 未満: Negative (#FA0000)
+      const salesData = sorted.filter(d => d.sales !== null);
+      const breakeven = 2300000;
+      new Chart(document.getElementById('chartSales'), {
+        type: 'bar',
+        data: {
+          labels: salesData.map(d => d.month),
+          datasets: [
+            {
+              label: '売上',
+              data: salesData.map(d => d.sales),
+              backgroundColor: salesData.map(d => d.sales >= breakeven ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
+              borderColor: salesData.map(d => d.sales >= breakeven ? DG_BLUE_500 : DG_NEGATIVE),
+              borderWidth: 1,
+              borderRadius: 2,
+            },
+            {
+              label: '損益分岐点 ¥2,300,000',
+              data: salesData.map(() => breakeven),
+              type: 'line',
+              borderColor: DG_NEGATIVE,
+              borderDash: [8, 4],
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: false,
+            }
+          ]
+        },
+        options: {
+          ...baseChartOpts('売上（円）', '円'),
+          scales: {
+            ...baseChartOpts('売上（円）', '円').scales,
+            y: {
+              ...baseChartOpts('売上（円）', '円').scales.y,
+              ticks: {
+                color: '#626264',
+                callback: v => '¥' + (v/10000).toFixed(0) + '万'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'end',
+              labels: {
+                color: '#626264',
+                font: { size: 11 },
+                boxWidth: 24,
+                padding: 12,
+                usePointStyle: false,
+              }
+            },
+            tooltip: {
+              backgroundColor: '#FFFFFF',
+              titleColor: '#1A1A1A',
+              bodyColor: '#626264',
+              borderColor: '#E5E7EB',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: ctx => ctx.dataset.label === '損益分岐点 ¥2,300,000'
+                  ? ' ¥2,300,000（損益分岐点）'
+                  : ' ¥' + ctx.parsed.y?.toLocaleString('ja-JP')
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // テーブル
+    // -----------------------------------------------------------------------
+    function renderTable(data) {
+      const filterVal = document.getElementById('filter-input').value.trim().toLowerCase();
+      // 年度フィルタを適用
+      const fyFiltered = filterByFiscalYear(data, selectedFy);
+      let filtered = filterVal
+        ? fyFiltered.filter(d => d.month.toLowerCase().includes(filterVal))
+        : [...fyFiltered];
+
+      // ソート
+      filtered.sort((a, b) => {
+        let va = a[sortCol], vb = b[sortCol];
+        if (va === null || va === undefined) va = sortDir === 'asc' ? Infinity : -Infinity;
+        if (vb === null || vb === undefined) vb = sortDir === 'asc' ? Infinity : -Infinity;
+        if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        return sortDir === 'asc' ? va - vb : vb - va;
+      });
+
+      document.getElementById('row-count').textContent = `${filtered.length} 件`;
+
+      document.getElementById('table-body').innerHTML = filtered.map((d, i) => `
+        <tr style="background:${i % 2 === 0 ? '#FFFFFF' : '#F8F8F8'};"
+            onmouseover="this.style.background='#D9E6FF'"
+            onmouseout="this.style.background='${i % 2 === 0 ? '#FFFFFF' : '#F8F8F8'}'"
+            role="row">
+          <td class="px-4 py-2.5 font-mono text-sm font-semibold" style="color:#1A1A1A;">${d.month}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmt(d.koma)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmt(d.absence)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmtRate(d.absence_rate)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmt(d.total_users)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmt(d.new_contracts)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmt(d.graduates)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmt(d.exits)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmt(d.avg_attendance_days, 1)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${d.basic_unit !== null ? '¥' + fmt(d.basic_unit) : '<span class="null-val">—</span>'}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmtSales(d.sales)}</td>
+        </tr>
+      `).join('');
+
+      // -----------------------------------------------------------------------
+      // 合計/平均行
+      // -----------------------------------------------------------------------
+      const footer = document.getElementById('table-footer');
+      if (!footer) return;
+
+      if (filtered.length === 0) {
+        footer.innerHTML = '';
+        return;
+      }
+
+      // helper: null/undefined を除いた値のみ集計
+      function sumValid(arr, key) {
+        return arr.reduce((s, d) => {
+          const v = d[key];
+          return (v !== null && v !== undefined) ? s + Number(v) : s;
+        }, 0);
+      }
+      function validCount(arr, key) {
+        return arr.filter(d => d[key] !== null && d[key] !== undefined).length;
+      }
+      function avgValid(arr, key, digits = 1) {
+        const n = validCount(arr, key);
+        if (n === 0) return null;
+        return sumValid(arr, key) / n;
+      }
+
+      const totalKoma        = sumValid(filtered, 'koma');
+      const totalAbsence     = sumValid(filtered, 'absence');
+      // 加重平均欠席率 = 合計欠席 / 合計コマ × 100（komaが有効な行のみ）
+      const komaForRate      = filtered.filter(d => d.koma !== null && d.koma !== undefined && Number(d.koma) > 0);
+      const absForRate       = komaForRate.reduce((s, d) => s + (d.absence !== null && d.absence !== undefined ? Number(d.absence) : 0), 0);
+      const komaForRateSum   = komaForRate.reduce((s, d) => s + Number(d.koma), 0);
+      const weightedAbsRate  = komaForRateSum > 0 ? (absForRate / komaForRateSum * 100) : null;
+      const avgUsers         = avgValid(filtered, 'total_users', 1);
+      const totalNew         = sumValid(filtered, 'new_contracts');
+      const totalGrads       = sumValid(filtered, 'graduates');
+      const totalExits       = sumValid(filtered, 'exits');
+      const avgAttendance    = avgValid(filtered, 'avg_attendance_days', 1);
+      // 報酬単価平均：有効な行のみ
+      const unitVals         = filtered.filter(d => d.basic_unit !== null && d.basic_unit !== undefined);
+      const avgUnit          = unitVals.length > 0 ? unitVals.reduce((s, d) => s + Number(d.basic_unit), 0) / unitVals.length : null;
+      const totalSales       = sumValid(filtered, 'sales');
+
+      const tdStyle = 'px-4 py-2.5 text-right tabular-nums text-sm font-bold';
+      const nullCell = '<span class="null-val">—</span>';
+
+      footer.innerHTML = `
+        <tr style="background:#D9E6FF; border-top:2px solid #4979F5;" role="row">
+          <td class="px-4 py-2.5 text-sm font-bold" style="color:#0031D8; white-space:nowrap;">合計 / 平均</td>
+          <td class="${tdStyle}">${filtered.some(d => d.koma !== null) ? totalKoma.toLocaleString('ja-JP') : nullCell}</td>
+          <td class="${tdStyle}">${filtered.some(d => d.absence !== null) ? totalAbsence.toLocaleString('ja-JP') : nullCell}</td>
+          <td class="${tdStyle}">${weightedAbsRate !== null ? weightedAbsRate.toFixed(2) + '%' : nullCell}</td>
+          <td class="${tdStyle}">${avgUsers !== null ? avgUsers.toFixed(1) : nullCell}</td>
+          <td class="${tdStyle}">${filtered.some(d => d.new_contracts !== null) ? totalNew.toLocaleString('ja-JP') : nullCell}</td>
+          <td class="${tdStyle}">${filtered.some(d => d.graduates !== null) ? totalGrads.toLocaleString('ja-JP') : nullCell}</td>
+          <td class="${tdStyle}">${filtered.some(d => d.exits !== null) ? totalExits.toLocaleString('ja-JP') : nullCell}</td>
+          <td class="${tdStyle}">${avgAttendance !== null ? avgAttendance.toFixed(1) : nullCell}</td>
+          <td class="${tdStyle}">${avgUnit !== null ? '¥' + Math.round(avgUnit).toLocaleString('ja-JP') : nullCell}</td>
+          <td class="${tdStyle}">${filtered.some(d => d.sales !== null) ? '¥' + totalSales.toLocaleString('ja-JP') : nullCell}</td>
+        </tr>
+      `;
+    }
+
+    // -----------------------------------------------------------------------
+    // ソートヘッダー
+    // -----------------------------------------------------------------------
+    function initSortHeaders() {
+      document.querySelectorAll('thead th[data-col]').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.dataset.col;
+          if (sortCol === col) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+          } else {
+            sortCol = col;
+            sortDir = 'desc';
+          }
+          document.querySelectorAll('thead th').forEach(t => {
+            t.classList.remove('sort-asc', 'sort-desc');
+            t.removeAttribute('aria-sort');
+          });
+          th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+          th.setAttribute('aria-sort', sortDir === 'asc' ? 'ascending' : 'descending');
+          renderTable(allData);
+        });
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // 年度/決算期フィルタ共通コールバック（テーブル・グラフ・KPI一括更新）
+    // -----------------------------------------------------------------------
+    function onFyChange(data, newFy) {
+      selectedFy = newFy;
+
+      // 両ドロップダウンを同期
+      const fySelect = document.getElementById('fy-select');
+      const chartFySelect = document.getElementById('chart-fy-select');
+      if (fySelect && fySelect.value !== String(newFy)) fySelect.value = String(newFy);
+      if (chartFySelect && chartFySelect.value !== String(newFy)) chartFySelect.value = String(newFy);
+
+      // KPIカード更新
+      renderKpiCards(data);
+
+      // グラフ再描画
+      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays'].forEach(id => {
+        const el = document.getElementById(id);
+        const chart = Chart.getChart(el);
+        if (chart) chart.destroy();
+      });
+      renderCharts(data);
+
+      // 累計損益更新
+      updateCumulativePL(data);
+
+      // テーブル更新
+      renderTable(data);
+    }
+
+    // -----------------------------------------------------------------------
+    // フィルタモード切替（年度 ↔ 決算期）
+    // -----------------------------------------------------------------------
+    function switchFilterMode(mode) {
+      filterMode = mode;
+      selectedFy = 'all';
+
+      // ボタン見た目切替
+      const btnFy = document.getElementById('btn-mode-fy');
+      const btnDc = document.getElementById('btn-mode-dc');
+      if (btnFy && btnDc) {
+        if (mode === 'fy') {
+          btnFy.style.background = '#0031D8'; btnFy.style.color = '#fff';
+          btnDc.style.background = '#fff'; btnDc.style.color = '#626264';
+        } else {
+          btnDc.style.background = '#0031D8'; btnDc.style.color = '#fff';
+          btnFy.style.background = '#fff'; btnFy.style.color = '#626264';
+        }
+      }
+
+      // ラベルテキスト更新
+      const label = document.getElementById('chart-period-label');
+      const tLabel = document.getElementById('table-period-label');
+      const lText = mode === 'fy' ? '年度：' : '決算期：';
+      if (label) label.textContent = lText;
+      if (tLabel) tLabel.textContent = lText;
+
+      initFySelects(allData);
+      onFyChange(allData, 'all');
+    }
+
+    // -----------------------------------------------------------------------
+    // 年度/決算期ドロップダウン初期化
+    // -----------------------------------------------------------------------
+    function initFySelects(data) {
+      let options;
+      if (filterMode === 'dc') {
+        const periods = getDcPeriods(data);
+        options = ['<option value="all">全期間</option>']
+          .concat(periods.map(sy => `<option value="${sy}">${dcPeriodLabel(sy)}</option>`))
+          .join('');
+      } else {
+        const years = getFiscalYears(data);
+        options = ['<option value="all">全期間</option>']
+          .concat(years.map(fy => `<option value="${fy}">${fy}年度（${fy}/4〜${fy+1}/3）</option>`))
+          .join('');
+      }
+
+      const fySelect = document.getElementById('fy-select');
+      const chartFySelect = document.getElementById('chart-fy-select');
+
+      if (fySelect) {
+        fySelect.innerHTML = options;
+        fySelect.value = String(selectedFy);
+        fySelect.onchange = () => onFyChange(data, fySelect.value);
+      }
+      if (chartFySelect) {
+        chartFySelect.innerHTML = options;
+        chartFySelect.value = String(selectedFy);
+        chartFySelect.onchange = () => onFyChange(data, chartFySelect.value);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // エントリーポイント
+    // -----------------------------------------------------------------------
+    function renderAll(data) {
+      renderUnitPriceInputs(data);
+      renderKpiCards(data);
+      renderCompareCards(data);
+
+      // 年度ドロップダウン初期化（既存なら値を維持）
+      initFySelects(data);
+
+      // グラフ再描画のためキャンバスリセット
+      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays'].forEach(id => {
+        const el = document.getElementById(id);
+        const chart = Chart.getChart(el);
+        if (chart) chart.destroy();
+      });
+      renderCharts(data);
+      updateCumulativePL(data);
+
+      sortCol = 'month';
+      sortDir = 'desc';
+      document.querySelectorAll('thead th').forEach(th => {
+        th.classList.remove('sort-asc','sort-desc');
+        th.removeAttribute('aria-sort');
+      });
+      const monthTh = document.querySelector('thead th[data-col="month"]');
+      if (monthTh) {
+        monthTh.classList.add('sort-desc');
+        monthTh.setAttribute('aria-sort', 'descending');
+      }
+      renderTable(data);
+
+      initSortHeaders();
+      document.getElementById('filter-input').addEventListener('input', () => renderTable(data));
+    }
+
+    async function main() {
+      document.getElementById('data-status').textContent = 'データ読み込み中...';
+
+      try {
+        allData = EMBEDDED_DATA;
+        document.getElementById('data-status').textContent = `${allData.length} 件読み込み完了`;
+      } catch (e) {
+        document.getElementById('data-status').textContent = 'データ読み込み失敗: ' + e.message;
+        document.getElementById('kpi-cards').innerHTML = `
+          <div class="col-span-6 text-center py-8" style="color:#FA0000;">
+            データファイル (owner-report-data.json) が見つかりません。<br>
+            <code class="text-xs px-2 py-1 rounded mt-2 inline-block" style="background:#F8F8F8; border:1px solid #E5E7EB;">tools/extract_kpi.py</code> を実行してデータを生成してください。
+          </div>`;
+        return;
+      }
+
+      // 保存済み報酬単価を適用
+      const savedPrices = loadSavedPrices();
+      if (Object.keys(savedPrices).length > 0) {
+        allData.forEach(d => {
+          const fy = getFiscalYear(d.month);
+          if (savedPrices[fy]) {
+            d.basic_unit = savedPrices[fy];
+            if (d.koma !== null) d.estimated_sales = Math.round(d.koma * savedPrices[fy]);
+          }
+        });
+      }
+
+      renderAll(allData);
+    }
+
+    main();
+  </script>
+</body>
+</html>
