@@ -62,6 +62,49 @@
     /* ユーティリティ */
     .null-val { color: #9CA3AF; }
 
+    /* 予測行スタイル */
+    .forecast-row { background: #FFFDE7 !important; }
+    .forecast-row:hover { background: #FFF9C4 !important; }
+    .forecast-badge {
+      font-size: 0.6rem;
+      padding: 1px 4px;
+      border-radius: 2px;
+      background: #FFF176;
+      color: #795548;
+      border: 1px solid #F9A825;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    /* 予測トグルボタン */
+    .btn-forecast {
+      background: linear-gradient(135deg, #FF6B00, #F9A825);
+      color: #FFFFFF;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: 2px solid #FF6B00;
+      cursor: pointer;
+      min-height: 48px;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(249, 168, 37, 0.4);
+      letter-spacing: 0.05em;
+    }
+    .btn-forecast:hover { background: linear-gradient(135deg, #E65100, #F57F17); border-color: #E65100; box-shadow: 0 4px 12px rgba(249, 168, 37, 0.6); }
+    .btn-forecast.active {
+      background: #F9A825;
+      color: #FFFFFF;
+      border-color: #F57F17;
+    }
+
+    /* 予測サマリーカード */
+    .forecast-card {
+      background: #FFFDE7;
+      border: 1px solid #F9A825;
+      border-radius: 6px;
+    }
+
     .badge-fmt {
       font-size: 0.65rem;
       padding: 1px 6px;
@@ -302,6 +345,15 @@
            role="list" aria-label="KPI指標カード一覧"></div>
     </section>
 
+    <!-- ===== 2b. 予測サマリーカード（予測ON時のみ） ===== -->
+    <section id="forecast-summary-section" aria-labelledby="forecast-summary-title" style="display:none;">
+      <h2 id="forecast-summary-title" class="section-title">
+        📈 2026年度 予測サマリー
+        <span class="text-sm font-normal text-dg-desc ml-2">（単価 ¥10,200 確定）</span>
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="forecast-summary-cards"></div>
+    </section>
+
     <!-- ===== 3. 前月比・前年同月比 ===== -->
     <section aria-labelledby="compare-title">
       <h2 id="compare-title" class="section-title">
@@ -318,6 +370,9 @@
           推移グラフ
         </h2>
         <div class="flex items-center gap-2 flex-wrap justify-end">
+          <button id="btn-forecast" class="btn-forecast" onclick="toggleForecast()" aria-pressed="false">
+            📈 予測データ
+          </button>
           <div class="flex items-center gap-1 border border-gray-200 rounded overflow-hidden" style="font-size:0.8rem;">
             <button id="btn-mode-fy" onclick="switchFilterMode('fy')"
               class="px-3 py-1" style="background:#0031D8; color:#fff; border:none; cursor:pointer; min-height:unset;">年度（4月始）</button>
@@ -448,6 +503,146 @@
     // -----------------------------------------------------------------------
     const DATA_URL = null; // embedded
     const EMBEDDED_DATA = [{"month": "2021-08", "basic_unit": 8200.0, "koma": 0.0, "absence": 0.0, "absence_rate": 0.0, "avg_attendance_days": 0.0, "visit": 5.0, "experience": 5.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": null, "graduates": 0.0}, {"month": "2021-09", "basic_unit": 8200.0, "sales": 24600, "koma": 3.0, "absence": 1.0, "absence_rate": 25.0, "avg_attendance_days": 3.0, "visit": 8.0, "experience": 5.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 1.0}, {"month": "2021-10", "basic_unit": 8200.0, "sales": 131200, "koma": 16.0, "absence": 0.0, "absence_rate": 0.0, "avg_attendance_days": 16.0, "visit": 13.0, "experience": 6.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 1.0}, {"month": "2021-11", "basic_unit": 8200.0, "sales": 147600, "koma": 18.0, "absence": 0.0, "absence_rate": 0.0, "avg_attendance_days": 18.0, "visit": 17.0, "experience": 18.0, "accepted": 1.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 1.0}, {"month": "2021-12", "basic_unit": 8200.0, "sales": 328000, "koma": 40.0, "absence": 3.0, "absence_rate": 7.0, "avg_attendance_days": 20.0, "visit": 13.0, "experience": 20.0, "accepted": 1.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 2.0}, {"month": "2022-01", "basic_unit": 8200.0, "sales": 451000, "koma": 55.0, "absence": 3.0, "absence_rate": 5.2, "avg_attendance_days": 18.3, "visit": 2.0, "experience": 23.0, "accepted": 2.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 3.0}, {"month": "2022-02", "basic_unit": 8200.0, "sales": 582200, "koma": 71.0, "absence": 3.0, "absence_rate": 4.1, "avg_attendance_days": 14.2, "visit": 6.0, "experience": 1.0, "accepted": 0.0, "new_contracts": 1.0, "exits": 1.0, "total_users": 5.0}, {"month": "2022-03", "basic_unit": 8200.0, "sales": 606800, "koma": 74.0, "absence": 14.0, "absence_rate": 15.9, "avg_attendance_days": 10.0, "visit": 11.0, "experience": 17.0, "accepted": 4.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 6}, {"month": "2022-04", "basic_unit": 8200.0, "sales": 541200, "koma": 66.0, "absence": 30.0, "absence_rate": 31.3, "avg_attendance_days": 11.0, "visit": 10.0, "experience": 8.0, "accepted": 5.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 6.0}, {"month": "2022-05", "basic_unit": 8200.0, "sales": 656000, "koma": 80.0, "absence": 25.0, "absence_rate": 23.8, "avg_attendance_days": 6.9, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "new_contracts": 0.0, "exits": 0.0, "total_users": 8}, {"month": "2022-06", "basic_unit": 8200.0, "sales": 647800, "koma": 79.0, "absence": 10.0, "absence_rate": 11.2, "avg_attendance_days": 8.6, "visit": 23.0, "experience": 22.0, "accepted": 4.0, "new_contracts": 1.0, "exits": 0.0, "total_users": 8}, {"month": "2022-07", "basic_unit": 8200.0, "sales": 984000, "koma": 120.0, "absence": 20.0, "absence_rate": 14.3, "avg_attendance_days": 13.3, "visit": 12.0, "experience": 9.0, "accepted": 1.0, "new_contracts": 5.0, "exits": 0.0, "total_users": 9.0}, {"month": "2022-08", "basic_unit": 8200.0, "sales": 1353000, "koma": 165.0, "absence": 15.0, "absence_rate": 8.3, "avg_attendance_days": 16.7, "visit": 24.0, "experience": 18.0, "accepted": 2.0, "new_contracts": 0.0, "exits": 1.0, "total_users": 9}, {"month": "2022-09", "basic_unit": 8200.0, "koma": 146.0, "absence": 11.0, "absence_rate": 7.0, "total_users": 9.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.2, "visit": 8.0, "experience": 9.0, "accepted": 4.0, "exits": 0.0, "sales": 1197200}, {"month": "2022-10", "basic_unit": 8200.0, "koma": 189.0, "absence": 5.0, "absence_rate": 2.6, "total_users": 10, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 18.4, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 1549800}, {"month": "2022-11", "basic_unit": 8200.0, "koma": 188.0, "absence": 26.0, "absence_rate": 12.2, "total_users": 11.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 17.1, "visit": 10.0, "experience": 8.0, "accepted": 0.0, "exits": 0.0, "sales": 1541600}, {"month": "2022-12", "basic_unit": 8200.0, "koma": 165.0, "absence": 26.0, "absence_rate": 13.6, "total_users": 10.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.5, "visit": 2.0, "experience": 6.0, "accepted": 1.0, "exits": 0.0, "sales": 1353000}, {"month": "2023-01", "basic_unit": 8200.0, "koma": 193.0, "absence": 22.0, "absence_rate": 10.2, "total_users": 11.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 17.5, "visit": 4.0, "experience": 3.0, "accepted": 1.0, "exits": 0.0, "sales": 1582600}, {"month": "2023-02", "basic_unit": 8200.0, "koma": 208.0, "absence": 16.0, "absence_rate": 7.1, "total_users": 12, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.0, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 1705600}, {"month": "2023-03", "basic_unit": 8200.0, "koma": 256.0, "absence": 29.0, "absence_rate": 10.2, "total_users": 14.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 18.3, "visit": 7.0, "experience": 3.0, "accepted": 2.0, "exits": 0.0, "sales": 2099200}, {"month": "2023-04", "basic_unit": 8200.0, "koma": 260.0, "absence": 27.0, "absence_rate": 9.4, "total_users": 16.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 16.3, "visit": 1.0, "experience": 1.0, "accepted": 0.0, "exits": 0.0, "sales": 2132000}, {"month": "2023-05", "basic_unit": 8200.0, "koma": 270.0, "absence": 30.0, "absence_rate": 10.0, "total_users": 15.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 18.0, "visit": 5.0, "experience": 2.0, "accepted": 1.0, "exits": 0.0, "sales": 2214000}, {"month": "2023-06", "basic_unit": 8200.0, "koma": 272.0, "absence": 60.0, "absence_rate": 18.1, "total_users": 14, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 15.1, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 2230400}, {"month": "2023-07", "basic_unit": 8200.0, "koma": 244.0, "absence": 29.0, "absence_rate": 10.6, "total_users": 13, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 16.5, "visit": 0.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 2000800}, {"month": "2023-08", "basic_unit": 8200.0, "koma": 247.0, "absence": 14.0, "absence_rate": 5.4, "total_users": 12.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 20.6, "visit": 1.0, "experience": 4.0, "accepted": 3.0, "exits": 1.0, "sales": 2025400}, {"month": "2023-09", "basic_unit": 8200.0, "koma": 252.0, "absence": 22.0, "absence_rate": 8.0, "total_users": 12.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 21.0, "visit": 2.0, "experience": 3.0, "accepted": 3.0, "exits": 0.0, "sales": 2066400}, {"month": "2023-10", "basic_unit": 8200.0, "koma": 282.0, "absence": 32.0, "absence_rate": 10.2, "total_users": 14.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 20.1, "visit": 3.0, "experience": 3.0, "accepted": 2.0, "exits": 1.0, "sales": 2312400}, {"month": "2023-11", "basic_unit": 8200.0, "koma": 278.0, "absence": 24.0, "absence_rate": 8.0, "total_users": 15.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 18.5, "visit": 4.0, "experience": 4.0, "accepted": 1.0, "exits": 0.0, "sales": 2279600}, {"month": "2023-12", "basic_unit": 8200.0, "koma": 281.0, "absence": 37.0, "absence_rate": 11.6, "total_users": 14.0, "new_contracts": 1.0, "graduates": 1.0, "avg_attendance_days": 20.1, "visit": 4.0, "experience": 4.0, "accepted": 1.0, "exits": 0.0, "sales": 2304200}, {"month": "2024-01", "basic_unit": 8200.0, "koma": 293.0, "absence": 31.0, "absence_rate": 9.6, "total_users": 16.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 18.3, "visit": 3.0, "experience": 3.0, "accepted": 3.0, "exits": 2.0, "sales": 2402600}, {"month": "2024-02", "basic_unit": 8200.0, "koma": 245.0, "absence": 10.0, "absence_rate": 3.9, "total_users": 13.0, "new_contracts": 0.0, "graduates": 4.0, "avg_attendance_days": 18.8, "visit": 5.0, "experience": 5.0, "accepted": 4.0, "exits": 0.0, "sales": 2009000}, {"month": "2024-03", "basic_unit": 8200.0, "koma": 162.0, "absence": 37.0, "absence_rate": 18.6, "total_users": 9.0, "new_contracts": 2.0, "graduates": 2.0, "avg_attendance_days": 18.0, "visit": 7.0, "experience": 6.0, "accepted": 2.0, "exits": 2.0, "sales": 1328400}, {"month": "2024-04", "basic_unit": 8200.0, "koma": 151.0, "absence": 23.0, "absence_rate": 13.2, "total_users": 9.0, "new_contracts": 3.0, "graduates": 1.0, "avg_attendance_days": 16.8, "visit": 4.0, "experience": 6.0, "accepted": 4.0, "exits": 1.0, "sales": 1238200}, {"month": "2024-05", "basic_unit": 5190.0, "koma": 190.0, "absence": 24.0, "absence_rate": 11.2, "total_users": 11.0, "new_contracts": 4.0, "graduates": 0.0, "avg_attendance_days": 17.3, "visit": 3.0, "experience": 3.0, "accepted": 0.0, "exits": 1.0, "sales": 986100}, {"month": "2024-06", "basic_unit": 5190.0, "koma": 214.0, "absence": 21.0, "absence_rate": 8.9, "total_users": 12.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 17.8, "visit": 8.0, "experience": 3.0, "accepted": 0.0, "exits": 0.0, "sales": 1110660}, {"month": "2024-07", "basic_unit": 5190.0, "koma": 219.0, "absence": 23.0, "absence_rate": 9.5, "total_users": 12.0, "new_contracts": 0.0, "graduates": 1.0, "avg_attendance_days": 18.3, "visit": 3.0, "experience": 5.0, "accepted": 1.0, "exits": 0.0, "sales": 1136610}, {"month": "2024-08", "basic_unit": 5190.0, "koma": 216.0, "absence": 12.0, "absence_rate": 5.3, "total_users": 11.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 19.6, "visit": 5.0, "experience": 5.0, "accepted": 2.0, "exits": 0.0, "sales": 1121040}, {"month": "2024-09", "basic_unit": 5190.0, "koma": 264.0, "absence": 15.0, "absence_rate": 5.4, "total_users": 14.0, "new_contracts": 3.0, "graduates": 1.0, "avg_attendance_days": 18.9, "visit": 13.0, "experience": 5.0, "accepted": 4.0, "exits": 1.0, "sales": 1370160}, {"month": "2024-10", "basic_unit": 5190.0, "koma": 299.0, "absence": 20.0, "absence_rate": 6.3, "total_users": 14.0, "new_contracts": 2.0, "graduates": 1.0, "avg_attendance_days": 21.4, "visit": 3.0, "experience": 2.0, "accepted": 1.0, "exits": 0.0, "sales": 1551810}, {"month": "2024-11", "basic_unit": 5190.0, "koma": 323.0, "absence": 21.0, "absence_rate": 6.1, "total_users": 16.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 20.2, "visit": 1.0, "experience": 1.0, "accepted": 0.0, "exits": 0.0, "sales": 1676370}, {"month": "2024-12", "basic_unit": 5190.0, "koma": 342.0, "absence": 4.0, "absence_rate": 1.2, "total_users": 16.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 21.4, "visit": 3.0, "experience": 4.0, "accepted": 4.0, "exits": 0.0, "sales": 1774980}, {"month": "2025-01", "basic_unit": 5190.0, "koma": 373.0, "absence": 14.0, "absence_rate": 3.6, "total_users": 19.0, "new_contracts": 3.0, "graduates": 0.0, "avg_attendance_days": 19.6, "visit": 1.0, "experience": 1.0, "accepted": 1.0, "exits": 0.0, "sales": 1935870}, {"month": "2025-02", "basic_unit": 5190.0, "koma": 378.0, "absence": 20.0, "absence_rate": 5.0, "total_users": 20.0, "new_contracts": 1.0, "graduates": 0.0, "avg_attendance_days": 18.9, "visit": 1.0, "experience": 0.0, "accepted": 0.0, "exits": 0.0, "sales": 1961820}, {"month": "2025-03", "basic_unit": 5190.0, "koma": 429.0, "absence": 23.0, "absence_rate": 5.1, "total_users": 20.0, "new_contracts": 0.0, "graduates": 0.0, "avg_attendance_days": 21.5, "visit": 14.0, "experience": 9.0, "accepted": 2.0, "exits": 0.0, "sales": 2226510}, {"month": "2025-04", "basic_unit": 7190.0, "koma": 398.0, "absence": 22.0, "absence_rate": 5.2, "total_users": 21.0, "new_contracts": 2.0, "graduates": 1.0, "avg_attendance_days": 19.0, "visit": 5.0, "experience": 5.0, "accepted": 2.0, "exits": 1.0, "sales": 2861620}, {"month": "2025-05", "basic_unit": 7190.0, "koma": 417.0, "absence": 24.0, "absence_rate": 5.4, "total_users": 21.0, "new_contracts": 2.0, "graduates": 0.0, "avg_attendance_days": 19.9, "visit": 5.0, "experience": 4.0, "accepted": 4.0, "exits": 0.0, "sales": 2998230}, {"month": "2025-06", "basic_unit": 7190.0, "sales": 3776400, "new_contracts": 3.0, "total_users": 23.0, "koma": 470.0, "absence": 23.0, "absence_rate": 4.67, "avg_attendance_days": 21.4, "exits": 0.0, "visit": 1.0, "experience": 1.0, "accepted": 0.0, "graduates": 0.0}, {"month": "2025-07", "basic_unit": 7190.0, "sales": 3483400, "new_contracts": 0.0, "total_users": 23.0, "koma": 434.0, "absence": 33.0, "absence_rate": 7.07, "avg_attendance_days": 18.9, "exits": 3.0, "visit": 3.0, "experience": 2.0, "accepted": 2.0, "graduates": 0.0}, {"month": "2025-08", "basic_unit": 7190.0, "sales": 3000840, "new_contracts": 2.0, "total_users": 20.0, "koma": 372.0, "absence": 16.0, "absence_rate": 4.12, "avg_attendance_days": 18.6, "exits": 0.0, "visit": 4.0, "experience": 4.0, "accepted": 2.0, "graduates": 3.0}, {"month": "2025-09", "basic_unit": 7190.0, "sales": 2903520, "new_contracts": 3.0, "total_users": 22.0, "koma": 365.0, "absence": 21.0, "absence_rate": 5.44, "avg_attendance_days": 16.6, "exits": 0.0, "visit": 4.0, "experience": 4.0, "accepted": 3.0, "graduates": 3.0}, {"month": "2025-10", "basic_unit": 7190.0, "sales": 2987930, "new_contracts": 1.0, "total_users": 19.0, "koma": 370.0, "absence": 15.0, "absence_rate": 3.9, "avg_attendance_days": 19.5, "exits": 3.0, "visit": 4.0, "experience": 4.0, "accepted": 3.0, "graduates": 3.0}, {"month": "2025-11", "basic_unit": 7190.0, "sales": 2691910, "new_contracts": 3.0, "total_users": 17.0, "koma": 333.0, "absence": 15.0, "absence_rate": 4.31, "avg_attendance_days": 19.6, "exits": 0.0, "visit": 3.0, "experience": 3.0, "accepted": 3.0, "graduates": 0.0}, {"month": "2025-12", "basic_unit": 7190.0, "sales": 3280680, "new_contracts": 3.0, "total_users": 21.0, "koma": 408.0, "absence": 6.0, "absence_rate": 1.45, "avg_attendance_days": 19.4, "exits": 1.0, "visit": 6.0, "experience": 6.0, "accepted": 3.0, "graduates": 0.0}, {"month": "2026-01", "basic_unit": 7190.0, "sales": 3294290, "new_contracts": 0.0, "total_users": 21.0, "koma": 409.0, "absence": 19.0, "absence_rate": 4.44, "avg_attendance_days": 19.5, "exits": 0.0, "visit": 0.0, "experience": 1.0, "accepted": 0.0, "graduates": 1.0}, {"month": "2026-02", "basic_unit": 7190.0, "sales": 2664970, "new_contracts": 0.0, "total_users": 18.0, "koma": 331.0, "absence": 15.0, "absence_rate": 4.34, "avg_attendance_days": 18.4, "exits": 2.0, "visit": 3.0, "experience": 4.0, "accepted": 2.0, "graduates": 1.0}];
+
+    // -----------------------------------------------------------------------
+    // 予測データ定義
+    // -----------------------------------------------------------------------
+    const FORECAST_DATA = {
+      unit_price: 10200,  // 2026-04以降確定
+      scenarios: {
+        optimistic: { label: '楽観', users: 25, attendance: 21.0, absence_rate: 4.0 },
+        baseline:   { label: '基準', users: 22, attendance: 19.0, absence_rate: 5.0 },
+        pessimistic:{ label: '悲観', users: 18, attendance: 18.0, absence_rate: 6.0 }
+      },
+      months: ['2026-04','2026-05','2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12','2027-01','2027-02','2027-03'],
+      breakeven: 2300000
+    };
+
+    // 月別実績通所日数（予測コマ数計算用）
+    const MONTHLY_AVG_DAYS = {
+      '04': 19.0, '05': 19.9, '06': 21.4, '07': 18.9,
+      '08': 18.6, '09': 16.6, '10': 19.5, '11': 19.6,
+      '12': 19.4, '01': 19.5, '02': 18.4, '03': 21.5
+    };
+
+    // 予測データからシナリオ別月次売上を計算
+    function calcForecastSales(scenario) {
+      return FORECAST_DATA.months.map(m => {
+        const s = FORECAST_DATA.scenarios[scenario];
+        return Math.round(s.users * s.attendance * FORECAST_DATA.unit_price);
+      });
+    }
+
+    // 予測データからシナリオ別月次コマ数を計算
+    function calcForecastKoma(scenario) {
+      return FORECAST_DATA.months.map(m => {
+        const s = FORECAST_DATA.scenarios[scenario];
+        const mm = m.split('-')[1];
+        const days = MONTHLY_AVG_DAYS[mm] || 19.0;
+        return Math.round(s.users * days);
+      });
+    }
+
+    // 年間合計予測売上
+    function calcForecastAnnualSales(scenario) {
+      return calcForecastSales(scenario).reduce((a, b) => a + b, 0);
+    }
+
+    // 損益分岐ライン安全余裕（基準シナリオで何名まで減っても黒字か）
+    function calcBreakevenMargin() {
+      // 損益分岐: X × avg_attendance × unit_price = breakeven
+      // X = breakeven / (avg_attendance × unit_price)
+      const s = FORECAST_DATA.scenarios.baseline;
+      const minUsers = FORECAST_DATA.breakeven / (s.attendance * FORECAST_DATA.unit_price);
+      return (s.users - minUsers).toFixed(1);
+    }
+
+    let forecastEnabled = false;
+
+    function toggleForecast() {
+      forecastEnabled = !forecastEnabled;
+      const btn = document.getElementById('btn-forecast');
+      if (btn) {
+        btn.classList.toggle('active', forecastEnabled);
+        btn.setAttribute('aria-pressed', forecastEnabled ? 'true' : 'false');
+      }
+
+      const summarySection = document.getElementById('forecast-summary-section');
+      if (summarySection) summarySection.style.display = forecastEnabled ? '' : 'none';
+
+      if (forecastEnabled) renderForecastSummaryCards();
+
+      // グラフ再描画
+      ['chartKoma', 'chartAbsence', 'chartSales', 'chartUsers', 'chartNewContracts', 'chartAvgDays'].forEach(id => {
+        const el = document.getElementById(id);
+        const chart = Chart.getChart(el);
+        if (chart) chart.destroy();
+      });
+      renderCharts(allData);
+
+      // テーブル更新
+      renderTable(allData);
+    }
+
+    // 予測サマリーカード描画
+    function renderForecastSummaryCards() {
+      const annualOpt  = calcForecastAnnualSales('optimistic');
+      const annualBase = calcForecastAnnualSales('baseline');
+      const annualPess = calcForecastAnnualSales('pessimistic');
+      const breakevenAnnual = FORECAST_DATA.breakeven * 12;
+      const margin = calcBreakevenMargin();
+
+      const el = document.getElementById('forecast-summary-cards');
+      if (!el) return;
+
+      el.innerHTML = `
+        <div class="forecast-card p-5">
+          <div class="kpi-label" style="color:#795548;">2026年度 年間売上予測</div>
+          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:#388E3C; font-weight:600;">楽観</span>
+              <span style="font-size:1.1rem; font-weight:700; color:#1A1A1A;">¥${annualOpt.toLocaleString('ja-JP')}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:#1976D2; font-weight:600;">基準</span>
+              <span style="font-size:1.1rem; font-weight:700; color:#1A1A1A;">¥${annualBase.toLocaleString('ja-JP')}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:#D32F2F; font-weight:600;">悲観</span>
+              <span style="font-size:1.1rem; font-weight:700; color:#1A1A1A;">¥${annualPess.toLocaleString('ja-JP')}</span>
+            </div>
+          </div>
+        </div>
+        <div class="forecast-card p-5">
+          <div class="kpi-label" style="color:#795548;">年間累計損益予測（損益分岐 ¥${(breakevenAnnual/10000).toFixed(0)}万/年）</div>
+          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:#388E3C; font-weight:600;">楽観</span>
+              <span style="font-size:1.1rem; font-weight:700; color:#0031D8;">+¥${(annualOpt - breakevenAnnual).toLocaleString('ja-JP')}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:#1976D2; font-weight:600;">基準</span>
+              <span style="font-size:1.1rem; font-weight:700; color:#0031D8;">+¥${(annualBase - breakevenAnnual).toLocaleString('ja-JP')}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem; color:#D32F2F; font-weight:600;">悲観</span>
+              <span style="font-size:1.1rem; font-weight:700; color:#0031D8;">+¥${(annualPess - breakevenAnnual).toLocaleString('ja-JP')}</span>
+            </div>
+          </div>
+        </div>
+        <div class="forecast-card p-5">
+          <div class="kpi-label" style="color:#795548;">損益分岐ライン安全余裕（基準シナリオ）</div>
+          <div style="margin-top:8px;">
+            <div class="kpi-value" style="color:#0031D8;">−${margin}名</div>
+            <div class="kpi-sub" style="margin-top:8px; color:#626264; line-height:1.5;">
+              基準シナリオ（${FORECAST_DATA.scenarios.baseline.users}名）から<br>
+              <strong>${margin}名減っても黒字を維持</strong><br>
+              損益分岐: 月売上 ¥${FORECAST_DATA.breakeven.toLocaleString('ja-JP')} 以上
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     let allData = [];
     let sortCol = 'month';
@@ -799,12 +994,133 @@
         el.textContent = `${baseNames[i]}（${periodLabel}）`;
       });
 
+      // -----------------------------------------------------------------------
+      // 予測データセット生成ヘルパー
+      // -----------------------------------------------------------------------
+      function makeForecastDatasets_Sales(actualLabels) {
+        if (!forecastEnabled) return [];
+        // 実績の最後の値 → 予測の最初に繋ぐための接続点
+        const lastActualSales = sorted.filter(d => d.sales !== null).slice(-1)[0]?.sales || null;
+        const lastActualMonth = sorted.filter(d => d.sales !== null).slice(-1)[0]?.month || null;
+
+        // 予測月を表示範囲に追加（全期間 or 2026年度フィルタ時）
+        const forecastMonths = FORECAST_DATA.months;
+        const paddingOpt  = new Array(actualLabels.length).fill(null);
+        const paddingBase = new Array(actualLabels.length).fill(null);
+        const paddingPess = new Array(actualLabels.length).fill(null);
+
+        const optSales  = calcForecastSales('optimistic');
+        const baseSales = calcForecastSales('baseline');
+        const pessSales = calcForecastSales('pessimistic');
+
+        // 接続ポイント付きデータ（実績の最終値→予測開始）
+        function buildForecastArr(vals) {
+          const arr = [...paddingOpt]; // null×実績数
+          // 接続線のために最終実績点を追加
+          if (lastActualMonth && actualLabels.includes(lastActualMonth)) {
+            const idx = actualLabels.indexOf(lastActualMonth);
+            arr[idx] = lastActualSales;
+          }
+          return arr;
+        }
+
+        return [
+          {
+            label: '楽観予測',
+            data: [...new Array(actualLabels.length).fill(null), ...optSales],
+            borderColor: '#388E3C',
+            borderDash: [5, 5],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            type: 'line',
+          },
+          {
+            label: '基準予測',
+            data: [...new Array(actualLabels.length).fill(null), ...baseSales],
+            borderColor: '#1976D2',
+            borderDash: [5, 5],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            type: 'line',
+          },
+          {
+            label: '悲観予測',
+            data: [...new Array(actualLabels.length).fill(null), ...pessSales],
+            borderColor: '#D32F2F',
+            borderDash: [5, 5],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            type: 'line',
+          },
+        ];
+      }
+
+      function makeForecastDatasets_Users(actualLabels) {
+        if (!forecastEnabled) return [];
+        const optUsers  = FORECAST_DATA.months.map(() => FORECAST_DATA.scenarios.optimistic.users);
+        const baseUsers = FORECAST_DATA.months.map(() => FORECAST_DATA.scenarios.baseline.users);
+        const pessUsers = FORECAST_DATA.months.map(() => FORECAST_DATA.scenarios.pessimistic.users);
+        return [
+          {
+            label: '楽観予測',
+            data: [...new Array(actualLabels.length).fill(null), ...optUsers],
+            borderColor: '#388E3C', borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
+          },
+          {
+            label: '基準予測',
+            data: [...new Array(actualLabels.length).fill(null), ...baseUsers],
+            borderColor: '#1976D2', borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
+          },
+          {
+            label: '悲観予測',
+            data: [...new Array(actualLabels.length).fill(null), ...pessUsers],
+            borderColor: '#D32F2F', borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
+          },
+        ];
+      }
+
+      function makeForecastDatasets_Koma(actualLabels) {
+        if (!forecastEnabled) return [];
+        const optKoma  = calcForecastKoma('optimistic');
+        const baseKoma = calcForecastKoma('baseline');
+        const pessKoma = calcForecastKoma('pessimistic');
+        return [
+          {
+            label: '楽観予測',
+            data: [...new Array(actualLabels.length).fill(null), ...optKoma],
+            borderColor: '#388E3C', borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
+          },
+          {
+            label: '基準予測',
+            data: [...new Array(actualLabels.length).fill(null), ...baseKoma],
+            borderColor: '#1976D2', borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
+          },
+          {
+            label: '悲観予測',
+            data: [...new Array(actualLabels.length).fill(null), ...pessKoma],
+            borderColor: '#D32F2F', borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
+          },
+        ];
+      }
+
+      // 予測有効時はラベルに予測月を追加
+      function extendLabels(labels) {
+        if (!forecastEnabled) return labels;
+        // 既にラベルに含まれている予測月を除外してから追加
+        const extra = FORECAST_DATA.months.filter(m => !labels.includes(m));
+        return [...labels, ...extra];
+      }
+
       // コマ数 — 折れ線（時間変化・傾向を表現）
       const komaData = sorted.filter(d => d.koma !== null);
+      const komaLabels = extendLabels(komaData.map(d => d.month));
       new Chart(document.getElementById('chartKoma'), {
         type: 'line',
         data: {
-          labels: komaData.map(d => d.month),
+          labels: komaLabels,
           datasets: [{
             data: komaData.map(d => d.koma),
             borderColor: DG_BLUE_500,
@@ -816,9 +1132,15 @@
             pointBackgroundColor: DG_BLUE_500,
             pointBorderColor: '#FFFFFF',
             pointBorderWidth: 1.5,
-          }]
+          }, ...makeForecastDatasets_Koma(komaData.map(d => d.month))]
         },
-        options: baseChartOpts('コマ数', 'コマ')
+        options: {
+          ...baseChartOpts('コマ数', 'コマ'),
+          plugins: {
+            ...baseChartOpts('コマ数', 'コマ').plugins,
+            legend: { display: forecastEnabled, position: 'top', align: 'end', labels: { color: '#626264', font: { size: 10 }, boxWidth: 20, padding: 8 } }
+          }
+        }
       });
 
       // 欠席率 — 折れ線
@@ -845,10 +1167,11 @@
 
       // 利用者数 — 折れ線
       const usersData = sorted.filter(d => d.total_users !== null);
+      const usersLabels = extendLabels(usersData.map(d => d.month));
       new Chart(document.getElementById('chartUsers'), {
         type: 'line',
         data: {
-          labels: usersData.map(d => d.month),
+          labels: usersLabels,
           datasets: [{
             data: usersData.map(d => d.total_users),
             borderColor: '#264AF4',
@@ -860,9 +1183,15 @@
             pointBackgroundColor: '#264AF4',
             pointBorderColor: '#FFFFFF',
             pointBorderWidth: 1.5,
-          }]
+          }, ...makeForecastDatasets_Users(usersData.map(d => d.month))]
         },
-        options: baseChartOpts('利用者数', '名')
+        options: {
+          ...baseChartOpts('利用者数', '名'),
+          plugins: {
+            ...baseChartOpts('利用者数', '名').plugins,
+            legend: { display: forecastEnabled, position: 'top', align: 'end', labels: { color: '#626264', font: { size: 10 }, boxWidth: 20, padding: 8 } }
+          }
+        }
       });
 
       // 新規契約者数 — 棒グラフ（数量比較）
@@ -908,10 +1237,15 @@
       // 損益分岐点以上: Blue-500, 未満: Negative (#FA0000)
       const salesData = sorted.filter(d => d.sales !== null);
       const breakeven = 2300000;
+      const salesLabels = extendLabels(salesData.map(d => d.month));
+      const forecastSalesDatasets = makeForecastDatasets_Sales(salesData.map(d => d.month));
+      // 損益分岐点ラインを全ラベル分に延長
+      const breakevenLineData = salesLabels.map(() => breakeven);
+
       new Chart(document.getElementById('chartSales'), {
         type: 'bar',
         data: {
-          labels: salesData.map(d => d.month),
+          labels: salesLabels,
           datasets: [
             {
               label: '売上',
@@ -923,14 +1257,15 @@
             },
             {
               label: '損益分岐点 ¥2,300,000',
-              data: salesData.map(() => breakeven),
+              data: breakevenLineData,
               type: 'line',
               borderColor: DG_NEGATIVE,
               borderDash: [8, 4],
               borderWidth: 2,
               pointRadius: 0,
               fill: false,
-            }
+            },
+            ...forecastSalesDatasets
           ]
         },
         options: {
@@ -966,9 +1301,11 @@
               borderWidth: 1,
               padding: 10,
               callbacks: {
-                label: ctx => ctx.dataset.label === '損益分岐点 ¥2,300,000'
-                  ? ' ¥2,300,000（損益分岐点）'
-                  : ' ¥' + ctx.parsed.y?.toLocaleString('ja-JP')
+                label: ctx => {
+                  if (ctx.dataset.label === '損益分岐点 ¥2,300,000') return ' ¥2,300,000（損益分岐点）';
+                  if (ctx.parsed.y === null) return null;
+                  return ` ${ctx.dataset.label || '売上'}: ¥${ctx.parsed.y?.toLocaleString('ja-JP')}`;
+                }
               }
             }
           }
@@ -996,9 +1333,45 @@
         return sortDir === 'asc' ? va - vb : vb - va;
       });
 
-      document.getElementById('row-count').textContent = `${filtered.length} 件`;
+      // 予測行を生成（予測ON & ソートが月順のとき）
+      let forecastRows = [];
+      if (forecastEnabled) {
+        const filterVal2 = document.getElementById('filter-input').value.trim().toLowerCase();
+        forecastRows = FORECAST_DATA.months
+          .filter(m => !filterVal2 || m.includes(filterVal2))
+          .map(m => {
+            const mm = m.split('-')[1];
+            const days = MONTHLY_AVG_DAYS[mm] || 19.0;
+            const opt  = FORECAST_DATA.scenarios.optimistic;
+            const base = FORECAST_DATA.scenarios.baseline;
+            const pess = FORECAST_DATA.scenarios.pessimistic;
+            return {
+              month: m,
+              isForecast: true,
+              koma_opt:  Math.round(opt.users  * days),
+              koma_base: Math.round(base.users * days),
+              koma_pess: Math.round(pess.users * days),
+              users_opt:  opt.users,
+              users_base: base.users,
+              users_pess: pess.users,
+              sales_opt:  Math.round(opt.users  * opt.attendance  * FORECAST_DATA.unit_price),
+              sales_base: Math.round(base.users * base.attendance * FORECAST_DATA.unit_price),
+              sales_pess: Math.round(pess.users * pess.attendance * FORECAST_DATA.unit_price),
+              absence_rate_opt:  opt.absence_rate,
+              absence_rate_base: base.absence_rate,
+              absence_rate_pess: pess.absence_rate,
+              avg_attendance_opt:  opt.attendance,
+              avg_attendance_base: base.attendance,
+              avg_attendance_pess: pess.attendance,
+              basic_unit: FORECAST_DATA.unit_price,
+            };
+          });
+      }
 
-      document.getElementById('table-body').innerHTML = filtered.map((d, i) => `
+      const totalRowCount = filtered.length + forecastRows.length;
+      document.getElementById('row-count').textContent = `${filtered.length} 件${forecastRows.length > 0 ? '（+予測 ' + forecastRows.length + '件）' : ''}`;
+
+      const actualRowsHtml = filtered.map((d, i) => `
         <tr style="background:${i % 2 === 0 ? '#FFFFFF' : '#F8F8F8'};"
             onmouseover="this.style.background='#D9E6FF'"
             onmouseout="this.style.background='${i % 2 === 0 ? '#FFFFFF' : '#F8F8F8'}'"
@@ -1016,6 +1389,49 @@
           <td class="px-4 py-2.5 text-right tabular-nums text-sm">${fmtSales(d.sales)}</td>
         </tr>
       `).join('');
+
+      // 予測行HTML（楽観/基準/悲観を1行に3列分まとめて表示）
+      const forecastRowsHtml = forecastRows.map(f => `
+        <tr class="forecast-row" role="row"
+            onmouseover="this.style.background='#FFF9C4'"
+            onmouseout="this.style.background=''">
+          <td class="px-4 py-2.5 font-mono text-sm font-semibold" style="color:#795548;">
+            ${f.month}<span class="forecast-badge">※予測</span>
+          </td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">
+            <span style="color:#388E3C;">${f.koma_opt}</span> /
+            <span style="color:#1976D2;">${f.koma_base}</span> /
+            <span style="color:#D32F2F;">${f.koma_pess}</span>
+          </td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm null-val">—</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">
+            <span style="color:#388E3C;">${f.absence_rate_opt}%</span> /
+            <span style="color:#1976D2;">${f.absence_rate_base}%</span> /
+            <span style="color:#D32F2F;">${f.absence_rate_pess}%</span>
+          </td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">
+            <span style="color:#388E3C;">${f.users_opt}</span> /
+            <span style="color:#1976D2;">${f.users_base}</span> /
+            <span style="color:#D32F2F;">${f.users_pess}</span>
+          </td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm null-val">—</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm null-val">—</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm null-val">—</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">
+            <span style="color:#388E3C;">${f.avg_attendance_opt}</span> /
+            <span style="color:#1976D2;">${f.avg_attendance_base}</span> /
+            <span style="color:#D32F2F;">${f.avg_attendance_pess}</span>
+          </td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm" style="color:#795548;">¥${fmt(f.basic_unit)}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm">
+            <span style="color:#388E3C;">¥${f.sales_opt.toLocaleString('ja-JP')}</span> /
+            <span style="color:#1976D2;">¥${f.sales_base.toLocaleString('ja-JP')}</span> /
+            <span style="color:#D32F2F;">¥${f.sales_pess.toLocaleString('ja-JP')}</span>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('table-body').innerHTML = actualRowsHtml + forecastRowsHtml;
 
       // -----------------------------------------------------------------------
       // 合計/平均行
@@ -1064,7 +1480,7 @@
       const tdStyle = 'px-4 py-2.5 text-right tabular-nums text-sm font-bold';
       const nullCell = '<span class="null-val">—</span>';
 
-      footer.innerHTML = `
+      let footerHtml = `
         <tr style="background:#D9E6FF; border-top:2px solid #4979F5;" role="row">
           <td class="px-4 py-2.5 text-sm font-bold" style="color:#0031D8; white-space:nowrap;">合計 / 平均</td>
           <td class="${tdStyle}">${filtered.some(d => d.koma !== null) ? totalKoma.toLocaleString('ja-JP') : nullCell}</td>
@@ -1079,6 +1495,23 @@
           <td class="${tdStyle}">${filtered.some(d => d.sales !== null) ? '¥' + totalSales.toLocaleString('ja-JP') : nullCell}</td>
         </tr>
       `;
+
+      // 予測行が表示されている場合は凡例を追加
+      if (forecastEnabled && forecastRows.length > 0) {
+        footerHtml += `
+          <tr style="background:#FFFDE7;">
+            <td colspan="11" class="px-4 py-2 text-xs" style="color:#795548;">
+              ※予測行の見方：
+              <span style="color:#388E3C; font-weight:600;">緑=楽観（${FORECAST_DATA.scenarios.optimistic.users}名）</span> /
+              <span style="color:#1976D2; font-weight:600;">青=基準（${FORECAST_DATA.scenarios.baseline.users}名）</span> /
+              <span style="color:#D32F2F; font-weight:600;">赤=悲観（${FORECAST_DATA.scenarios.pessimistic.users}名）</span>
+              　単価 ¥${FORECAST_DATA.unit_price.toLocaleString('ja-JP')}（確定）
+            </td>
+          </tr>
+        `;
+      }
+
+      footer.innerHTML = footerHtml;
     }
 
     // -----------------------------------------------------------------------
@@ -1130,6 +1563,9 @@
 
       // 累計損益更新
       updateCumulativePL(data);
+
+      // 予測サマリー更新（予測ON時のみ）
+      if (forecastEnabled) renderForecastSummaryCards();
 
       // テーブル更新
       renderTable(data);
