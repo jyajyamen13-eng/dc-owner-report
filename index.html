@@ -1400,6 +1400,8 @@
               borderColor: '#4979F5',
               borderWidth: 1,
               borderRadius: 2,
+              barPercentage: 0.4,
+              categoryPercentage: 0.6,
               yAxisID: 'y',
             },
             {
@@ -1446,6 +1448,17 @@
                   if (ctx.parsed.y === null) return null;
                   return ` ${ctx.dataset.label}: ${ctx.parsed.y}名`;
                 }
+              }
+            }
+          },
+          scales: {
+            ...baseChartOpts('人数', '名').scales,
+            y: {
+              ...baseChartOpts('人数', '名').scales.y,
+              ticks: {
+                color: '#626264',
+                stepSize: 1,
+                precision: 0,
               }
             }
           }
