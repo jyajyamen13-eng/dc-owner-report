@@ -28,6 +28,14 @@ h1.app-title { color: #c30; font-size: 22px; margin: 0 0 16px; }
 .dropzone .subtext { font-size: 12px; color: #888; margin-top: 6px; line-height: 1.5; pointer-events: none; }
 .dropzone input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .error { background: #fee; border: 1px solid #c33; color: #800; padding: 12px; border-radius: 8px; margin: 0 0 16px; display: none; font-size: 13px; line-height: 1.6; }
+.global-settings { background: #fff; padding: 12px 16px; border-radius: 8px; border: 1px solid #ddd; margin: 0 0 16px; }
+.global-settings h2 { font-size: 14px; color: #333; margin: 0 0 10px; padding: 0 4px; }
+.global-settings .grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; }
+.global-settings label { font-size: 11px; color: #666; display: flex; flex-direction: column; gap: 4px; }
+.global-settings input, .global-settings select { padding: 6px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
+@media (max-width: 600px) {
+  .global-settings .grid { grid-template-columns: 1fr; }
+}
 .people-section { background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin: 0 0 16px; display: none; }
 .people-section h2 { font-size: 14px; color: #333; margin: 0 0 10px; padding: 0 4px; display: flex; justify-content: space-between; align-items: center; }
 .people-section h2 .count { color: #c30; font-weight: bold; }
@@ -53,8 +61,13 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
 #sheets { display: none; }
 #sheets.shown { display: block; }
 .sheet { background: white; max-width: 720px; margin: 16px auto; padding: 28px 36px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.sheet .sheet-header { position: relative; margin-bottom: 16px; }
 .sheet h1 { text-align: center; font-size: 22px; margin: 0 0 4px; letter-spacing: 0.1em; color: #222; }
-.sheet .subtitle { text-align: center; font-size: 13px; color: #666; margin-bottom: 20px; }
+.sheet .subtitle { text-align: center; font-size: 13px; color: #666; margin-bottom: 8px; }
+.sheet .issued-at { position: absolute; top: 4px; right: 0; font-size: 11px; color: #888; }
+.sheet .company-block { margin: 0 0 14px; padding: 10px 12px; background: #fafaf5; border-left: 3px solid #c30; border-radius: 0 4px 4px 0; }
+.sheet .company-block .company-name { font-size: 14px; font-weight: bold; color: #222; margin-bottom: 2px; }
+.sheet .company-block .company-contact { font-size: 11px; color: #666; }
 .sheet .row { display: flex; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
 .sheet .row > div { flex: 1; min-width: 160px; }
 .sheet .row label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.05em; }
@@ -65,6 +78,10 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
 .sheet td.label { text-align: left; background: #fafafa; }
 .sheet .section-title { font-size: 13px; font-weight: bold; margin-top: 20px; margin-bottom: 6px; padding: 6px 10px; background: #333; color: #fff; }
 .sheet .total-row td { background: #fff8dc; font-weight: bold; font-size: 16px; }
+.sheet .gross-row td { font-size: 17px; background: #fef0e0 !important; }
+.sheet .section-title.net-title { background: #c30; font-size: 15px; }
+.sheet .net-table .net-row td { background: #fff5e0 !important; font-size: 22px; padding: 14px 12px; border-color: #c30; }
+.sheet .net-table .net-row td.label { color: #c30; }
 .sheet .notes { margin-top: 16px; font-size: 11px; color: #666; line-height: 1.6; }
 .sheet .signature-area { margin-top: 24px; display: flex; justify-content: flex-end; gap: 60px; font-size: 12px; color: #333; }
 .sheet .signature-area > div { text-align: center; }
@@ -94,7 +111,17 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   <h1 class="app-title">給与明細 自動生成</h1>
   <div class="intro">
     出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で給与明細を作ります。<strong>最大 30 人まで一括処理可能</strong>。<br>
-    <strong>計算ルール（固定）</strong>: 1 日 5 時間（10:00〜16:00 休憩 1h）/ 時給 1,000 円 / 交通費 500 円/日 / 控除なし
+    <strong>計算ルール</strong>: 実打刻ベース（休憩 1 時間控除）/ 時給 1,000 円 / 交通費 500 円/日 / 控除なし
+  </div>
+
+  <div class="global-settings" id="globalSettings">
+    <h2>会社情報・支払設定（全員共通）</h2>
+    <div class="grid">
+      <label>会社住所<input id="g-address" placeholder="〒020-0000 岩手県盛岡市..."></label>
+      <label>電話番号<input id="g-phone" placeholder="019-xxx-xxxx"></label>
+      <label>支払方法<select id="g-pay-method"><option>銀行振込</option><option>現金</option><option>その他</option></select></label>
+      <label>発行日<input id="g-issued-at" type="date"></label>
+    </div>
   </div>
 
   <div class="dropzone" id="dz" tabindex="0" role="button" aria-label="PDFファイルを選択またはドロップ">
@@ -118,7 +145,9 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
             <th>法人名</th>
             <th>年</th>
             <th>月</th>
-            <th>出勤日数</th>
+            <th>出勤</th>
+            <th>欠勤</th>
+            <th>有給</th>
             <th>労働時間 (h)</th>
             <th class="col-del"></th>
           </tr>
@@ -159,6 +188,23 @@ const sheets = document.getElementById("sheets");
 
 let people = [];
 let nextId = 1;
+
+const globalSettings = {
+  address: "",
+  phone: "",
+  payMethod: "銀行振込",
+  issuedAt: new Date().toISOString().slice(0, 10),
+};
+
+function bindGlobalSettings() {
+  const issuedInput = document.getElementById("g-issued-at");
+  issuedInput.value = globalSettings.issuedAt;
+  document.getElementById("g-address").addEventListener("input", e => globalSettings.address = e.target.value);
+  document.getElementById("g-phone").addEventListener("input", e => globalSettings.phone = e.target.value);
+  document.getElementById("g-pay-method").addEventListener("change", e => globalSettings.payMethod = e.target.value);
+  issuedInput.addEventListener("change", e => globalSettings.issuedAt = e.target.value || new Date().toISOString().slice(0, 10));
+}
+bindGlobalSettings();
 
 ["dragover","dragenter"].forEach(ev => dz.addEventListener(ev, e => {
   e.preventDefault();
@@ -319,10 +365,10 @@ function parseAttendance(text) {
 
   // 出勤日数: 打刻記録の件数を最優先（ラベル盲信を防ぐ）。打刻ゼロなら fallback でラベルを拾う
   let attendance_days = uniqueShifts.length;
-  if (attendance_days === 0) {
-    m = compact.match(/出\s*勤\s*日\s*数\s*[:：]?\s*(\d{1,3})\s*日/);
-    if (m) attendance_days = parseInt(m[1]);
-  }
+  let labelDays = null;
+  m = compact.match(/出\s*勤\s*日\s*数\s*[:：]?\s*(\d{1,3})\s*日/);
+  if (m) labelDays = parseInt(m[1]);
+  if (attendance_days === 0 && labelDays !== null) attendance_days = labelDays;
 
   // 合計労働時間（分）: 各日の (end - start) - 休憩 60 分（実打刻ベース）
   const total_work_minutes = uniqueShifts.reduce((sum, s) => {
@@ -337,6 +383,8 @@ function parseAttendance(text) {
     month: month || (new Date().getMonth() + 1),
     shifts: uniqueShifts,
     attendance_days: attendance_days || 0,
+    absent_days: 0,
+    paid_leave_days: 0,
     total_work_minutes,
   };
 }
@@ -369,11 +417,14 @@ function renderTable() {
       <td><input data-field="year" type="number" value="${p.year}"></td>
       <td><input data-field="month" type="number" min="1" max="12" value="${p.month}"></td>
       <td><input data-field="attendance_days" type="number" min="0" value="${p.attendance_days}" title="${daysHint}"></td>
+      <td><input data-field="absent_days" type="number" min="0" value="${p.absent_days || 0}"></td>
+      <td><input data-field="paid_leave_days" type="number" min="0" value="${p.paid_leave_days || 0}"></td>
       <td><input data-field="total_work_hours" type="number" step="0.01" min="0" value="${totalHours}" title="${daysHint}（実打刻 − 休憩 1h）"></td>
       <td class="col-del"><button class="del-btn" data-id="${p.id}">削除</button></td>
     </tr>
     `;
   }).join("");
+
   peopleTbody.querySelectorAll("input").forEach(inp => {
     inp.addEventListener("input", e => {
       const tr = e.target.closest("tr");
@@ -381,7 +432,7 @@ function renderTable() {
       const field = e.target.dataset.field;
       const p = people.find(x => x.id === id);
       if (!p) return;
-      if (field === "year" || field === "month" || field === "attendance_days") {
+      if (field === "year" || field === "month" || field === "attendance_days" || field === "absent_days" || field === "paid_leave_days") {
         p[field] = parseInt(e.target.value) || 0;
       } else if (field === "total_work_hours") {
         p.total_work_minutes = Math.round((parseFloat(e.target.value) || 0) * 60);
@@ -412,6 +463,8 @@ printBtn.addEventListener("click", () => window.print());
 
 function buildSheetHTML(p) {
   const days = parseInt(p.attendance_days) || 0;
+  const absentDays = parseInt(p.absent_days) || 0;
+  const paidLeaveDays = parseInt(p.paid_leave_days) || 0;
   const year = parseInt(p.year);
   const month = parseInt(p.month);
   const totalMinutes = parseInt(p.total_work_minutes) || 0;
@@ -428,26 +481,32 @@ function buildSheetHTML(p) {
   const payYear = month === 12 ? year + 1 : year;
   const payMonth = month === 12 ? 1 : month + 1;
   const payDate = `${payYear}/${String(payMonth).padStart(2,"0")}/${String(PAY_DAY_OF_NEXT_MONTH).padStart(2,"0")}`;
+  const issuedAt = (globalSettings.issuedAt || new Date().toISOString().slice(0, 10)).replace(/-/g, "/");
   const fmt = n => n.toLocaleString("ja-JP");
   const fmtHM = mins => `${Math.floor(mins / 60)} 時間 ${String(mins % 60).padStart(2, "0")} 分`;
   const name = (p.name || "").trim() || "（氏名未抽出）";
   const company = (p.company || "").trim();
   const biz = (p.biz || "").trim();
-  const shifts = (p.shifts || []);
+  const address = (globalSettings.address || "").trim();
+  const phone = (globalSettings.phone || "").trim();
+  const payMethod = globalSettings.payMethod || "銀行振込";
 
-  const shiftRows = shifts.map(s => {
-    const gross = shiftMinutes(s.start, s.end);
-    const net = Math.max(0, gross - BREAK_MINUTES);
-    return `<tr><td>${s.day} 日</td><td>${s.start}</td><td>${s.end}</td><td>${fmtHM(net)}</td></tr>`;
-  }).join("");
+  const companyLine = `${escapeHtml(company)} ${escapeHtml(biz)}`.trim();
+  const contactLine = [address, phone].filter(s => s).map(escapeHtml).join(" / ");
 
   return `
     <div class="sheet">
-      <h1>給 与 明 細 書</h1>
-      <div class="subtitle">${year} 年 ${month} 月分</div>
-      <div class="row">
-        <div><label>事業所</label><div class="val">${escapeHtml(company)} ${escapeHtml(biz)}</div></div>
+      <div class="sheet-header">
+        <h1>給 与 明 細 書</h1>
+        <div class="subtitle">${year} 年 ${month} 月分</div>
+        <div class="issued-at">発行日 ${issuedAt}</div>
       </div>
+
+      <div class="company-block">
+        <div class="company-name">${companyLine}</div>
+        ${contactLine ? `<div class="company-contact">${contactLine}</div>` : ""}
+      </div>
+
       <div class="row">
         <div><label>氏名</label><div class="val">${escapeHtml(name)} 様</div></div>
         <div><label>支給対象期間</label><div class="val">${periodStart} 〜 ${periodEnd}</div></div>
@@ -455,46 +514,48 @@ function buildSheetHTML(p) {
       <div class="row">
         <div><label>締め日</label><div class="val">${cutoffDate}</div></div>
         <div><label>支払日</label><div class="val">${payDate}</div></div>
+        <div><label>支払方法</label><div class="val">${escapeHtml(payMethod)}</div></div>
       </div>
+
       <div class="section-title">勤怠</div>
       <table>
-        <tr><th>出勤日数</th><th>合計労働時間</th><th>1 日平均</th></tr>
+        <tr><th>出勤日数</th><th>欠勤日数</th><th>有給休暇</th><th>合計労働時間</th><th>1 日平均</th></tr>
         <tr>
           <td>${days} 日</td>
+          <td>${absentDays} 日</td>
+          <td>${paidLeaveDays} 日</td>
           <td>${fmtHM(totalMinutes)}（${totalHours.toFixed(2)} h）</td>
           <td>${days > 0 ? fmtHM(Math.round(totalMinutes / days)) : "—"}</td>
         </tr>
       </table>
-      ${shifts.length > 0 ? `
-      <div class="section-title">日別打刻記録（出勤簿 PDF より、休憩 1h 控除後）</div>
-      <table class="shift-table">
-        <tr><th>日</th><th>開始</th><th>終了</th><th>労働時間</th></tr>
-        ${shiftRows}
-      </table>
-      ` : ""}
+
       <div class="section-title">支給</div>
       <table>
         <tr><th></th><th>単価</th><th>数量</th><th>金額</th></tr>
         <tr><td class="label">基本給（時給）</td><td>${fmt(HOURLY_WAGE)} 円 / h</td><td>${totalHours.toFixed(2)} h</td><td>${fmt(basePay)} 円</td></tr>
         <tr><td class="label">交通費</td><td>${fmt(TRANSPORT_PER_DAY)} 円 / 日</td><td>${days} 日</td><td>${fmt(transport)} 円</td></tr>
-        <tr class="total-row"><td class="label" colspan="3">支給合計</td><td>${fmt(gross)} 円</td></tr>
+        <tr class="total-row gross-row"><td class="label" colspan="3">総支給額</td><td>${fmt(gross)} 円</td></tr>
       </table>
+
       <div class="section-title">控除</div>
       <table>
         <tr><th></th><th>金額</th></tr>
         <tr><td class="label">控除なし</td><td>${fmt(deduction)} 円</td></tr>
         <tr class="total-row"><td class="label">控除合計</td><td>${fmt(deduction)} 円</td></tr>
       </table>
-      <div class="section-title">差引支給額</div>
-      <table>
-        <tr class="total-row"><td class="label" style="font-size:18px;">差引支給額</td><td style="font-size:18px;">${fmt(net)} 円</td></tr>
+
+      <div class="section-title net-title">差引支給額</div>
+      <table class="net-table">
+        <tr class="total-row net-row"><td class="label">差引支給額</td><td>${fmt(net)} 円</td></tr>
       </table>
+
       <div class="notes">
-        ※ 出勤実績記録票（${year} 年 ${month} 月分）の打刻 ${shifts.length} 件を集計（実打刻ベース、休憩 60 分控除）。<br>
+        ※ 計算: 実打刻ベース（出勤簿 PDF の打刻記録を集計、休憩 60 分控除）。<br>
         ※ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 = ${fmt(basePay)} 円。<br>
         ※ 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 / 日 × ${days} 日 = ${fmt(transport)} 円。<br>
-        ※ 締め日 ${cutoffDate}、支払日 ${payDate}。
+        ※ 締め日 ${cutoffDate} / 支払日 ${payDate} / 支払方法 ${escapeHtml(payMethod)}。
       </div>
+
       <div class="signature-area">
         <div>支給者印<div class="stamp"><div>ディーキャリア</div><div>いわて•盛岡</div></div></div>
         <div>受領者印<div class="stamp empty"></div></div>
