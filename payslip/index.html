@@ -10,8 +10,31 @@
   html, body { background: white !important; padding: 0 !important; margin: 0 !important; }
   .no-print { display: none !important; }
   #sheets { display: block !important; }
-  .sheet { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; padding: 16mm !important; page-break-after: always; }
+  @page { size: A4; margin: 0; }
+  .sheet { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; padding: 8mm 12mm !important; page-break-after: always; font-size: 11px; }
   .sheet:last-child { page-break-after: auto; }
+  .sheet .sheet-header { margin-bottom: 8px; }
+  .sheet h1 { font-size: 17px; margin: 0 0 2px; letter-spacing: 0.05em; }
+  .sheet .subtitle { font-size: 11px; margin-bottom: 4px; }
+  .sheet .issued-at { font-size: 9px; }
+  .sheet .company-block { margin: 0 0 8px; padding: 6px 10px; }
+  .sheet .company-block .company-name { font-size: 12px; }
+  .sheet .company-block .company-contact { font-size: 9px; }
+  .sheet .row { gap: 14px; margin-bottom: 2px; }
+  .sheet .row label { font-size: 9px; margin-bottom: 1px; }
+  .sheet .row .val { font-size: 11px; padding: 1px 0; min-height: 14px; }
+  .sheet .section-title { font-size: 10px; margin-top: 4px; margin-bottom: 1px; padding: 2px 8px; }
+  .sheet table { font-size: 10px; margin-top: 2px; }
+  .sheet th, .sheet td { padding: 2px 6px; }
+  .sheet th { font-size: 9px; }
+  .sheet .total-row td { font-size: 12px; padding: 4px 6px; }
+  .sheet .gross-row td { font-size: 13px; padding: 4px 6px; }
+  .sheet .section-title.net-title { font-size: 11px; padding: 3px 8px; }
+  .sheet .net-table .net-row td { font-size: 14px; padding: 4px 10px; }
+  .sheet .notes { font-size: 8px; margin-top: 3px; line-height: 1.35; }
+  .sheet .signature-area { margin-top: 4px; gap: 24px; font-size: 9px; }
+  .sheet .signature-area .stamp { width: 48px; height: 48px; font-size: 6.5px; line-height: 1.25; padding: 2px; margin-top: 2px; }
+  .sheet { page-break-inside: avoid; }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -79,6 +102,7 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
 .sheet .section-title { font-size: 13px; font-weight: bold; margin-top: 20px; margin-bottom: 6px; padding: 6px 10px; background: #333; color: #fff; }
 .sheet .total-row td { background: #fff8dc; font-weight: bold; font-size: 16px; }
 .sheet .gross-row td { font-size: 17px; background: #fef0e0 !important; }
+.sheet .deduction-line { font-size: 12px; color: #555; padding: 6px 10px; background: #fafafa; border: 1px solid #ddd; margin-top: 4px; }
 .sheet .section-title.net-title { background: #c30; font-size: 15px; }
 .sheet .net-table .net-row td { background: #fff5e0 !important; font-size: 22px; padding: 14px 12px; border-color: #c30; }
 .sheet .net-table .net-row td.label { color: #c30; }
@@ -538,11 +562,7 @@ function buildSheetHTML(p) {
       </table>
 
       <div class="section-title">控除</div>
-      <table>
-        <tr><th></th><th>金額</th></tr>
-        <tr><td class="label">控除なし</td><td>${fmt(deduction)} 円</td></tr>
-        <tr class="total-row"><td class="label">控除合計</td><td>${fmt(deduction)} 円</td></tr>
-      </table>
+      <div class="deduction-line">該当なし（控除合計 ${fmt(deduction)} 円）</div>
 
       <div class="section-title net-title">差引支給額</div>
       <table class="net-table">
@@ -550,10 +570,7 @@ function buildSheetHTML(p) {
       </table>
 
       <div class="notes">
-        ※ 計算: 実打刻ベース（出勤簿 PDF の打刻記録を集計、休憩 60 分控除）。<br>
-        ※ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 = ${fmt(basePay)} 円。<br>
-        ※ 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 / 日 × ${days} 日 = ${fmt(transport)} 円。<br>
-        ※ 締め日 ${cutoffDate} / 支払日 ${payDate} / 支払方法 ${escapeHtml(payMethod)}。
+        ※ 実打刻ベース集計（休憩 60 分控除）/ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 + 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 × ${days} 日。
       </div>
 
       <div class="signature-area">
