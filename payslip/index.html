@@ -3,92 +3,137 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>給与明細自動生成 — 出勤簿 PDF ドロップ</title>
+<title>給与明細 自動生成 — 出勤簿 PDF ドロップ</title>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.js"></script>
 <style>
 @media print {
-  body { background: white !important; }
+  html, body { background: white !important; padding: 0 !important; margin: 0 !important; }
   .no-print { display: none !important; }
-  .sheet { max-width: 100% !important; padding: 20px !important; box-shadow: none !important; }
+  #sheets { display: block !important; }
+  .sheet { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; padding: 16mm !important; page-break-after: always; }
+  .sheet:last-child { page-break-after: auto; }
 }
 * { box-sizing: border-box; }
-body { background: #f5f5f0; color: #222; font-family: "游ゴシック","Yu Gothic","Hiragino Sans",sans-serif; padding: 20px; margin: 0; }
-.container { max-width: 720px; margin: 0 auto; }
+html, body { margin: 0; padding: 0; }
+body { background: #f5f5f0; color: #222; font-family: "游ゴシック","Yu Gothic","Hiragino Sans",sans-serif; padding: 16px; }
+.container { max-width: 920px; margin: 0 auto; }
 h1.app-title { color: #c30; font-size: 22px; margin: 0 0 16px; }
-.intro { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 20px; background: #fff; padding: 16px; border-radius: 8px; border: 1px solid #ddd; }
+.intro { font-size: 13px; color: #444; line-height: 1.7; margin: 0 0 16px; background: #fff; padding: 14px 16px; border-radius: 8px; border: 1px solid #ddd; }
 .intro code { background: #f0e8e0; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
-.dropzone { border: 3px dashed #c30; border-radius: 12px; padding: 60px 20px; text-align: center; background: #fff8dc; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
+.intro strong { color: #c30; }
+.dropzone { display: block; border: 2px dashed #c30; border-radius: 12px; padding: 28px 16px; text-align: center; background: #fff8dc; cursor: pointer; transition: all 0.2s; margin: 0 0 16px; }
 .dropzone.drag-over { background: #ffe4b5; border-color: #800; }
-.dropzone .icon { font-size: 48px; margin-bottom: 12px; }
-.dropzone .text { font-size: 16px; color: #333; }
-.dropzone .subtext { font-size: 12px; color: #888; margin-top: 8px; }
+.dropzone .icon { font-size: 36px; margin-bottom: 8px; line-height: 1; }
+.dropzone .text { font-size: 15px; color: #333; font-weight: bold; }
+.dropzone .subtext { font-size: 12px; color: #888; margin-top: 6px; line-height: 1.5; }
 .dropzone input { display: none; }
-.error { background: #fee; border: 1px solid #c33; color: #800; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; }
-.parsed-info { background: #fff; padding: 16px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; display: none; }
-.parsed-info h2 { font-size: 14px; color: #333; margin: 0 0 8px; }
-.parsed-info .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
-.parsed-info .grid label { color: #888; font-size: 11px; }
-.parsed-info input, .parsed-info select { width: 100%; padding: 4px 6px; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; font-family: inherit; }
-.actions { display: flex; gap: 12px; margin-bottom: 20px; }
-.actions button { flex: 1; padding: 12px; font-size: 14px; background: #c30; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.error { background: #fee; border: 1px solid #c33; color: #800; padding: 12px; border-radius: 8px; margin: 0 0 16px; display: none; font-size: 13px; line-height: 1.6; }
+.people-section { background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin: 0 0 16px; display: none; }
+.people-section h2 { font-size: 14px; color: #333; margin: 0 0 10px; padding: 0 4px; display: flex; justify-content: space-between; align-items: center; }
+.people-section h2 .count { color: #c30; font-weight: bold; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.people-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 720px; }
+table.people-table th, table.people-table td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: middle; }
+table.people-table th { background: #f5f5f0; font-weight: normal; color: #666; font-size: 11px; white-space: nowrap; }
+table.people-table input { width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px; font-family: inherit; }
+table.people-table input[type=number] { min-width: 50px; }
+table.people-table .col-no { width: 32px; text-align: center; color: #888; }
+table.people-table .col-del { width: 56px; text-align: center; }
+table.people-table .del-btn { background: #fff; color: #c33; border: 1px solid #c33; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; }
+table.people-table .del-btn:hover { background: #c33; color: #fff; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 20px; }
+.actions button { flex: 1 1 140px; padding: 12px 8px; font-size: 14px; background: #c30; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 .actions button:hover { background: #800; }
 .actions button:disabled { background: #aaa; cursor: not-allowed; }
-.print-btn { background: #333 !important; }
-.sheet { background: white; max-width: 720px; margin: 20px auto; padding: 32px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none; }
+.actions .print-btn { background: #333; }
+.actions .print-btn:hover { background: #000; }
+.actions .clear-btn { background: #888; flex: 0 0 auto; padding: 12px 16px; }
+.actions .clear-btn:hover { background: #555; }
+
+#sheets { display: none; }
+#sheets.shown { display: block; }
+.sheet { background: white; max-width: 720px; margin: 16px auto; padding: 28px 36px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .sheet h1 { text-align: center; font-size: 22px; margin: 0 0 4px; letter-spacing: 0.1em; color: #222; }
-.subtitle { text-align: center; font-size: 13px; color: #666; margin-bottom: 24px; }
-.row { display: flex; gap: 24px; margin-bottom: 16px; }
-.row > div { flex: 1; }
-.row label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.05em; }
-.row .val { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #ccc; }
-.sheet table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+.sheet .subtitle { text-align: center; font-size: 13px; color: #666; margin-bottom: 20px; }
+.sheet .row { display: flex; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
+.sheet .row > div { flex: 1; min-width: 160px; }
+.sheet .row label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.05em; }
+.sheet .row .val { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #ccc; min-height: 28px; }
+.sheet table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
 .sheet th, .sheet td { border: 1px solid #aaa; padding: 8px 10px; text-align: right; }
 .sheet th { background: #eee; font-weight: normal; font-size: 11px; }
 .sheet td.label { text-align: left; background: #fafafa; }
-.section-title { font-size: 13px; font-weight: bold; margin-top: 24px; margin-bottom: 8px; padding: 6px 10px; background: #333; color: #fff; }
-.total-row td { background: #fff8dc; font-weight: bold; font-size: 16px; }
-.notes { margin-top: 24px; font-size: 11px; color: #666; line-height: 1.6; }
-.signature-area { margin-top: 32px; display: flex; justify-content: flex-end; gap: 60px; font-size: 12px; color: #333; }
-.signature-area > div { text-align: center; }
-.signature-area .stamp { width: 50px; height: 50px; border: 2px solid #c30; border-radius: 50%; margin: 8px auto; display: flex; align-items: center; justify-content: center; color: #c30; font-size: 11px; }
+.sheet .section-title { font-size: 13px; font-weight: bold; margin-top: 20px; margin-bottom: 6px; padding: 6px 10px; background: #333; color: #fff; }
+.sheet .total-row td { background: #fff8dc; font-weight: bold; font-size: 16px; }
+.sheet .notes { margin-top: 16px; font-size: 11px; color: #666; line-height: 1.6; }
+.sheet .signature-area { margin-top: 24px; display: flex; justify-content: flex-end; gap: 60px; font-size: 12px; color: #333; }
+.sheet .signature-area > div { text-align: center; }
+.sheet .signature-area .stamp { width: 50px; height: 50px; border: 2px solid #c30; border-radius: 50%; margin: 8px auto; display: flex; align-items: center; justify-content: center; color: #c30; font-size: 11px; }
+
+@media (max-width: 600px) {
+  body { padding: 10px; }
+  h1.app-title { font-size: 18px; margin: 0 0 12px; }
+  .intro { font-size: 12px; padding: 12px; line-height: 1.6; }
+  .dropzone { padding: 22px 12px; }
+  .dropzone .icon { font-size: 32px; }
+  .dropzone .text { font-size: 14px; }
+  .dropzone .subtext { font-size: 11px; }
+  .actions { gap: 8px; }
+  .actions button { flex: 1 1 100%; padding: 14px; }
+  .actions .clear-btn { flex: 1 1 100%; }
+  .sheet { padding: 20px 16px; margin: 12px 0; }
+  .sheet h1 { font-size: 18px; }
+  .sheet .row { gap: 12px; }
+  .sheet .signature-area { gap: 30px; }
+}
 </style>
 </head>
 <body>
 <div class="container no-print">
   <h1 class="app-title">給与明細 自動生成</h1>
   <div class="intro">
-    出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）を下のエリアにドロップすると、自動で給与明細を作ります。<br>
+    出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で給与明細を作ります。<strong>最大 30 人まで一括処理可能</strong>。<br>
     <strong>計算ルール（固定）</strong>: 1 日 5 時間（10:00〜16:00 休憩 1h）/ 時給 1,000 円 / 交通費 500 円/日 / 控除なし
   </div>
 
   <label class="dropzone" id="dz">
     <div class="icon">📄</div>
     <div class="text">PDF をここにドロップ</div>
-    <div class="subtext">（クリックで選択もできます）</div>
-    <input type="file" id="fileInput" accept="application/pdf">
+    <div class="subtext">複数ファイル同時 OK・最大 30 人まで（クリックで選択もできます）</div>
+    <input type="file" id="fileInput" accept="application/pdf" multiple>
   </label>
 
   <div class="error" id="errorBox"></div>
 
-  <div class="parsed-info" id="parsedInfo">
-    <h2>抽出結果（必要に応じて修正してください）</h2>
-    <div class="grid">
-      <div><label>氏名</label><input id="f-name"></div>
-      <div><label>事業所</label><input id="f-biz"></div>
-      <div><label>法人名</label><input id="f-company"></div>
-      <div><label>年</label><input id="f-year" type="number"></div>
-      <div><label>月</label><input id="f-month" type="number" min="1" max="12"></div>
-      <div><label>出勤日数</label><input id="f-days" type="number" min="0"></div>
+  <div class="people-section" id="peopleSection">
+    <h2>追加された人 <span class="count" id="peopleCount">0 / 30</span></h2>
+    <div class="table-wrap">
+      <table class="people-table" id="peopleTable">
+        <thead>
+          <tr>
+            <th class="col-no">#</th>
+            <th>氏名</th>
+            <th>事業所</th>
+            <th>法人名</th>
+            <th>年</th>
+            <th>月</th>
+            <th>出勤日数</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="peopleTbody"></tbody>
+      </table>
     </div>
   </div>
 
   <div class="actions">
     <button id="genBtn" disabled>給与明細を作る</button>
     <button id="printBtn" class="print-btn" disabled>印刷 / PDF 保存</button>
+    <button id="clearBtn" class="clear-btn">クリア</button>
   </div>
 </div>
 
-<div class="sheet" id="sheet"></div>
+<div id="sheets"></div>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.js";
@@ -96,14 +141,21 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dis
 const HOURLY_WAGE = 1000;
 const DAILY_HOURS = 5.0;
 const TRANSPORT_PER_DAY = 500;
+const MAX_PEOPLE = 30;
 
 const dz = document.getElementById("dz");
 const fileInput = document.getElementById("fileInput");
 const errorBox = document.getElementById("errorBox");
-const parsedInfo = document.getElementById("parsedInfo");
+const peopleSection = document.getElementById("peopleSection");
+const peopleTbody = document.getElementById("peopleTbody");
+const peopleCount = document.getElementById("peopleCount");
 const genBtn = document.getElementById("genBtn");
 const printBtn = document.getElementById("printBtn");
-const sheet = document.getElementById("sheet");
+const clearBtn = document.getElementById("clearBtn");
+const sheets = document.getElementById("sheets");
+
+let people = [];
+let nextId = 1;
 
 ["dragover","dragenter"].forEach(ev => dz.addEventListener(ev, e => {
   e.preventDefault();
@@ -115,168 +167,237 @@ const sheet = document.getElementById("sheet");
 }));
 dz.addEventListener("drop", e => {
   e.preventDefault();
-  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
 fileInput.addEventListener("change", e => {
-  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  if (e.target.files && e.target.files.length) handleFiles(e.target.files);
+  e.target.value = "";
+});
+
+clearBtn.addEventListener("click", () => {
+  if (people.length && !confirm("追加された人を全部消します。よろしいですか？")) return;
+  people = [];
+  sheets.innerHTML = "";
+  sheets.classList.remove("shown");
+  printBtn.disabled = true;
+  hideError();
+  renderTable();
 });
 
 function showError(msg) {
-  errorBox.textContent = msg;
+  errorBox.innerHTML = msg;
   errorBox.style.display = "block";
 }
-function hideError() { errorBox.style.display = "none"; }
+function hideError() { errorBox.style.display = "none"; errorBox.innerHTML = ""; }
 
-async function handleFile(file) {
+async function handleFiles(fileList) {
   hideError();
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
+  const arr = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+  const skippedNonPdf = fileList.length - arr.length;
+  if (!arr.length) {
     showError("PDF ファイルをドロップしてください");
     return;
   }
-  try {
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    let text = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map(it => it.str).join(" ") + "\n";
-    }
-    const data = parseAttendance(text);
-    fillForm(data);
-    parsedInfo.style.display = "block";
-    genBtn.disabled = false;
-  } catch (err) {
-    showError("PDF の読み込みに失敗: " + err.message);
+  const slots = MAX_PEOPLE - people.length;
+  if (slots <= 0) {
+    showError(`上限 ${MAX_PEOPLE} 人に達しています。クリアしてから追加してください。`);
+    return;
   }
+  const targets = arr.slice(0, slots);
+  const skippedOverflow = arr.length - targets.length;
+  const errors = [];
+
+  for (const file of targets) {
+    try {
+      const text = await extractPdfText(file);
+      const data = parseAttendance(text);
+      data.id = nextId++;
+      data.fileName = file.name;
+      people.push(data);
+    } catch (err) {
+      errors.push(`<strong>${escapeHtml(file.name)}</strong>: ${escapeHtml(err.message)}`);
+    }
+  }
+  if (skippedOverflow > 0) errors.push(`上限 ${MAX_PEOPLE} 人を超えるため <strong>${skippedOverflow}</strong> ファイルをスキップしました`);
+  if (skippedNonPdf > 0) errors.push(`PDF 以外を <strong>${skippedNonPdf}</strong> ファイルスキップしました`);
+  if (errors.length) showError(errors.join("<br>"));
+  renderTable();
+}
+
+async function extractPdfText(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(" ") + "\n";
+  }
+  return text;
 }
 
 function parseAttendance(text) {
-  // 利用者氏名
   let name = "";
   let m = text.match(/利用者氏名\s*([一-鿿]{1,4}[\s　]+[一-鿿]{1,4})/);
   if (!m) m = text.match(/氏名\s*[:：]?\s*([一-鿿]{1,4}[\s　]+[一-鿿]{1,4})/);
   if (m) name = m[1].replace(/[\s　]+/g, " ").trim();
 
-  // 事業所名（"ディーキャリア..." 等を含む 1 行）
   let biz = "";
   m = text.match(/(ディーキャリア[^\s]*[^\n]*?(?:オフィス|事業所|センター)?)/);
   if (m) biz = m[1].trim();
 
-  // 法人名
   let company = "";
   m = text.match(/(株式会社[^\s]+|[^\s]+株式会社)/);
   if (m) company = m[1].trim();
 
-  // 年月
   let year = null, month = null;
   m = text.match(/(20\d{2})年\s*(\d{1,2})\s*月/);
   if (m) { year = parseInt(m[1]); month = parseInt(m[2]); }
 
-  // 出勤日: "1 水 09:39 16:17" のパターンを抽出
   const lines = text.split(/\n|(?=\d{1,2}\s+[月火水木金土日]?\s*\d{2}:\d{2})/);
   const shifts = [];
   for (const line of lines) {
     const lm = line.match(/(?:^|\s)(\d{1,2})\s+[月火水木金土日]?\s*(\d{2}:\d{2})\s+(\d{2}:\d{2})/);
-    if (lm) {
-      shifts.push({ day: parseInt(lm[1]), start: lm[2], end: lm[3] });
-    }
+    if (lm) shifts.push({ day: parseInt(lm[1]), start: lm[2], end: lm[3] });
   }
-
   return {
-    name, biz, company, year, month,
+    name, biz, company,
+    year: year || new Date().getFullYear(),
+    month: month || (new Date().getMonth() + 1),
     attendance_days: shifts.length,
-    shifts,
   };
 }
 
-function fillForm(data) {
-  document.getElementById("f-name").value = data.name || "";
-  document.getElementById("f-biz").value = data.biz || "";
-  document.getElementById("f-company").value = data.company || "";
-  document.getElementById("f-year").value = data.year || new Date().getFullYear();
-  document.getElementById("f-month").value = data.month || (new Date().getMonth() + 1);
-  document.getElementById("f-days").value = data.attendance_days || 0;
+function renderTable() {
+  peopleCount.textContent = `${people.length} / ${MAX_PEOPLE}`;
+  if (!people.length) {
+    peopleSection.style.display = "none";
+    peopleTbody.innerHTML = "";
+    genBtn.disabled = true;
+    return;
+  }
+  peopleSection.style.display = "block";
+  peopleTbody.innerHTML = people.map((p, i) => `
+    <tr data-id="${p.id}">
+      <td class="col-no">${i + 1}</td>
+      <td><input data-field="name" value="${escapeAttr(p.name)}"></td>
+      <td><input data-field="biz" value="${escapeAttr(p.biz)}"></td>
+      <td><input data-field="company" value="${escapeAttr(p.company)}"></td>
+      <td><input data-field="year" type="number" value="${p.year}"></td>
+      <td><input data-field="month" type="number" min="1" max="12" value="${p.month}"></td>
+      <td><input data-field="attendance_days" type="number" min="0" value="${p.attendance_days}"></td>
+      <td class="col-del"><button class="del-btn" data-id="${p.id}">削除</button></td>
+    </tr>
+  `).join("");
+  peopleTbody.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const tr = e.target.closest("tr");
+      const id = parseInt(tr.dataset.id);
+      const field = e.target.dataset.field;
+      const p = people.find(x => x.id === id);
+      if (!p) return;
+      if (field === "year" || field === "month" || field === "attendance_days") {
+        p[field] = parseInt(e.target.value) || 0;
+      } else {
+        p[field] = e.target.value;
+      }
+    });
+  });
+  peopleTbody.querySelectorAll(".del-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = parseInt(btn.dataset.id);
+      people = people.filter(p => p.id !== id);
+      renderTable();
+    });
+  });
+  genBtn.disabled = false;
 }
 
 genBtn.addEventListener("click", () => {
-  const name = document.getElementById("f-name").value.trim() || "（氏名未抽出）";
-  const biz = document.getElementById("f-biz").value.trim();
-  const company = document.getElementById("f-company").value.trim();
-  const year = parseInt(document.getElementById("f-year").value);
-  const month = parseInt(document.getElementById("f-month").value);
-  const days = parseInt(document.getElementById("f-days").value) || 0;
+  if (!people.length) return;
+  sheets.innerHTML = people.map(buildSheetHTML).join("");
+  sheets.classList.add("shown");
+  printBtn.disabled = false;
+  sheets.scrollIntoView({ behavior: "smooth" });
+});
 
+printBtn.addEventListener("click", () => window.print());
+
+function buildSheetHTML(p) {
+  const days = parseInt(p.attendance_days) || 0;
+  const year = parseInt(p.year);
+  const month = parseInt(p.month);
   const totalHours = days * DAILY_HOURS;
   const basePay = Math.floor(totalHours * HOURLY_WAGE);
   const transport = days * TRANSPORT_PER_DAY;
   const gross = basePay + transport;
   const deduction = 0;
   const net = gross - deduction;
-
   const lastDay = new Date(year, month, 0).getDate();
   const periodStart = `${year}/${String(month).padStart(2,"0")}/01`;
   const periodEnd = `${year}/${String(month).padStart(2,"0")}/${String(lastDay).padStart(2,"0")}`;
+  const fmt = n => n.toLocaleString("ja-JP");
+  const name = (p.name || "").trim() || "（氏名未抽出）";
+  const company = (p.company || "").trim();
+  const biz = (p.biz || "").trim();
 
-  function fmt(n) { return n.toLocaleString("ja-JP"); }
-
-  sheet.innerHTML = `
-    <h1>給 与 明 細 書</h1>
-    <div class="subtitle">${year} 年 ${month} 月分</div>
-    <div class="row">
-      <div><label>事業所</label><div class="val">${escapeHtml(company)} ${escapeHtml(biz)}</div></div>
-    </div>
-    <div class="row">
-      <div><label>氏名</label><div class="val">${escapeHtml(name)} 様</div></div>
-      <div><label>支給対象期間</label><div class="val">${periodStart} 〜 ${periodEnd}</div></div>
-    </div>
-    <div class="section-title">勤怠</div>
-    <table>
-      <tr><th>出勤日数</th><th>1 日勤務時間</th><th>合計労働時間</th></tr>
-      <tr>
-        <td>${days} 日</td>
-        <td>${DAILY_HOURS} 時間 (10:00〜16:00 / 休憩 1h)</td>
-        <td>${totalHours.toFixed(1)} 時間</td>
-      </tr>
-    </table>
-    <div class="section-title">支給</div>
-    <table>
-      <tr><th></th><th>単価</th><th>日数 / 時間</th><th>金額</th></tr>
-      <tr><td class="label">基本給（時給）</td><td>${fmt(HOURLY_WAGE)} 円</td><td>${totalHours.toFixed(1)} h</td><td>${fmt(basePay)} 円</td></tr>
-      <tr><td class="label">交通費</td><td>${fmt(TRANSPORT_PER_DAY)} 円 / 日</td><td>${days} 日</td><td>${fmt(transport)} 円</td></tr>
-      <tr class="total-row"><td class="label" colspan="3">支給合計</td><td>${fmt(gross)} 円</td></tr>
-    </table>
-    <div class="section-title">控除</div>
-    <table>
-      <tr><th></th><th>金額</th></tr>
-      <tr><td class="label">控除なし</td><td>${fmt(deduction)} 円</td></tr>
-      <tr class="total-row"><td class="label">控除合計</td><td>${fmt(deduction)} 円</td></tr>
-    </table>
-    <div class="section-title">差引支給額</div>
-    <table>
-      <tr class="total-row"><td class="label" style="font-size:18px;">差引支給額</td><td style="font-size:18px;">${fmt(net)} 円</td></tr>
-    </table>
-    <div class="notes">
-      ※ 1 日勤務時間は 10:00〜16:00（休憩 1 時間）の ${DAILY_HOURS} 時間で固定計算。<br>
-      ※ 出勤実績記録票（${year} 年 ${month} 月分）の出勤日数 ${days} 日に基づく。<br>
-      ※ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(1)} 時間 = ${fmt(basePay)} 円。<br>
-      ※ 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 / 日 × ${days} 日 = ${fmt(transport)} 円。<br>
-      ※ 控除なし、合計支給 = ${fmt(gross)} 円。
-    </div>
-    <div class="signature-area">
-      <div>支給者印<div class="stamp">桜千</div></div>
-      <div>受領者印<div class="stamp"></div></div>
+  return `
+    <div class="sheet">
+      <h1>給 与 明 細 書</h1>
+      <div class="subtitle">${year} 年 ${month} 月分</div>
+      <div class="row">
+        <div><label>事業所</label><div class="val">${escapeHtml(company)} ${escapeHtml(biz)}</div></div>
+      </div>
+      <div class="row">
+        <div><label>氏名</label><div class="val">${escapeHtml(name)} 様</div></div>
+        <div><label>支給対象期間</label><div class="val">${periodStart} 〜 ${periodEnd}</div></div>
+      </div>
+      <div class="section-title">勤怠</div>
+      <table>
+        <tr><th>出勤日数</th><th>1 日勤務時間</th><th>合計労働時間</th></tr>
+        <tr>
+          <td>${days} 日</td>
+          <td>${DAILY_HOURS} 時間 (10:00〜16:00 / 休憩 1h)</td>
+          <td>${totalHours.toFixed(1)} 時間</td>
+        </tr>
+      </table>
+      <div class="section-title">支給</div>
+      <table>
+        <tr><th></th><th>単価</th><th>日数 / 時間</th><th>金額</th></tr>
+        <tr><td class="label">基本給（時給）</td><td>${fmt(HOURLY_WAGE)} 円</td><td>${totalHours.toFixed(1)} h</td><td>${fmt(basePay)} 円</td></tr>
+        <tr><td class="label">交通費</td><td>${fmt(TRANSPORT_PER_DAY)} 円 / 日</td><td>${days} 日</td><td>${fmt(transport)} 円</td></tr>
+        <tr class="total-row"><td class="label" colspan="3">支給合計</td><td>${fmt(gross)} 円</td></tr>
+      </table>
+      <div class="section-title">控除</div>
+      <table>
+        <tr><th></th><th>金額</th></tr>
+        <tr><td class="label">控除なし</td><td>${fmt(deduction)} 円</td></tr>
+        <tr class="total-row"><td class="label">控除合計</td><td>${fmt(deduction)} 円</td></tr>
+      </table>
+      <div class="section-title">差引支給額</div>
+      <table>
+        <tr class="total-row"><td class="label" style="font-size:18px;">差引支給額</td><td style="font-size:18px;">${fmt(net)} 円</td></tr>
+      </table>
+      <div class="notes">
+        ※ 1 日勤務時間は 10:00〜16:00（休憩 1 時間）の ${DAILY_HOURS} 時間で固定計算。<br>
+        ※ 出勤実績記録票（${year} 年 ${month} 月分）の出勤日数 ${days} 日に基づく。<br>
+        ※ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(1)} 時間 = ${fmt(basePay)} 円。<br>
+        ※ 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 / 日 × ${days} 日 = ${fmt(transport)} 円。<br>
+        ※ 控除なし、合計支給 = ${fmt(gross)} 円。
+      </div>
+      <div class="signature-area">
+        <div>支給者印<div class="stamp">桜千</div></div>
+        <div>受領者印<div class="stamp"></div></div>
+      </div>
     </div>
   `;
-  sheet.style.display = "block";
-  printBtn.disabled = false;
-  sheet.scrollIntoView({ behavior: "smooth" });
-});
-
-printBtn.addEventListener("click", () => window.print());
+}
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+function escapeAttr(s) {
+  return escapeHtml(s);
 }
 </script>
 </body>
