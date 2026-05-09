@@ -21,12 +21,12 @@ h1.app-title { color: #c30; font-size: 22px; margin: 0 0 16px; }
 .intro { font-size: 13px; color: #444; line-height: 1.7; margin: 0 0 16px; background: #fff; padding: 14px 16px; border-radius: 8px; border: 1px solid #ddd; }
 .intro code { background: #f0e8e0; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
 .intro strong { color: #c30; }
-.dropzone { display: block; border: 2px dashed #c30; border-radius: 12px; padding: 28px 16px; text-align: center; background: #fff8dc; cursor: pointer; transition: all 0.2s; margin: 0 0 16px; }
+.dropzone { position: relative; display: block; border: 2px dashed #c30; border-radius: 12px; padding: 28px 16px; text-align: center; background: #fff8dc; cursor: pointer; transition: all 0.2s; margin: 0 0 16px; }
 .dropzone.drag-over { background: #ffe4b5; border-color: #800; }
-.dropzone .icon { font-size: 36px; margin-bottom: 8px; line-height: 1; }
-.dropzone .text { font-size: 15px; color: #333; font-weight: bold; }
-.dropzone .subtext { font-size: 12px; color: #888; margin-top: 6px; line-height: 1.5; }
-.dropzone input { display: none; }
+.dropzone .icon { font-size: 36px; margin-bottom: 8px; line-height: 1; pointer-events: none; }
+.dropzone .text { font-size: 15px; color: #333; font-weight: bold; pointer-events: none; }
+.dropzone .subtext { font-size: 12px; color: #888; margin-top: 6px; line-height: 1.5; pointer-events: none; }
+.dropzone input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .error { background: #fee; border: 1px solid #c33; color: #800; padding: 12px; border-radius: 8px; margin: 0 0 16px; display: none; font-size: 13px; line-height: 1.6; }
 .people-section { background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin: 0 0 16px; display: none; }
 .people-section h2 { font-size: 14px; color: #333; margin: 0 0 10px; padding: 0 4px; display: flex; justify-content: space-between; align-items: center; }
@@ -96,12 +96,12 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
     <strong>計算ルール（固定）</strong>: 1 日 5 時間（10:00〜16:00 休憩 1h）/ 時給 1,000 円 / 交通費 500 円/日 / 控除なし
   </div>
 
-  <label class="dropzone" id="dz">
+  <div class="dropzone" id="dz" tabindex="0" role="button" aria-label="PDFファイルを選択またはドロップ">
     <div class="icon">📄</div>
-    <div class="text">PDF をここにドロップ</div>
-    <div class="subtext">複数ファイル同時 OK・最大 30 人まで（クリックで選択もできます）</div>
+    <div class="text">タップして PDF を選択</div>
+    <div class="subtext">PC ならドラッグ＆ドロップも OK（複数同時可・最大 30 人まで）</div>
     <input type="file" id="fileInput" accept="application/pdf" multiple>
-  </label>
+  </div>
 
   <div class="error" id="errorBox"></div>
 
