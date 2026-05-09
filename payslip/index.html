@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>給与明細自動生成 — 出勤簿 PDF ドロップ</title>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.js"></script>
+<style>
+@media print {
+  body { background: white !important; }
+  .no-print { display: none !important; }
+  .sheet { max-width: 100% !important; padding: 20px !important; box-shadow: none !important; }
+}
+* { box-sizing: border-box; }
+body { background: #f5f5f0; color: #222; font-family: "游ゴシック","Yu Gothic","Hiragino Sans",sans-serif; padding: 20px; margin: 0; }
+.container { max-width: 720px; margin: 0 auto; }
+h1.app-title { color: #c30; font-size: 22px; margin: 0 0 16px; }
+.intro { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 20px; background: #fff; padding: 16px; border-radius: 8px; border: 1px solid #ddd; }
+.intro code { background: #f0e8e0; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+.dropzone { border: 3px dashed #c30; border-radius: 12px; padding: 60px 20px; text-align: center; background: #fff8dc; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
+.dropzone.drag-over { background: #ffe4b5; border-color: #800; }
+.dropzone .icon { font-size: 48px; margin-bottom: 12px; }
+.dropzone .text { font-size: 16px; color: #333; }
+.dropzone .subtext { font-size: 12px; color: #888; margin-top: 8px; }
+.dropzone input { display: none; }
+.error { background: #fee; border: 1px solid #c33; color: #800; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: none; }
+.parsed-info { background: #fff; padding: 16px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; display: none; }
+.parsed-info h2 { font-size: 14px; color: #333; margin: 0 0 8px; }
+.parsed-info .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+.parsed-info .grid label { color: #888; font-size: 11px; }
+.parsed-info input, .parsed-info select { width: 100%; padding: 4px 6px; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; font-family: inherit; }
+.actions { display: flex; gap: 12px; margin-bottom: 20px; }
+.actions button { flex: 1; padding: 12px; font-size: 14px; background: #c30; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.actions button:hover { background: #800; }
+.actions button:disabled { background: #aaa; cursor: not-allowed; }
+.print-btn { background: #333 !important; }
+.sheet { background: white; max-width: 720px; margin: 20px auto; padding: 32px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none; }
+.sheet h1 { text-align: center; font-size: 22px; margin: 0 0 4px; letter-spacing: 0.1em; color: #222; }
+.subtitle { text-align: center; font-size: 13px; color: #666; margin-bottom: 24px; }
+.row { display: flex; gap: 24px; margin-bottom: 16px; }
+.row > div { flex: 1; }
+.row label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.05em; }
+.row .val { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #ccc; }
+.sheet table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+.sheet th, .sheet td { border: 1px solid #aaa; padding: 8px 10px; text-align: right; }
+.sheet th { background: #eee; font-weight: normal; font-size: 11px; }
+.sheet td.label { text-align: left; background: #fafafa; }
+.section-title { font-size: 13px; font-weight: bold; margin-top: 24px; margin-bottom: 8px; padding: 6px 10px; background: #333; color: #fff; }
+.total-row td { background: #fff8dc; font-weight: bold; font-size: 16px; }
+.notes { margin-top: 24px; font-size: 11px; color: #666; line-height: 1.6; }
+.signature-area { margin-top: 32px; display: flex; justify-content: flex-end; gap: 60px; font-size: 12px; color: #333; }
+.signature-area > div { text-align: center; }
+.signature-area .stamp { width: 50px; height: 50px; border: 2px solid #c30; border-radius: 50%; margin: 8px auto; display: flex; align-items: center; justify-content: center; color: #c30; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="container no-print">
+  <h1 class="app-title">給与明細 自動生成</h1>
+  <div class="intro">
+    出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）を下のエリアにドロップすると、自動で給与明細を作ります。<br>
+    <strong>計算ルール（固定）</strong>: 1 日 5 時間（10:00〜16:00 休憩 1h）/ 時給 1,000 円 / 交通費 500 円/日 / 控除なし
+  </div>
+
+  <label class="dropzone" id="dz">
+    <div class="icon">📄</div>
+    <div class="text">PDF をここにドロップ</div>
+    <div class="subtext">（クリックで選択もできます）</div>
+    <input type="file" id="fileInput" accept="application/pdf">
+  </label>
+
+  <div class="error" id="errorBox"></div>
+
+  <div class="parsed-info" id="parsedInfo">
+    <h2>抽出結果（必要に応じて修正してください）</h2>
+    <div class="grid">
+      <div><label>氏名</label><input id="f-name"></div>
+      <div><label>事業所</label><input id="f-biz"></div>
+      <div><label>法人名</label><input id="f-company"></div>
+      <div><label>年</label><input id="f-year" type="number"></div>
+      <div><label>月</label><input id="f-month" type="number" min="1" max="12"></div>
+      <div><label>出勤日数</label><input id="f-days" type="number" min="0"></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="genBtn" disabled>給与明細を作る</button>
+    <button id="printBtn" class="print-btn" disabled>印刷 / PDF 保存</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.js";
+
+const HOURLY_WAGE = 1000;
+const DAILY_HOURS = 5.0;
+const TRANSPORT_PER_DAY = 500;
+
+const dz = document.getElementById("dz");
+const fileInput = document.getElementById("fileInput");
+const errorBox = document.getElementById("errorBox");
+const parsedInfo = document.getElementById("parsedInfo");
+const genBtn = document.getElementById("genBtn");
+const printBtn = document.getElementById("printBtn");
+const sheet = document.getElementById("sheet");
+
+["dragover","dragenter"].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault();
+  dz.classList.add("drag-over");
+}));
+["dragleave","dragend","drop"].forEach(ev => dz.addEventListener(ev, e => {
+  if (ev !== "drop") e.preventDefault();
+  dz.classList.remove("drag-over");
+}));
+dz.addEventListener("drop", e => {
+  e.preventDefault();
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", e => {
+  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = "block";
+}
+function hideError() { errorBox.style.display = "none"; }
+
+async function handleFile(file) {
+  hideError();
+  if (!file.name.toLowerCase().endsWith(".pdf")) {
+    showError("PDF ファイルをドロップしてください");
+    return;
+  }
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(" ") + "\n";
+    }
+    const data = parseAttendance(text);
+    fillForm(data);
+    parsedInfo.style.display = "block";
+    genBtn.disabled = false;
+  } catch (err) {
+    showError("PDF の読み込みに失敗: " + err.message);
+  }
+}
+
+function parseAttendance(text) {
+  // 利用者氏名
+  let name = "";
+  let m = text.match(/利用者氏名\s*([一-鿿]{1,4}[\s　]+[一-鿿]{1,4})/);
+  if (!m) m = text.match(/氏名\s*[:：]?\s*([一-鿿]{1,4}[\s　]+[一-鿿]{1,4})/);
+  if (m) name = m[1].replace(/[\s　]+/g, " ").trim();
+
+  // 事業所名（"ディーキャリア..." 等を含む 1 行）
+  let biz = "";
+  m = text.match(/(ディーキャリア[^\s]*[^\n]*?(?:オフィス|事業所|センター)?)/);
+  if (m) biz = m[1].trim();
+
+  // 法人名
+  let company = "";
+  m = text.match(/(株式会社[^\s]+|[^\s]+株式会社)/);
+  if (m) company = m[1].trim();
+
+  // 年月
+  let year = null, month = null;
+  m = text.match(/(20\d{2})年\s*(\d{1,2})\s*月/);
+  if (m) { year = parseInt(m[1]); month = parseInt(m[2]); }
+
+  // 出勤日: "1 水 09:39 16:17" のパターンを抽出
+  const lines = text.split(/\n|(?=\d{1,2}\s+[月火水木金土日]?\s*\d{2}:\d{2})/);
+  const shifts = [];
+  for (const line of lines) {
+    const lm = line.match(/(?:^|\s)(\d{1,2})\s+[月火水木金土日]?\s*(\d{2}:\d{2})\s+(\d{2}:\d{2})/);
+    if (lm) {
+      shifts.push({ day: parseInt(lm[1]), start: lm[2], end: lm[3] });
+    }
+  }
+
+  return {
+    name, biz, company, year, month,
+    attendance_days: shifts.length,
+    shifts,
+  };
+}
+
+function fillForm(data) {
+  document.getElementById("f-name").value = data.name || "";
+  document.getElementById("f-biz").value = data.biz || "";
+  document.getElementById("f-company").value = data.company || "";
+  document.getElementById("f-year").value = data.year || new Date().getFullYear();
+  document.getElementById("f-month").value = data.month || (new Date().getMonth() + 1);
+  document.getElementById("f-days").value = data.attendance_days || 0;
+}
+
+genBtn.addEventListener("click", () => {
+  const name = document.getElementById("f-name").value.trim() || "（氏名未抽出）";
+  const biz = document.getElementById("f-biz").value.trim();
+  const company = document.getElementById("f-company").value.trim();
+  const year = parseInt(document.getElementById("f-year").value);
+  const month = parseInt(document.getElementById("f-month").value);
+  const days = parseInt(document.getElementById("f-days").value) || 0;
+
+  const totalHours = days * DAILY_HOURS;
+  const basePay = Math.floor(totalHours * HOURLY_WAGE);
+  const transport = days * TRANSPORT_PER_DAY;
+  const gross = basePay + transport;
+  const deduction = 0;
+  const net = gross - deduction;
+
+  const lastDay = new Date(year, month, 0).getDate();
+  const periodStart = `${year}/${String(month).padStart(2,"0")}/01`;
+  const periodEnd = `${year}/${String(month).padStart(2,"0")}/${String(lastDay).padStart(2,"0")}`;
+
+  function fmt(n) { return n.toLocaleString("ja-JP"); }
+
+  sheet.innerHTML = `
+    <h1>給 与 明 細 書</h1>
+    <div class="subtitle">${year} 年 ${month} 月分</div>
+    <div class="row">
+      <div><label>事業所</label><div class="val">${escapeHtml(company)} ${escapeHtml(biz)}</div></div>
+    </div>
+    <div class="row">
+      <div><label>氏名</label><div class="val">${escapeHtml(name)} 様</div></div>
+      <div><label>支給対象期間</label><div class="val">${periodStart} 〜 ${periodEnd}</div></div>
+    </div>
+    <div class="section-title">勤怠</div>
+    <table>
+      <tr><th>出勤日数</th><th>1 日勤務時間</th><th>合計労働時間</th></tr>
+      <tr>
+        <td>${days} 日</td>
+        <td>${DAILY_HOURS} 時間 (10:00〜16:00 / 休憩 1h)</td>
+        <td>${totalHours.toFixed(1)} 時間</td>
+      </tr>
+    </table>
+    <div class="section-title">支給</div>
+    <table>
+      <tr><th></th><th>単価</th><th>日数 / 時間</th><th>金額</th></tr>
+      <tr><td class="label">基本給（時給）</td><td>${fmt(HOURLY_WAGE)} 円</td><td>${totalHours.toFixed(1)} h</td><td>${fmt(basePay)} 円</td></tr>
+      <tr><td class="label">交通費</td><td>${fmt(TRANSPORT_PER_DAY)} 円 / 日</td><td>${days} 日</td><td>${fmt(transport)} 円</td></tr>
+      <tr class="total-row"><td class="label" colspan="3">支給合計</td><td>${fmt(gross)} 円</td></tr>
+    </table>
+    <div class="section-title">控除</div>
+    <table>
+      <tr><th></th><th>金額</th></tr>
+      <tr><td class="label">控除なし</td><td>${fmt(deduction)} 円</td></tr>
+      <tr class="total-row"><td class="label">控除合計</td><td>${fmt(deduction)} 円</td></tr>
+    </table>
+    <div class="section-title">差引支給額</div>
+    <table>
+      <tr class="total-row"><td class="label" style="font-size:18px;">差引支給額</td><td style="font-size:18px;">${fmt(net)} 円</td></tr>
+    </table>
+    <div class="notes">
+      ※ 1 日勤務時間は 10:00〜16:00（休憩 1 時間）の ${DAILY_HOURS} 時間で固定計算。<br>
+      ※ 出勤実績記録票（${year} 年 ${month} 月分）の出勤日数 ${days} 日に基づく。<br>
+      ※ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(1)} 時間 = ${fmt(basePay)} 円。<br>
+      ※ 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 / 日 × ${days} 日 = ${fmt(transport)} 円。<br>
+      ※ 控除なし、合計支給 = ${fmt(gross)} 円。
+    </div>
+    <div class="signature-area">
+      <div>支給者印<div class="stamp">桜千</div></div>
+      <div>受領者印<div class="stamp"></div></div>
+    </div>
+  `;
+  sheet.style.display = "block";
+  printBtn.disabled = false;
+  sheet.scrollIntoView({ behavior: "smooth" });
+});
+
+printBtn.addEventListener("click", () => window.print());
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+</script>
+</body>
+</html>
