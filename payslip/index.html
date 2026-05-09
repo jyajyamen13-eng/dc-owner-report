@@ -68,7 +68,8 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
 .sheet .notes { margin-top: 16px; font-size: 11px; color: #666; line-height: 1.6; }
 .sheet .signature-area { margin-top: 24px; display: flex; justify-content: flex-end; gap: 60px; font-size: 12px; color: #333; }
 .sheet .signature-area > div { text-align: center; }
-.sheet .signature-area .stamp { width: 50px; height: 50px; border: 2px solid #c30; border-radius: 50%; margin: 8px auto; display: flex; align-items: center; justify-content: center; color: #c30; font-size: 11px; }
+.sheet .signature-area .stamp { width: 90px; height: 90px; border: 2px solid #c30; border-radius: 50%; margin: 8px auto; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #c30; font-size: 10px; line-height: 1.4; padding: 6px; text-align: center; white-space: nowrap; }
+.sheet .signature-area .stamp.empty { font-size: 11px; }
 
 @media (max-width: 600px) {
   body { padding: 10px; }
@@ -329,7 +330,9 @@ function parseAttendance(text) {
   }, 0);
 
   return {
-    name, biz, company,
+    name,
+    biz: biz || "ディーキャリアいわて•盛岡オフィス",
+    company: company || "桜千株式会社",
     year: year || new Date().getFullYear(),
     month: month || (new Date().getMonth() + 1),
     shifts: uniqueShifts,
@@ -493,8 +496,8 @@ function buildSheetHTML(p) {
         ※ 締め日 ${cutoffDate}、支払日 ${payDate}。
       </div>
       <div class="signature-area">
-        <div>支給者印<div class="stamp">桜千</div></div>
-        <div>受領者印<div class="stamp"></div></div>
+        <div>支給者印<div class="stamp"><div>ディーキャリア</div><div>いわて•盛岡</div></div></div>
+        <div>受領者印<div class="stamp empty"></div></div>
       </div>
     </div>
   `;
