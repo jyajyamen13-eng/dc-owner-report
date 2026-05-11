@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>給与明細 自動生成 — 出勤簿 PDF ドロップ</title>
+<title>就労後給与シミュレーション — 出勤簿 PDF ドロップ</title>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
 @media print {
@@ -13,27 +13,33 @@
   @page { size: A4; margin: 0; }
   .sheet { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; padding: 8mm 12mm !important; page-break-after: always; font-size: 11px; }
   .sheet:last-child { page-break-after: auto; }
-  .sheet .sheet-header { margin-bottom: 8px; }
-  .sheet h1 { font-size: 17px; margin: 0 0 2px; letter-spacing: 0.05em; }
-  .sheet .subtitle { font-size: 11px; margin-bottom: 4px; }
+  .sheet .sheet-header { margin-bottom: 6px; }
+  .sheet h1 { font-size: 15px; margin: 0 0 1px; letter-spacing: 0.05em; }
+  .sheet .sim-notice { font-size: 8px; margin-bottom: 4px; padding: 2px 6px; }
+  .sheet .subtitle { font-size: 11px; margin-bottom: 3px; }
   .sheet .issued-at { font-size: 9px; }
-  .sheet .company-block { margin: 0 0 8px; padding: 6px 10px; }
+  .sheet .company-block { margin: 0 0 6px; padding: 5px 8px; }
   .sheet .company-block .company-name { font-size: 12px; }
   .sheet .company-block .company-contact { font-size: 9px; }
-  .sheet .row { gap: 14px; margin-bottom: 2px; }
+  .sheet .row { gap: 12px; margin-bottom: 2px; }
   .sheet .row label { font-size: 9px; margin-bottom: 1px; }
   .sheet .row .val { font-size: 11px; padding: 1px 0; min-height: 14px; }
-  .sheet .section-title { font-size: 10px; margin-top: 4px; margin-bottom: 1px; padding: 2px 8px; }
+  .sheet .section-title { font-size: 10px; margin-top: 3px; margin-bottom: 1px; padding: 2px 8px; }
   .sheet table { font-size: 10px; margin-top: 2px; }
-  .sheet th, .sheet td { padding: 2px 6px; }
+  .sheet th, .sheet td { padding: 2px 5px; }
   .sheet th { font-size: 9px; }
-  .sheet .total-row td { font-size: 12px; padding: 4px 6px; }
-  .sheet .gross-row td { font-size: 13px; padding: 4px 6px; }
-  .sheet .section-title.net-title { font-size: 11px; padding: 3px 8px; }
-  .sheet .net-table .net-row td { font-size: 14px; padding: 4px 10px; }
-  .sheet .notes { font-size: 8px; margin-top: 3px; line-height: 1.35; }
-  .sheet .signature-area { margin-top: 4px; gap: 24px; font-size: 9px; }
-  .sheet .signature-area .stamp { width: 48px; height: 48px; font-size: 6.5px; line-height: 1.25; padding: 2px; margin-top: 2px; }
+  .sheet .total-row td { font-size: 12px; padding: 3px 5px; }
+  .sheet .gross-row td { font-size: 13px; padding: 3px 5px; }
+  .sheet .section-title.net-title { font-size: 11px; padding: 2px 8px; }
+  .sheet .net-table .net-row td { font-size: 14px; padding: 3px 8px; }
+  .deduction-grid { gap: 4px !important; margin-top: 2px !important; }
+  .deduction-grid .ded-item { padding: 2px 4px !important; }
+  .deduction-grid .ded-item .ded-label { font-size: 8px !important; }
+  .deduction-grid .ded-item .ded-val { font-size: 10px !important; }
+  .ded-total-line { font-size: 10px !important; padding: 2px 5px !important; }
+  .sheet .notes { font-size: 8px; margin-top: 2px; line-height: 1.3; }
+  .sheet .signature-area { margin-top: 3px; gap: 20px; font-size: 9px; }
+  .sheet .signature-area .stamp { width: 44px; height: 44px; font-size: 6px; line-height: 1.2; padding: 2px; margin-top: 2px; }
   .sheet { page-break-inside: avoid; }
 }
 * { box-sizing: border-box; }
@@ -84,30 +90,35 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
 #sheets { display: none; }
 #sheets.shown { display: block; }
 .sheet { background: white; max-width: 720px; margin: 16px auto; padding: 28px 36px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-.sheet .sheet-header { position: relative; margin-bottom: 16px; }
-.sheet h1 { text-align: center; font-size: 22px; margin: 0 0 4px; letter-spacing: 0.1em; color: #222; }
+.sheet .sheet-header { position: relative; margin-bottom: 14px; }
+.sheet h1 { text-align: center; font-size: 20px; margin: 0 0 3px; letter-spacing: 0.08em; color: #222; }
+.sheet .sim-notice { text-align: center; color: #c00; font-size: 11px; font-weight: bold; border: 1px solid #c00; border-radius: 4px; padding: 3px 10px; margin: 0 auto 6px; display: inline-block; position: relative; left: 50%; transform: translateX(-50%); background: #fff8f8; line-height: 1.6; }
 .sheet .subtitle { text-align: center; font-size: 13px; color: #666; margin-bottom: 8px; }
 .sheet .issued-at { position: absolute; top: 4px; right: 0; font-size: 11px; color: #888; }
-.sheet .company-block { margin: 0 0 14px; padding: 10px 12px; background: #fafaf5; border-left: 3px solid #c30; border-radius: 0 4px 4px 0; }
+.sheet .company-block { margin: 0 0 12px; padding: 10px 12px; background: #fafaf5; border-left: 3px solid #c30; border-radius: 0 4px 4px 0; }
 .sheet .company-block .company-name { font-size: 14px; font-weight: bold; color: #222; margin-bottom: 2px; }
 .sheet .company-block .company-contact { font-size: 11px; color: #666; }
-.sheet .row { display: flex; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
+.sheet .row { display: flex; gap: 24px; margin-bottom: 12px; flex-wrap: wrap; }
 .sheet .row > div { flex: 1; min-width: 160px; }
 .sheet .row label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.05em; }
 .sheet .row .val { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #ccc; min-height: 28px; }
-.sheet table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-.sheet th, .sheet td { border: 1px solid #aaa; padding: 8px 10px; text-align: right; }
+.sheet table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+.sheet th, .sheet td { border: 1px solid #aaa; padding: 7px 10px; text-align: right; }
 .sheet th { background: #eee; font-weight: normal; font-size: 11px; }
 .sheet td.label { text-align: left; background: #fafafa; }
-.sheet .section-title { font-size: 13px; font-weight: bold; margin-top: 20px; margin-bottom: 6px; padding: 6px 10px; background: #333; color: #fff; }
+.sheet .section-title { font-size: 13px; font-weight: bold; margin-top: 16px; margin-bottom: 5px; padding: 5px 10px; background: #333; color: #fff; }
 .sheet .total-row td { background: #fff8dc; font-weight: bold; font-size: 16px; }
 .sheet .gross-row td { font-size: 17px; background: #fef0e0 !important; }
-.sheet .deduction-line { font-size: 12px; color: #555; padding: 6px 10px; background: #fafafa; border: 1px solid #ddd; margin-top: 4px; }
+.deduction-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: flex-start; }
+.deduction-grid .ded-item { flex: 1; min-width: 110px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 6px 10px; text-align: center; }
+.deduction-grid .ded-item .ded-label { font-size: 10px; color: #666; margin-bottom: 4px; }
+.deduction-grid .ded-item .ded-val { font-size: 14px; font-weight: bold; color: #333; }
+.ded-total-line { font-size: 13px; color: #555; padding: 5px 10px; background: #f5f5f0; border: 1px solid #ddd; margin-top: 6px; text-align: right; font-weight: bold; }
 .sheet .section-title.net-title { background: #c30; font-size: 15px; }
-.sheet .net-table .net-row td { background: #fff5e0 !important; font-size: 22px; padding: 14px 12px; border-color: #c30; }
+.sheet .net-table .net-row td { background: #fff5e0 !important; font-size: 22px; padding: 12px 12px; border-color: #c30; }
 .sheet .net-table .net-row td.label { color: #c30; }
-.sheet .notes { margin-top: 16px; font-size: 11px; color: #666; line-height: 1.6; }
-.sheet .signature-area { margin-top: 24px; display: flex; justify-content: flex-end; gap: 60px; font-size: 12px; color: #333; }
+.sheet .notes { margin-top: 12px; font-size: 11px; color: #666; line-height: 1.6; }
+.sheet .signature-area { margin-top: 18px; display: flex; justify-content: flex-end; gap: 60px; font-size: 12px; color: #333; }
 .sheet .signature-area > div { text-align: center; }
 .sheet .signature-area .stamp { width: 90px; height: 90px; border: 2px solid #c30; border-radius: 50%; margin: 8px auto; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #c30; font-size: 10px; line-height: 1.4; padding: 6px; text-align: center; white-space: nowrap; }
 .sheet .signature-area .stamp.empty { font-size: 11px; }
@@ -124,18 +135,20 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   .actions button { flex: 1 1 100%; padding: 14px; }
   .actions .clear-btn { flex: 1 1 100%; }
   .sheet { padding: 20px 16px; margin: 12px 0; }
-  .sheet h1 { font-size: 18px; }
+  .sheet h1 { font-size: 17px; }
   .sheet .row { gap: 12px; }
   .sheet .signature-area { gap: 30px; }
+  .deduction-grid { gap: 6px; }
+  .deduction-grid .ded-item { min-width: 80px; }
 }
 </style>
 </head>
 <body>
 <div class="container no-print">
-  <h1 class="app-title">給与明細 自動生成</h1>
+  <h1 class="app-title">就労後給与シミュレーション</h1>
   <div class="intro">
-    出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で給与明細を作ります。<strong>最大 30 人まで一括処理可能</strong>。<br>
-    <strong>計算ルール</strong>: 実打刻ベース（休憩 1 時間控除）/ 時給 1,000 円 / 交通費 500 円/日 / 控除なし
+    出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で就労後給与シミュレーションを作ります。<strong>最大 30 人まで一括処理可能</strong>。<br>
+    <strong>計算ルール</strong>: 実打刻ベース（休憩 1 時間控除）/ 時給 1,000 円 / 交通費 500 円/日 / 控除あり（健康保険・厚生年金・雇用保険・所得税）
   </div>
 
   <div class="global-settings" id="globalSettings">
@@ -182,7 +195,7 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   </div>
 
   <div class="actions">
-    <button id="genBtn" disabled>給与明細を作る</button>
+    <button id="genBtn" disabled>シミュレーションを作る</button>
     <button id="printBtn" class="print-btn" disabled>印刷 / PDF 保存</button>
     <button id="clearBtn" class="clear-btn">クリア</button>
   </div>
@@ -198,6 +211,156 @@ const TRANSPORT_PER_DAY = 500;
 const BREAK_MINUTES = 60;
 const MAX_PEOPLE = 30;
 const PAY_DAY_OF_NEXT_MONTH = 25;
+
+// 保険料率（岩手県 令和8年度 被保険者負担分）
+const HEALTH_INSURANCE_RATE = 0.0497;   // 健康保険料率 4.97%
+const PENSION_RATE = 0.0915;            // 厚生年金保険料率 9.15%
+const EMPLOYMENT_INSURANCE_RATE = 0.006; // 雇用保険料率 0.6%
+
+// 給与所得の源泉徴収税額表（令和8年分）月額表 甲欄 扶養親族等の数 0 人
+// 出典: 国税庁「給与所得の源泉徴収税額表（令和8年分）」月額表
+// https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/data/01-07.pdf
+// 「その月の社会保険料等控除後の給与等の金額」に対する税額（円）
+// 令和8年から基礎控除75万円引上げにより、105,000円未満は税額0円
+// 各行: [以上, 未満, 税額]
+const INCOME_TAX_TABLE = [
+  [0,       105000,  0],
+  [105000,  107000,  170],
+  [107000,  109000,  280],
+  [109000,  111000,  380],
+  [111000,  113000,  480],
+  [113000,  115000,  580],
+  [115000,  117000,  680],
+  [117000,  119000,  790],
+  [119000,  121000,  890],
+  [121000,  123000,  990],
+  [123000,  125000,  1090],
+  [125000,  127000,  1190],
+  [127000,  129000,  1300],
+  [129000,  131000,  1400],
+  [131000,  133000,  1500],
+  [133000,  135000,  1600],
+  [135000,  137000,  1710],
+  [137000,  139000,  1810],
+  [139000,  141000,  1910],
+  [141000,  143000,  2010],
+  [143000,  145000,  2110],
+  [145000,  147000,  2220],
+  [147000,  149000,  2320],
+  [149000,  151000,  2420],
+  [151000,  153000,  2520],
+  [153000,  155000,  2620],
+  [155000,  157000,  2730],
+  [157000,  159000,  2830],
+  [159000,  161000,  2910],
+  [161000,  163000,  2980],
+  [163000,  165000,  3050],
+  [165000,  167000,  3120],
+  [167000,  169000,  3200],
+  [169000,  171000,  3270],
+  [171000,  173000,  3340],
+  [173000,  175000,  3410],
+  [175000,  177000,  3480],
+  [177000,  179000,  3550],
+  [179000,  181000,  3620],
+  [181000,  183000,  3700],
+  [183000,  185000,  3770],
+  [185000,  187000,  3840],
+  [187000,  189000,  3910],
+  [189000,  191000,  3980],
+  [191000,  193000,  4050],
+  [193000,  195000,  4120],
+  [195000,  197000,  4200],
+  [197000,  199000,  4270],
+  [199000,  201000,  4340],
+  [201000,  203000,  4410],
+  [203000,  205000,  4480],
+  [205000,  207000,  4550],
+  [207000,  209000,  4630],
+  [209000,  211000,  4700],
+  [211000,  213000,  4780],
+  [213000,  215000,  4850],
+  [215000,  217000,  4920],
+  [217000,  219000,  5000],
+  [219000,  221000,  5070],
+  [221000,  223000,  5150],
+  [223000,  225000,  5220],
+  [225000,  227000,  5290],
+  [227000,  229000,  5370],
+  [229000,  231000,  5440],
+  [231000,  233000,  5510],
+  [233000,  235000,  5390],
+  [235000,  237000,  5460],  // 弥生サイト確認: 235,000円 → 5,460円
+  [237000,  239000,  5610],
+  [239000,  241000,  5720],
+  [241000,  243000,  5830],
+  [243000,  245000,  5940],
+  [245000,  247000,  6050],
+  [247000,  249000,  6160],
+  [249000,  251000,  6270],
+  [251000,  253000,  6380],
+  [253000,  255000,  6490],
+  [255000,  257000,  6600],
+  [257000,  259000,  6710],
+  [259000,  261000,  6820],
+  [261000,  263000,  6930],
+  [263000,  265000,  7040],
+  [265000,  267000,  7150],
+  [267000,  269000,  7260],
+  [269000,  271000,  7370],
+  [271000,  273000,  7480],
+  [273000,  275000,  7590],
+  [275000,  277000,  7700],
+  [277000,  279000,  7810],
+  [279000,  281000,  7920],
+  [281000,  283000,  8030],
+  [283000,  285000,  8140],
+  [285000,  287000,  8250],
+  [287000,  289000,  8360],
+  [289000,  291000,  8470],
+  [291000,  293000,  8580],
+  [293000,  295000,  8690],
+  [295000,  297000,  8800],
+  [297000,  299000,  8910],
+  [299000,  301000,  9020],
+  // 300,000円以上は近似値（就労移行支援の主要帯を超えるため参考値）
+];
+
+function calcIncomeTax(taxableIncome) {
+  // taxableIncome = 社会保険料控除後の給与額
+  for (const [min, max, tax] of INCOME_TAX_TABLE) {
+    if (taxableIncome >= min && taxableIncome < max) return tax;
+  }
+  // 301,000円以上: 近似計算（参考値）
+  // 課税所得 = taxableIncome - 給与所得控除(月額) - 基礎控除(月額62,500円)
+  // 給与所得控除(月額): taxableIncome <= 162,500 → 45,833, それ以上は別計算
+  let kyuyo_kotei;
+  if (taxableIncome <= 108334) {
+    kyuyo_kotei = 45833;
+  } else if (taxableIncome <= 162500) {
+    kyuyo_kotei = Math.floor(taxableIncome * 0.4 - 8333);
+  } else if (taxableIncome <= 275000) {
+    kyuyo_kotei = Math.floor(taxableIncome * 0.3 + 8334);
+  } else if (taxableIncome <= 583334) {
+    kyuyo_kotei = Math.floor(taxableIncome * 0.2 + 35834);
+  } else {
+    kyuyo_kotei = Math.floor(taxableIncome * 0.1 + 93334);
+  }
+  const kiso_kotei = 62500; // 基礎控除: 年750,000円 / 12
+  const kazei = Math.max(0, taxableIncome - kyuyo_kotei - kiso_kotei);
+  const kazei1000 = Math.floor(kazei / 1000) * 1000;
+  // 所得税率（5〜45%）
+  let rate, deduc;
+  if      (kazei1000 <  1625000/12) { rate = 0.05; deduc = 0; }
+  else if (kazei1000 <  3300000/12) { rate = 0.10; deduc = Math.floor(1625000/12 * 0.05); }
+  else if (kazei1000 <  6950000/12) { rate = 0.20; deduc = Math.floor(1625000/12 * 0.05 + (3300000 - 1625000)/12 * 0.10); }
+  else if (kazei1000 <  9000000/12) { rate = 0.23; deduc = Math.floor(1625000/12 * 0.05 + (3300000 - 1625000)/12 * 0.10 + (6950000 - 3300000)/12 * 0.20); }
+  else if (kazei1000 < 18000000/12) { rate = 0.33; deduc = Math.floor(1625000/12 * 0.05 + (3300000 - 1625000)/12 * 0.10 + (6950000 - 3300000)/12 * 0.20 + (9000000 - 6950000)/12 * 0.23); }
+  else { rate = 0.40; deduc = 0; }
+  const base_tax = Math.floor(kazei1000 * rate) - deduc;
+  // 復興特別所得税 2.1%、100円未満切り捨て
+  return Math.floor(Math.max(0, base_tax) * 1.021 / 100) * 100;
+}
 
 const dz = document.getElementById("dz");
 const fileInput = document.getElementById("fileInput");
@@ -496,8 +659,20 @@ function buildSheetHTML(p) {
   const basePay = Math.floor(totalHours * HOURLY_WAGE);
   const transport = days * TRANSPORT_PER_DAY;
   const gross = basePay + transport;
-  const deduction = 0;
-  const net = gross - deduction;
+
+  // 控除計算（被保険者負担分）
+  const healthIns  = Math.floor(gross * HEALTH_INSURANCE_RATE);
+  const pension    = Math.floor(gross * PENSION_RATE);
+  const employIns  = Math.floor(gross * EMPLOYMENT_INSURANCE_RATE);
+  const socialInsTotal = healthIns + pension + employIns;
+
+  // 所得税: 社会保険料控除後の給与額を月額表に照合
+  const taxableForIT = gross - socialInsTotal;
+  const incomeTax = calcIncomeTax(taxableForIT);
+
+  const totalDeduction = socialInsTotal + incomeTax;
+  const net = gross - totalDeduction;
+
   const lastDay = new Date(year, month, 0).getDate();
   const periodStart = `${year}/${String(month).padStart(2,"0")}/01`;
   const periodEnd = `${year}/${String(month).padStart(2,"0")}/${String(lastDay).padStart(2,"0")}`;
@@ -521,7 +696,8 @@ function buildSheetHTML(p) {
   return `
     <div class="sheet">
       <div class="sheet-header">
-        <h1>給 与 明 細 書</h1>
+        <h1>就 労 後 給 与 シ ミ ュ レ ー シ ョ ン</h1>
+        <div class="sim-notice">※実際の給与支払いではありません<br>※想定条件による参考例です</div>
         <div class="subtitle">${year} 年 ${month} 月分</div>
         <div class="issued-at">発行日 ${issuedAt}</div>
       </div>
@@ -562,7 +738,25 @@ function buildSheetHTML(p) {
       </table>
 
       <div class="section-title">控除</div>
-      <div class="deduction-line">該当なし（控除合計 ${fmt(deduction)} 円）</div>
+      <div class="deduction-grid">
+        <div class="ded-item">
+          <div class="ded-label">健康保険料<br>（${(HEALTH_INSURANCE_RATE * 100).toFixed(2)}%）</div>
+          <div class="ded-val">¥${fmt(healthIns)}</div>
+        </div>
+        <div class="ded-item">
+          <div class="ded-label">厚生年金<br>（${(PENSION_RATE * 100).toFixed(2)}%）</div>
+          <div class="ded-val">¥${fmt(pension)}</div>
+        </div>
+        <div class="ded-item">
+          <div class="ded-label">雇用保険<br>（${(EMPLOYMENT_INSURANCE_RATE * 100).toFixed(1)}%）</div>
+          <div class="ded-val">¥${fmt(employIns)}</div>
+        </div>
+        <div class="ded-item">
+          <div class="ded-label">所得税<br>（甲欄・扶養0人）</div>
+          <div class="ded-val">¥${fmt(incomeTax)}</div>
+        </div>
+      </div>
+      <div class="ded-total-line">控除合計　¥${fmt(totalDeduction)}</div>
 
       <div class="section-title net-title">差引支給額</div>
       <table class="net-table">
@@ -570,7 +764,8 @@ function buildSheetHTML(p) {
       </table>
 
       <div class="notes">
-        ※ 実打刻ベース集計（休憩 60 分控除）/ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 + 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 × ${days} 日。
+        ※ 実打刻ベース集計（休憩 60 分控除）/ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 + 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 × ${days} 日。<br>
+        ※ 保険料率: 健康保険 ${(HEALTH_INSURANCE_RATE * 100).toFixed(2)}%・厚生年金 ${(PENSION_RATE * 100).toFixed(2)}%・雇用保険 ${(EMPLOYMENT_INSURANCE_RATE * 100).toFixed(1)}%（岩手県 令和8年度 被保険者負担分）。所得税は令和8年分月額表甲欄扶養0人。
       </div>
 
       <div class="signature-area">
