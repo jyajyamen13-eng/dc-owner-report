@@ -69,7 +69,7 @@ h1.app-title { color: #c30; font-size: 22px; margin: 0 0 16px; }
 .people-section h2 { font-size: 14px; color: #333; margin: 0 0 10px; padding: 0 4px; display: flex; justify-content: space-between; align-items: center; }
 .people-section h2 .count { color: #c30; font-weight: bold; }
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-table.people-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 720px; }
+table.people-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
 table.people-table th, table.people-table td { border: 1px solid #ddd; padding: 4px 6px; text-align: left; vertical-align: middle; }
 table.people-table th { background: #f5f5f0; font-weight: normal; color: #666; font-size: 11px; white-space: nowrap; }
 table.people-table input { width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px; font-family: inherit; }
@@ -148,7 +148,7 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   <h1 class="app-title">就労後給与シミュレーション</h1>
   <div class="intro">
     出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で就労後給与シミュレーションを作ります。<strong>最大 30 人まで一括処理可能</strong>。<br>
-    <strong>計算ルール</strong>: 実打刻ベース（労基法34条準拠の休憩控除: 6h以下=0分・6〜8h=45分・8h超=60分）/ 時給 1,000 円 / 交通費 500 円/日 / 控除あり（健保・厚年は標準報酬月額等級ベース / 雇用保険・所得税）
+    <strong>計算ルール</strong>: 想定勤務時間 10:00-16:00（休憩 60 分・実労働 5 時間）/ 勤務日数 月日数-8 / 時給 1,000 円 / 交通費 500 円/日 / <strong>全員同一条件</strong>（氏名のみ PDF から取得）
   </div>
 
   <div class="global-settings" id="globalSettings">
@@ -171,21 +171,14 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   <div class="error" id="errorBox"></div>
 
   <div class="people-section" id="peopleSection">
-    <h2>追加された人 <span class="count" id="peopleCount">0 / 30</span></h2>
+    <h2>抽出された人（氏名・対象月） <span class="count" id="peopleCount">0 / 30</span></h2>
     <div class="table-wrap">
       <table class="people-table" id="peopleTable">
         <thead>
           <tr>
             <th class="col-no">#</th>
             <th>氏名</th>
-            <th>事業所</th>
-            <th>法人名</th>
-            <th>年</th>
-            <th>月</th>
-            <th>出勤</th>
-            <th>欠勤</th>
-            <th>有給</th>
-            <th>労働時間 (h)</th>
+            <th>対象月</th>
             <th class="col-del"></th>
           </tr>
         </thead>
@@ -195,7 +188,7 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   </div>
 
   <div class="actions">
-    <button id="genBtn" disabled>シミュレーションを作る</button>
+    <button id="genBtn" disabled>全員分の給与明細を作る</button>
     <button id="printBtn" class="print-btn" disabled>印刷 / PDF 保存</button>
     <button id="clearBtn" class="clear-btn">クリア</button>
   </div>
@@ -208,8 +201,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dis
 
 const HOURLY_WAGE = 1000;
 const TRANSPORT_PER_DAY = 500;
+const DAILY_WORK_HOURS = 5;       // 固定: 10:00-16:00 / 休憩60分 = 実労働5時間
 const MAX_PEOPLE = 30;
 const PAY_DAY_OF_NEXT_MONTH = 25;
+const DAYS_TO_SUBTRACT = 8;       // 勤務日数 = 月の日数 - 8
 
 // 保険料率（岩手県 令和8年度 被保険者負担分）
 // 出典: 協会けんぽ岩手県 https://www.kyoukaikenpo.or.jp/g7/cat330/sb3150/r08/r8ryougakuhyou3gatukara/
@@ -217,14 +212,6 @@ const PAY_DAY_OF_NEXT_MONTH = 25;
 const HEALTH_INSURANCE_RATE = 0.0497;   // 健康保険料率 4.97%（岩手県 令和8年度 被保険者負担分）
 const PENSION_RATE = 0.0915;            // 厚生年金保険料率 9.15%（全国一律 令和2年9月〜固定）
 const EMPLOYMENT_INSURANCE_RATE = 0.006; // 雇用保険料率 0.6%（支給額ベース）
-
-// 労基法34条準拠の休憩控除ルール（1日の勤務時間に基づく）
-// 6時間以下: 控除なし / 6時間超8時間以下: 45分 / 8時間超: 60分
-const BREAK_RULE = (workMinutes) => {
-  if (workMinutes <= 360) return 0;   // 6h 以下
-  if (workMinutes <= 480) return 45;  // 6h 超〜8h 以下
-  return 60;                           // 8h 超
-};
 
 // 健康保険 標準報酬月額等級表（協会けんぽ 全都道府県共通 令和8年度 第1〜50等級）
 // 出典: 協会けんぽ https://www.kyoukaikenpo.or.jp/g7/cat330/sb3150/r08/r8ryougakuhyou3gatukara/
@@ -443,8 +430,6 @@ function calcIncomeTax(taxableIncome) {
     if (taxableIncome >= min && taxableIncome < max) return tax;
   }
   // 301,000円以上: 近似計算（参考値）
-  // 課税所得 = taxableIncome - 給与所得控除(月額) - 基礎控除(月額62,500円)
-  // 給与所得控除(月額): taxableIncome <= 162,500 → 45,833, それ以上は別計算
   let kyuyo_kotei;
   if (taxableIncome <= 108334) {
     kyuyo_kotei = 45833;
@@ -460,7 +445,6 @@ function calcIncomeTax(taxableIncome) {
   const kiso_kotei = 62500; // 基礎控除: 年750,000円 / 12
   const kazei = Math.max(0, taxableIncome - kyuyo_kotei - kiso_kotei);
   const kazei1000 = Math.floor(kazei / 1000) * 1000;
-  // 所得税率（5〜45%）
   let rate, deduc;
   if      (kazei1000 <  1625000/12) { rate = 0.05; deduc = 0; }
   else if (kazei1000 <  3300000/12) { rate = 0.10; deduc = Math.floor(1625000/12 * 0.05); }
@@ -469,8 +453,13 @@ function calcIncomeTax(taxableIncome) {
   else if (kazei1000 < 18000000/12) { rate = 0.33; deduc = Math.floor(1625000/12 * 0.05 + (3300000 - 1625000)/12 * 0.10 + (6950000 - 3300000)/12 * 0.20 + (9000000 - 6950000)/12 * 0.23); }
   else { rate = 0.40; deduc = 0; }
   const base_tax = Math.floor(kazei1000 * rate) - deduc;
-  // 復興特別所得税 2.1%、100円未満切り捨て
   return Math.floor(Math.max(0, base_tax) * 1.021 / 100) * 100;
+}
+
+// 月の日数から勤務日数を算出（月日数 - 8）
+function calcWorkDays(year, month) {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return daysInMonth - DAYS_TO_SUBTRACT;
 }
 
 const dz = document.getElementById("dz");
@@ -560,7 +549,7 @@ async function handleFiles(fileList) {
     try {
       const persons = await extractPersonsFromPdf(file);
       if (persons.length === 0) {
-        errors.push(`<strong>${escapeHtml(file.name)}</strong>: 抽出できる人がいませんでした（出勤簿の形式を確認してください）`);
+        errors.push(`<strong>${escapeHtml(file.name)}</strong>: 氏名を抽出できませんでした（出勤簿の形式を確認してください）`);
         continue;
       }
       for (const data of persons) {
@@ -597,30 +586,29 @@ async function extractPdfPages(file) {
   return pages;
 }
 
-// 1 PDF から複数人分を抽出する（ページ毎に試す + 全ページ結合も試す）
+// 1 PDF から複数人分を抽出する（氏名のみ取得、打刻は無視）
 async function extractPersonsFromPdf(file) {
   const pages = await extractPdfPages(file);
   const persons = [];
 
-  // ページ毎に parse、氏名 or 打刻が取れたページは独立した person として扱う
+  // ページ毎に parse、氏名が取れたページは独立した person として扱う
   for (const text of pages) {
-    const data = parseAttendance(text);
-    const hasContent = data.name || (data.shifts && data.shifts.length > 0);
-    if (hasContent) persons.push(data);
+    const data = parseNameAndMonth(text);
+    if (data.name) persons.push(data);
   }
 
-  // ページ単位で 1 件も取れない場合（記録票が複数ページに割れてる単一人 PDF 等）は
-  // 全ページ結合で 1 人として再パース
+  // ページ単位で 1 件も取れない場合は全ページ結合で再パース
   if (persons.length === 0) {
     const allText = pages.join("\n");
-    const data = parseAttendance(allText);
-    if (data.name || (data.shifts && data.shifts.length > 0)) persons.push(data);
+    const data = parseNameAndMonth(allText);
+    if (data.name) persons.push(data);
   }
 
   return persons;
 }
 
-function parseAttendance(text) {
+// PDF テキストから氏名と年月のみ抽出（打刻データは無視）
+function parseNameAndMonth(text) {
   // pdf.js は CJK ラジカル字形 (U+2F00–U+2FDF) で出すことがある → NFKC で正規漢字に戻す
   const normalized = text.normalize("NFKC");
   const compact = normalized.replace(/[ \t]+/g, " ");
@@ -631,74 +619,18 @@ function parseAttendance(text) {
   if (!m) m = compact.match(/氏\s*名\s*[:：]?\s*([一-鿿]{1,4})[\s　]+([一-鿿]{1,4})/);
   if (m) name = `${m[1]} ${m[2]}`;
 
-  // 事業所: 「ディーキャリア」始まりで「オフィス/事業所/センター」終わりまで（漢字・ひらがな・カナ・中点・空白許容）
-  let biz = "";
-  m = compact.match(/(ディーキャリア[^\n]{0,40}?(?:オフィス|事業所|センター))/);
-  if (m) biz = m[1].replace(/\s+/g, "").trim();
-
-  // 法人名
-  let company = "";
-  m = compact.match(/(株式会社[゠-ヿ一-鿿぀-ゟA-Za-z\s]+?(?=\s|$|ディーキャリア|利用者|氏名)|[゠-ヿ一-鿿぀-ゟA-Za-z]+株式会社)/);
-  if (m) company = m[1].replace(/\s+/g, "").trim();
-
   // 年月（区切りに空白許容）
   let year = null, month = null;
   m = compact.match(/(20\d{2})\s*年\s*(\d{1,2})\s*月/);
   if (m) { year = parseInt(m[1]); month = parseInt(m[2]); }
 
-  // 打刻記録: 「日 曜 開始 終了」のパターンを全部抽出
-  // 例: "1 月 09:55 16:05" / "1月 09:55 16:05" / "1 09:55 16:05"
-  const shifts = [];
-  const shiftRe = /(?:^|\s)(\d{1,2})\s+[月火水木金土日]?\s*(\d{1,2}:\d{2})\s+(\d{1,2}:\d{2})/g;
-  let sm;
-  while ((sm = shiftRe.exec(compact)) !== null) {
-    const day = parseInt(sm[1]);
-    if (day < 1 || day > 31) continue;
-    shifts.push({ day, start: sm[2], end: sm[3] });
-  }
-  // 重複除去（同じ日が複数回マッチした場合は最後の値を採用）
-  const shiftByDay = {};
-  for (const s of shifts) shiftByDay[s.day] = s;
-  const uniqueShifts = Object.values(shiftByDay).sort((a, b) => a.day - b.day);
-
-  // 出勤日数: 打刻記録の件数を最優先（ラベル盲信を防ぐ）。打刻ゼロなら fallback でラベルを拾う
-  let attendance_days = uniqueShifts.length;
-  let labelDays = null;
-  m = compact.match(/出\s*勤\s*日\s*数\s*[:：]?\s*(\d{1,3})\s*日/);
-  if (m) labelDays = parseInt(m[1]);
-  if (attendance_days === 0 && labelDays !== null) attendance_days = labelDays;
-
-  // 合計労働時間（分）: 同日複数シフト合算 → 労基法34条準拠の休憩控除
-  // 6h以下=控除0 / 6h超〜8h以下=45分 / 8h超=60分
-  // 短時間勤務（就労移行支援）では実質ほぼ0控除になる
-  const shiftsByDay = {};
-  for (const s of uniqueShifts) {
-    if (!shiftsByDay[s.day]) shiftsByDay[s.day] = 0;
-    shiftsByDay[s.day] += shiftMinutes(s.start, s.end);
-  }
-  const total_work_minutes = Object.values(shiftsByDay).reduce((sum, dayMinutes) => {
-    const breakMin = BREAK_RULE(dayMinutes);
-    return sum + Math.max(0, dayMinutes - breakMin);
-  }, 0);
-
   return {
     name,
-    biz: biz || "ディーキャリアいわて•盛岡オフィス",
-    company: company || "桜千株式会社",
+    biz: "ディーキャリアいわて•盛岡オフィス",
+    company: "桜千株式会社",
     year: year || new Date().getFullYear(),
     month: month || (new Date().getMonth() + 1),
-    shifts: uniqueShifts,
-    attendance_days: attendance_days || 0,
-    absent_days: 0,
-    paid_leave_days: 0,
-    total_work_minutes,
   };
-}
-
-function shiftMinutes(start, end) {
-  const [sh, smin] = start.split(":").map(Number);
-  const [eh, emin] = end.split(":").map(Number);
-  return (eh * 60 + emin) - (sh * 60 + smin);
 }
 
 function renderTable() {
@@ -711,21 +643,12 @@ function renderTable() {
   }
   peopleSection.style.display = "block";
   peopleTbody.innerHTML = people.map((p, i) => {
-    const shiftCount = (p.shifts || []).length;
-    const daysHint = shiftCount > 0 ? `${shiftCount} 件の打刻を集計` : "打刻未抽出（手動入力）";
-    const totalHours = ((p.total_work_minutes || 0) / 60).toFixed(2);
+    const workDays = calcWorkDays(p.year, p.month);
     return `
     <tr data-id="${p.id}">
       <td class="col-no">${i + 1}</td>
       <td><input data-field="name" value="${escapeAttr(p.name)}"></td>
-      <td><input data-field="biz" value="${escapeAttr(p.biz)}"></td>
-      <td><input data-field="company" value="${escapeAttr(p.company)}"></td>
-      <td><input data-field="year" type="number" value="${p.year}"></td>
-      <td><input data-field="month" type="number" min="1" max="12" value="${p.month}"></td>
-      <td><input data-field="attendance_days" type="number" min="0" value="${p.attendance_days}" title="${daysHint}"></td>
-      <td><input data-field="absent_days" type="number" min="0" value="${p.absent_days || 0}"></td>
-      <td><input data-field="paid_leave_days" type="number" min="0" value="${p.paid_leave_days || 0}"></td>
-      <td><input data-field="total_work_hours" type="number" step="0.01" min="0" value="${totalHours}" title="${daysHint}（実打刻 − 休憩 1h）"></td>
+      <td>${p.year}/${String(p.month).padStart(2,"0")}（勤務日数 ${workDays} 日）</td>
       <td class="col-del"><button class="del-btn" data-id="${p.id}">削除</button></td>
     </tr>
     `;
@@ -738,13 +661,7 @@ function renderTable() {
       const field = e.target.dataset.field;
       const p = people.find(x => x.id === id);
       if (!p) return;
-      if (field === "year" || field === "month" || field === "attendance_days" || field === "absent_days" || field === "paid_leave_days") {
-        p[field] = parseInt(e.target.value) || 0;
-      } else if (field === "total_work_hours") {
-        p.total_work_minutes = Math.round((parseFloat(e.target.value) || 0) * 60);
-      } else {
-        p[field] = e.target.value;
-      }
+      p[field] = e.target.value;
     });
   });
   peopleTbody.querySelectorAll(".del-btn").forEach(btn => {
@@ -768,20 +685,18 @@ genBtn.addEventListener("click", () => {
 printBtn.addEventListener("click", () => window.print());
 
 function buildSheetHTML(p) {
-  const days = parseInt(p.attendance_days) || 0;
-  const absentDays = parseInt(p.absent_days) || 0;
-  const paidLeaveDays = parseInt(p.paid_leave_days) || 0;
   const year = parseInt(p.year);
   const month = parseInt(p.month);
-  const totalMinutes = parseInt(p.total_work_minutes) || 0;
-  const totalHours = totalMinutes / 60;
-  const basePay = Math.floor(totalHours * HOURLY_WAGE);
-  const transport = days * TRANSPORT_PER_DAY;
+
+  // 全員同一条件の固定計算
+  const workDays = calcWorkDays(year, month);            // 月日数 - 8
+  const totalWorkHours = workDays * DAILY_WORK_HOURS;    // 勤務日数 × 5h
+  const totalWorkMinutes = totalWorkHours * 60;
+  const basePay = totalWorkHours * HOURLY_WAGE;          // 時給 1,000円
+  const transport = workDays * TRANSPORT_PER_DAY;        // 500円/日
   const gross = basePay + transport;
 
   // 控除計算（被保険者負担分）
-  // 健康保険・厚生年金は標準報酬月額等級ベース（支給額に関わらず等級から変わらない）
-  // 雇用保険のみ支給額 × 料率
   const stdHealthPay  = getStandardMonthlyPay(gross, HEALTH_GRADE_TABLE);
   const stdPensionPay = getStandardMonthlyPay(gross, PENSION_GRADE_TABLE);
   const healthIns  = Math.round(stdHealthPay  * HEALTH_INSURANCE_RATE);
@@ -844,19 +759,19 @@ function buildSheetHTML(p) {
       <table>
         <tr><th>出勤日数</th><th>欠勤日数</th><th>有給休暇</th><th>合計労働時間</th><th>1 日平均</th></tr>
         <tr>
-          <td>${days} 日</td>
-          <td>${absentDays} 日</td>
-          <td>${paidLeaveDays} 日</td>
-          <td>${fmtHM(totalMinutes)}（${totalHours.toFixed(2)} h）</td>
-          <td>${days > 0 ? fmtHM(Math.round(totalMinutes / days)) : "—"}</td>
+          <td>${workDays} 日</td>
+          <td>0 日</td>
+          <td>0 日</td>
+          <td>${fmtHM(totalWorkMinutes)}（${totalWorkHours.toFixed(0)} h）</td>
+          <td>5 時間 00 分</td>
         </tr>
       </table>
 
       <div class="section-title">支給</div>
       <table>
         <tr><th></th><th>単価</th><th>数量</th><th>金額</th></tr>
-        <tr><td class="label">基本給（時給）</td><td>${fmt(HOURLY_WAGE)} 円 / h</td><td>${totalHours.toFixed(2)} h</td><td>${fmt(basePay)} 円</td></tr>
-        <tr><td class="label">交通費</td><td>${fmt(TRANSPORT_PER_DAY)} 円 / 日</td><td>${days} 日</td><td>${fmt(transport)} 円</td></tr>
+        <tr><td class="label">基本給（時給）</td><td>${fmt(HOURLY_WAGE)} 円 / h</td><td>${totalWorkHours} h</td><td>${fmt(basePay)} 円</td></tr>
+        <tr><td class="label">交通費</td><td>${fmt(TRANSPORT_PER_DAY)} 円 / 日</td><td>${workDays} 日</td><td>${fmt(transport)} 円</td></tr>
         <tr class="total-row gross-row"><td class="label" colspan="3">総支給額</td><td>${fmt(gross)} 円</td></tr>
       </table>
 
@@ -887,7 +802,7 @@ function buildSheetHTML(p) {
       </table>
 
       <div class="notes">
-        ※ 実打刻ベース集計（労基法34条準拠: 6h以下=控除0、6h超8h以下=45分、8h超=60分）/ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 + 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 × ${days} 日。<br>
+        ※ 想定勤務時間 10:00-16:00（休憩 60 分・実労働 5 時間）/ 勤務日数 月日数-8（${lastDay}日-8=${workDays}日）/ 全員同一条件。<br>
         ※ 健保・厚年は標準報酬月額等級ベース（岩手県 令和8年度 被保険者負担分）。雇保 ${(EMPLOYMENT_INSURANCE_RATE * 100).toFixed(1)}%。所得税は令和8年分月額表甲欄扶養0人。差引がマイナスの場合も実額を表示。
       </div>
 
