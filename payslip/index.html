@@ -210,6 +210,17 @@ const HOURLY_WAGE = 1000;
 const TRANSPORT_PER_DAY = 500;
 const MAX_PEOPLE = 30;
 const PAY_DAY_OF_NEXT_MONTH = 25;
+const DAILY_WORK_HOURS = 5;  // 雇用契約想定: 10:00-16:00 / 休憩60分 = 5h
+
+// 雇用契約給与（フルタイム想定）を返す
+// 算式: (月の日数 - 8日) × 5h × 1,000円
+// 例: 4月(30日) → 22 × 5 × 1000 = 110,000円
+//     5月(31日) → 23 × 5 × 1000 = 115,000円
+function calcContractMonthlyPay(year, month) {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const workDays = daysInMonth - 8;
+  return workDays * DAILY_WORK_HOURS * HOURLY_WAGE;
+}
 
 // 保険料率（岩手県 令和8年度 被保険者負担分）
 // 出典: 協会けんぽ岩手県 https://www.kyoukaikenpo.or.jp/g7/cat330/sb3150/r08/r8ryougakuhyou3gatukara/
@@ -780,10 +791,11 @@ function buildSheetHTML(p) {
   const gross = basePay + transport;
 
   // 控除計算（被保険者負担分）
-  // 健康保険・厚生年金は標準報酬月額等級ベース（支給額に関わらず等級から変わらない）
-  // 雇用保険のみ支給額 × 料率
-  const stdHealthPay  = getStandardMonthlyPay(gross, HEALTH_GRADE_TABLE);
-  const stdPensionPay = getStandardMonthlyPay(gross, PENSION_GRADE_TABLE);
+  // 健康保険・厚生年金は「雇用契約給与」ベースの標準報酬月額で全員共通
+  // 雇用保険・所得税は実勤怠ベース（各人の総支給で変動）
+  const contractMonthlyPay = calcContractMonthlyPay(year, month);
+  const stdHealthPay  = getStandardMonthlyPay(contractMonthlyPay, HEALTH_GRADE_TABLE);
+  const stdPensionPay = getStandardMonthlyPay(contractMonthlyPay, PENSION_GRADE_TABLE);
   const healthIns  = Math.round(stdHealthPay  * HEALTH_INSURANCE_RATE);
   const pension    = Math.round(stdPensionPay * PENSION_RATE);
   const employIns  = Math.round(gross * EMPLOYMENT_INSURANCE_RATE);
@@ -863,11 +875,11 @@ function buildSheetHTML(p) {
       <div class="section-title">控除</div>
       <div class="deduction-grid">
         <div class="ded-item">
-          <div class="ded-label">健康保険料<br>（標準報酬 ¥${stdHealthPay.toLocaleString("ja-JP")} × ${(HEALTH_INSURANCE_RATE * 100).toFixed(2)}%）</div>
+          <div class="ded-label">健康保険料<br>（契約給与 ¥${contractMonthlyPay.toLocaleString("ja-JP")} → 標準報酬 ¥${stdHealthPay.toLocaleString("ja-JP")} × ${(HEALTH_INSURANCE_RATE * 100).toFixed(2)}%）</div>
           <div class="ded-val">¥${fmt(healthIns)}</div>
         </div>
         <div class="ded-item">
-          <div class="ded-label">厚生年金<br>（標準報酬 ¥${stdPensionPay.toLocaleString("ja-JP")} × ${(PENSION_RATE * 100).toFixed(2)}%）</div>
+          <div class="ded-label">厚生年金<br>（契約給与 ¥${contractMonthlyPay.toLocaleString("ja-JP")} → 標準報酬 ¥${stdPensionPay.toLocaleString("ja-JP")} × ${(PENSION_RATE * 100).toFixed(2)}%）</div>
           <div class="ded-val">¥${fmt(pension)}</div>
         </div>
         <div class="ded-item">
@@ -888,7 +900,7 @@ function buildSheetHTML(p) {
 
       <div class="notes">
         ※ 実打刻ベース集計（労基法34条準拠: 6h以下=控除0、6h超8h以下=45分、8h超=60分）/ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 + 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 × ${days} 日。<br>
-        ※ 健保・厚年は標準報酬月額等級ベース（岩手県 令和8年度 被保険者負担分）。雇保 ${(EMPLOYMENT_INSURANCE_RATE * 100).toFixed(1)}%。所得税は令和8年分月額表甲欄扶養0人。差引がマイナスの場合も実額を表示。
+        ※ 健保・厚年は雇用契約給与（5h × 月日数-8 × 1,000円 = ¥${contractMonthlyPay.toLocaleString("ja-JP")}）ベース、全員共通（岩手県 令和8年度 被保険者負担分）。雇保・所得税は実勤怠ベース（各人で変動）。差引がマイナスの場合も実額を表示。
       </div>
 
       <div class="signature-area">
