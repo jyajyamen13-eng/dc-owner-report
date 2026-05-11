@@ -148,7 +148,7 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   <h1 class="app-title">就労後給与シミュレーション</h1>
   <div class="intro">
     出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で就労後給与シミュレーションを作ります。<strong>最大 30 人まで一括処理可能</strong>。<br>
-    <strong>計算ルール</strong>: 実打刻ベース（休憩 1 時間控除）/ 時給 1,000 円 / 交通費 500 円/日 / 控除あり（健康保険・厚生年金・雇用保険・所得税）
+    <strong>計算ルール</strong>: 実打刻ベース（労基法34条準拠の休憩控除: 6h以下=0分・6〜8h=45分・8h超=60分）/ 時給 1,000 円 / 交通費 500 円/日 / 控除あり（健保・厚年は標準報酬月額等級ベース / 雇用保険・所得税）
   </div>
 
   <div class="global-settings" id="globalSettings">
@@ -208,14 +208,125 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dis
 
 const HOURLY_WAGE = 1000;
 const TRANSPORT_PER_DAY = 500;
-const BREAK_MINUTES = 60;
 const MAX_PEOPLE = 30;
 const PAY_DAY_OF_NEXT_MONTH = 25;
 
 // 保険料率（岩手県 令和8年度 被保険者負担分）
-const HEALTH_INSURANCE_RATE = 0.0497;   // 健康保険料率 4.97%
-const PENSION_RATE = 0.0915;            // 厚生年金保険料率 9.15%
-const EMPLOYMENT_INSURANCE_RATE = 0.006; // 雇用保険料率 0.6%
+// 出典: 協会けんぽ岩手県 https://www.kyoukaikenpo.or.jp/g7/cat330/sb3150/r08/r8ryougakuhyou3gatukara/
+// 出典: 日本年金機構 厚生年金保険料額表 https://www.nenkin.go.jp/service/kounen/hokenryo/ryogaku/ryogakuhyo/index.html
+const HEALTH_INSURANCE_RATE = 0.0497;   // 健康保険料率 4.97%（岩手県 令和8年度 被保険者負担分）
+const PENSION_RATE = 0.0915;            // 厚生年金保険料率 9.15%（全国一律 令和2年9月〜固定）
+const EMPLOYMENT_INSURANCE_RATE = 0.006; // 雇用保険料率 0.6%（支給額ベース）
+
+// 労基法34条準拠の休憩控除ルール（1日の勤務時間に基づく）
+// 6時間以下: 控除なし / 6時間超8時間以下: 45分 / 8時間超: 60分
+const BREAK_RULE = (workMinutes) => {
+  if (workMinutes <= 360) return 0;   // 6h 以下
+  if (workMinutes <= 480) return 45;  // 6h 超〜8h 以下
+  return 60;                           // 8h 超
+};
+
+// 健康保険 標準報酬月額等級表（協会けんぽ 全都道府県共通 令和8年度 第1〜50等級）
+// 出典: 協会けんぽ https://www.kyoukaikenpo.or.jp/g7/cat330/sb3150/r08/r8ryougakuhyou3gatukara/
+// 各行: [報酬月額下限（以上）, 報酬月額上限（未満）, 標準報酬月額]
+const HEALTH_GRADE_TABLE = [
+  [0,        63000,   58000],   // 第1等級
+  [63000,    73000,   68000],   // 第2等級
+  [73000,    83000,   78000],   // 第3等級
+  [83000,    93000,   88000],   // 第4等級
+  [93000,   101000,   98000],   // 第5等級
+  [101000,  107000,  104000],   // 第6等級
+  [107000,  114000,  110000],   // 第7等級
+  [114000,  122000,  118000],   // 第8等級
+  [122000,  130000,  126000],   // 第9等級
+  [130000,  138000,  134000],   // 第10等級
+  [138000,  146000,  142000],   // 第11等級
+  [146000,  155000,  150000],   // 第12等級
+  [155000,  165000,  160000],   // 第13等級
+  [165000,  175000,  170000],   // 第14等級
+  [175000,  185000,  180000],   // 第15等級
+  [185000,  195000,  190000],   // 第16等級
+  [195000,  210000,  200000],   // 第17等級
+  [210000,  230000,  220000],   // 第18等級
+  [230000,  250000,  240000],   // 第19等級
+  [250000,  270000,  260000],   // 第20等級
+  [270000,  290000,  280000],   // 第21等級
+  [290000,  310000,  300000],   // 第22等級
+  [310000,  330000,  320000],   // 第23等級
+  [330000,  350000,  340000],   // 第24等級
+  [350000,  370000,  360000],   // 第25等級
+  [370000,  395000,  380000],   // 第26等級
+  [395000,  425000,  410000],   // 第27等級
+  [425000,  455000,  440000],   // 第28等級
+  [455000,  485000,  470000],   // 第29等級
+  [485000,  515000,  500000],   // 第30等級
+  [515000,  545000,  530000],   // 第31等級
+  [545000,  575000,  560000],   // 第32等級
+  [575000,  605000,  590000],   // 第33等級
+  [605000,  635000,  620000],   // 第34等級
+  [635000,  665000,  650000],   // 第35等級
+  [665000,  695000,  680000],   // 第36等級
+  [695000,  730000,  710000],   // 第37等級
+  [730000,  770000,  750000],   // 第38等級
+  [770000,  810000,  790000],   // 第39等級
+  [810000,  855000,  830000],   // 第40等級
+  [855000,  905000,  880000],   // 第41等級
+  [905000,  955000,  930000],   // 第42等級
+  [955000, 1005000,  980000],   // 第43等級
+  [1005000, 1055000, 1030000],  // 第44等級
+  [1055000, 1115000, 1090000],  // 第45等級
+  [1115000, 1175000, 1150000],  // 第46等級
+  [1175000, 1235000, 1210000],  // 第47等級
+  [1235000, 1295000, 1270000],  // 第48等級
+  [1295000, 1355000, 1330000],  // 第49等級
+  [1355000, Infinity, 1390000], // 第50等級
+];
+
+// 厚生年金 標準報酬月額等級表（全国一律 令和2年9月〜 第1〜32等級）
+// 出典: 日本年金機構 https://www.nenkin.go.jp/service/kounen/hokenryo/ryogaku/ryogakuhyo/index.html
+// 各行: [報酬月額下限（以上）, 報酬月額上限（未満）, 標準報酬月額]
+const PENSION_GRADE_TABLE = [
+  [0,       93000,   88000],   // 第1等級
+  [93000,  101000,   98000],   // 第2等級
+  [101000, 107000,  104000],   // 第3等級
+  [107000, 114000,  110000],   // 第4等級
+  [114000, 122000,  118000],   // 第5等級
+  [122000, 130000,  126000],   // 第6等級
+  [130000, 138000,  134000],   // 第7等級
+  [138000, 146000,  142000],   // 第8等級
+  [146000, 155000,  150000],   // 第9等級
+  [155000, 165000,  160000],   // 第10等級
+  [165000, 175000,  170000],   // 第11等級
+  [175000, 185000,  180000],   // 第12等級
+  [185000, 195000,  190000],   // 第13等級
+  [195000, 210000,  200000],   // 第14等級
+  [210000, 230000,  220000],   // 第15等級
+  [230000, 250000,  240000],   // 第16等級
+  [250000, 270000,  260000],   // 第17等級
+  [270000, 290000,  280000],   // 第18等級
+  [290000, 310000,  300000],   // 第19等級
+  [310000, 330000,  320000],   // 第20等級
+  [330000, 350000,  340000],   // 第21等級
+  [350000, 370000,  360000],   // 第22等級
+  [370000, 395000,  380000],   // 第23等級
+  [395000, 425000,  410000],   // 第24等級
+  [425000, 455000,  440000],   // 第25等級
+  [455000, 485000,  470000],   // 第26等級
+  [485000, 515000,  500000],   // 第27等級
+  [515000, 545000,  530000],   // 第28等級
+  [545000, 575000,  560000],   // 第29等級
+  [575000, 605000,  590000],   // 第30等級
+  [605000, 635000,  620000],   // 第31等級
+  [635000, Infinity, 650000],  // 第32等級
+];
+
+// 標準報酬月額を等級表から取得する
+function getStandardMonthlyPay(grossPay, table) {
+  for (const [min, max, std] of table) {
+    if (grossPay >= min && grossPay < max) return std;
+  }
+  return table[table.length - 1][2]; // 最高等級で頭打ち
+}
 
 // 給与所得の源泉徴収税額表（令和8年分）月額表 甲欄 扶養親族等の数 0 人
 // 出典: 国税庁「給与所得の源泉徴収税額表（令和8年分）」月額表
@@ -557,9 +668,17 @@ function parseAttendance(text) {
   if (m) labelDays = parseInt(m[1]);
   if (attendance_days === 0 && labelDays !== null) attendance_days = labelDays;
 
-  // 合計労働時間（分）: 各日の (end - start) - 休憩 60 分（実打刻ベース）
-  const total_work_minutes = uniqueShifts.reduce((sum, s) => {
-    return sum + Math.max(0, shiftMinutes(s.start, s.end) - BREAK_MINUTES);
+  // 合計労働時間（分）: 同日複数シフト合算 → 労基法34条準拠の休憩控除
+  // 6h以下=控除0 / 6h超〜8h以下=45分 / 8h超=60分
+  // 短時間勤務（就労移行支援）では実質ほぼ0控除になる
+  const shiftsByDay = {};
+  for (const s of uniqueShifts) {
+    if (!shiftsByDay[s.day]) shiftsByDay[s.day] = 0;
+    shiftsByDay[s.day] += shiftMinutes(s.start, s.end);
+  }
+  const total_work_minutes = Object.values(shiftsByDay).reduce((sum, dayMinutes) => {
+    const breakMin = BREAK_RULE(dayMinutes);
+    return sum + Math.max(0, dayMinutes - breakMin);
   }, 0);
 
   return {
@@ -661,9 +780,13 @@ function buildSheetHTML(p) {
   const gross = basePay + transport;
 
   // 控除計算（被保険者負担分）
-  const healthIns  = Math.floor(gross * HEALTH_INSURANCE_RATE);
-  const pension    = Math.floor(gross * PENSION_RATE);
-  const employIns  = Math.floor(gross * EMPLOYMENT_INSURANCE_RATE);
+  // 健康保険・厚生年金は標準報酬月額等級ベース（支給額に関わらず等級から変わらない）
+  // 雇用保険のみ支給額 × 料率
+  const stdHealthPay  = getStandardMonthlyPay(gross, HEALTH_GRADE_TABLE);
+  const stdPensionPay = getStandardMonthlyPay(gross, PENSION_GRADE_TABLE);
+  const healthIns  = Math.round(stdHealthPay  * HEALTH_INSURANCE_RATE);
+  const pension    = Math.round(stdPensionPay * PENSION_RATE);
+  const employIns  = Math.round(gross * EMPLOYMENT_INSURANCE_RATE);
   const socialInsTotal = healthIns + pension + employIns;
 
   // 所得税: 社会保険料控除後の給与額を月額表に照合
@@ -681,7 +804,7 @@ function buildSheetHTML(p) {
   const payMonth = month === 12 ? 1 : month + 1;
   const payDate = `${payYear}/${String(payMonth).padStart(2,"0")}/${String(PAY_DAY_OF_NEXT_MONTH).padStart(2,"0")}`;
   const issuedAt = (globalSettings.issuedAt || new Date().toISOString().slice(0, 10)).replace(/-/g, "/");
-  const fmt = n => n.toLocaleString("ja-JP");
+  const fmt = n => n < 0 ? `-${Math.abs(n).toLocaleString("ja-JP")}` : n.toLocaleString("ja-JP");
   const fmtHM = mins => `${Math.floor(mins / 60)} 時間 ${String(mins % 60).padStart(2, "0")} 分`;
   const name = (p.name || "").trim() || "（氏名未抽出）";
   const company = (p.company || "").trim();
@@ -740,11 +863,11 @@ function buildSheetHTML(p) {
       <div class="section-title">控除</div>
       <div class="deduction-grid">
         <div class="ded-item">
-          <div class="ded-label">健康保険料<br>（${(HEALTH_INSURANCE_RATE * 100).toFixed(2)}%）</div>
+          <div class="ded-label">健康保険料<br>（標準報酬 ¥${stdHealthPay.toLocaleString("ja-JP")} × ${(HEALTH_INSURANCE_RATE * 100).toFixed(2)}%）</div>
           <div class="ded-val">¥${fmt(healthIns)}</div>
         </div>
         <div class="ded-item">
-          <div class="ded-label">厚生年金<br>（${(PENSION_RATE * 100).toFixed(2)}%）</div>
+          <div class="ded-label">厚生年金<br>（標準報酬 ¥${stdPensionPay.toLocaleString("ja-JP")} × ${(PENSION_RATE * 100).toFixed(2)}%）</div>
           <div class="ded-val">¥${fmt(pension)}</div>
         </div>
         <div class="ded-item">
@@ -764,8 +887,8 @@ function buildSheetHTML(p) {
       </table>
 
       <div class="notes">
-        ※ 実打刻ベース集計（休憩 60 分控除）/ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 + 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 × ${days} 日。<br>
-        ※ 保険料率: 健康保険 ${(HEALTH_INSURANCE_RATE * 100).toFixed(2)}%・厚生年金 ${(PENSION_RATE * 100).toFixed(2)}%・雇用保険 ${(EMPLOYMENT_INSURANCE_RATE * 100).toFixed(1)}%（岩手県 令和8年度 被保険者負担分）。所得税は令和8年分月額表甲欄扶養0人。
+        ※ 実打刻ベース集計（労基法34条準拠: 6h以下=控除0、6h超8h以下=45分、8h超=60分）/ 時給 ${fmt(HOURLY_WAGE)} 円 × ${totalHours.toFixed(2)} 時間 + 交通費 ${fmt(TRANSPORT_PER_DAY)} 円 × ${days} 日。<br>
+        ※ 健保・厚年は標準報酬月額等級ベース（岩手県 令和8年度 被保険者負担分）。雇保 ${(EMPLOYMENT_INSURANCE_RATE * 100).toFixed(1)}%。所得税は令和8年分月額表甲欄扶養0人。差引がマイナスの場合も実額を表示。
       </div>
 
       <div class="signature-area">
