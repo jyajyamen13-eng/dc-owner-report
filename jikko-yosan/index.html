@@ -6,11 +6,7 @@
 <title>実行予算ダッシュボード — トイザらス・ベビーザらス　原復工事</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
-        integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
-        crossorigin="anonymous"
-        referrerpolicy="no-referrer"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --blue-50:#EEF2FF; --blue-100:#D9E6FF; --blue-300:#9DB7F9;
@@ -18,11 +14,19 @@
     --gray-0:#FFFFFF; --gray-50:#FAFAFB; --gray-100:#F4F5F7;
     --gray-200:#E8EAEE; --gray-300:#D5D8DE; --gray-400:#A0A4AB;
     --gray-500:#6B7280; --gray-700:#3F4451; --gray-900:#1A1A1A;
-    --green-500:#10B981; --green-700:#047857;
-    --warn-500:#F97316; --warn-700:#C2410C;
+    /* 状態色 */
+    --healthy-500:#10B981; --healthy-600:#059669; --healthy-700:#047857;
+    --healthy-bg:#ECFDF5;
+    --warn-500:#F59E0B;   --warn-600:#D97706;   --warn-700:#B45309;
+    --warn-bg:#FFFBEB;
+    --danger-500:#EF4444; --danger-600:#DC2626; --danger-700:#B91C1C;
+    --danger-bg:#FEF2F2;
+    /* 原価/外注 強調 */
+    --cost-500:#E11D48;   --cost-600:#BE123C;
     --shadow-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
     --shadow-md:0 4px 6px -1px rgba(15,23,42,.08),0 2px 4px -2px rgba(15,23,42,.04);
-    --radius-sm:6px; --radius-md:10px; --radius-lg:14px;
+    --shadow-lg:0 10px 20px -3px rgba(15,23,42,.10),0 4px 8px -2px rgba(15,23,42,.05);
+    --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-xl:20px;
     --font-sans:"Inter","Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic",sans-serif;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -56,120 +60,279 @@
   }
   .login-card button:hover{background:var(--blue-900)}
   .login-card .err{
-    margin-top:10px;font-size:.78rem;color:var(--warn-700);
+    margin-top:10px;font-size:.78rem;color:var(--danger-700);
     min-height:1.1em;font-weight:500;
   }
 
   /* ── 本体 ── */
   #app{display:none}
+
+  /* 控えめヘッダ + 工事情報を1段に */
   header.app-header{
     background:var(--gray-0);border-bottom:1px solid var(--gray-200);
-    padding:18px 32px;
+    padding:10px 28px;
   }
   .header-inner{
-    max-width:1440px;margin:0 auto;display:flex;align-items:center;
-    justify-content:space-between;gap:18px;flex-wrap:wrap;
+    max-width:1280px;margin:0 auto;display:flex;align-items:center;
+    justify-content:space-between;gap:14px;flex-wrap:wrap;
   }
-  .brand{display:flex;align-items:center;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px}
   .brand-mark{
-    width:34px;height:34px;border-radius:8px;
+    width:28px;height:28px;border-radius:6px;
     background:linear-gradient(135deg,var(--blue-500) 0%,var(--blue-700) 100%);
     display:flex;align-items:center;justify-content:center;
-    color:#fff;font-weight:700;font-size:.9rem;letter-spacing:.05em;
-    box-shadow:var(--shadow-md);
+    color:#fff;font-weight:700;font-size:.72rem;letter-spacing:.04em;
   }
-  .brand h1{font-size:1rem;font-weight:700}
-  .brand .sub{font-size:.7rem;color:var(--gray-500);margin-top:2px;letter-spacing:.04em}
-  .build-info{font-size:.7rem;color:var(--gray-500);text-align:right}
+  .brand .ttl{font-size:.82rem;font-weight:700;color:var(--gray-700);letter-spacing:.02em}
+  .build-info{font-size:.65rem;color:var(--gray-400);text-align:right;line-height:1.4}
 
-  /* 工事情報 */
   .project-bar{
     background:var(--gray-0);border-bottom:1px solid var(--gray-200);
-    padding:14px 32px;
+    padding:10px 28px;
   }
   .project-inner{
-    max-width:1440px;margin:0 auto;display:flex;flex-wrap:wrap;
-    gap:24px 32px;align-items:baseline;
+    max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;
+    gap:8px 22px;align-items:baseline;
   }
-  .pj-field{display:flex;flex-direction:column;gap:2px}
-  .pj-field .lab{font-size:.7rem;color:var(--gray-500);font-weight:500;letter-spacing:.04em}
-  .pj-field .val{font-size:.92rem;color:var(--gray-900);font-weight:600}
-  .pj-field.name .val{font-size:1.05rem}
+  .pj-field{display:flex;align-items:baseline;gap:6px}
+  .pj-field .lab{font-size:.66rem;color:var(--gray-400);font-weight:500;letter-spacing:.04em}
+  .pj-field .val{font-size:.78rem;color:var(--gray-700);font-weight:600}
+  .pj-field.name .val{font-size:.88rem;color:var(--gray-900)}
 
-  main{max-width:1440px;margin:24px auto;padding:0 28px 56px}
+  main{max-width:1280px;margin:22px auto;padding:0 28px 56px}
 
-  /* KPI */
-  .kpi-strip{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;
+  /* ─────────── 1) 粗利率 hero ─────────── */
+  .hero{
+    background:var(--gray-0);
+    border:1px solid var(--gray-200);
+    border-radius:var(--radius-xl);
+    padding:32px 36px 36px;
+    box-shadow:var(--shadow-md);
+    margin-bottom:22px;
+    position:relative;
+    overflow:hidden;
   }
-  .kpi-card{
-    background:var(--gray-0);border:1px solid var(--gray-200);
-    border-radius:var(--radius-md);padding:18px 20px;
+  .hero-grid{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:36px;
+    align-items:center;
+  }
+  .hero-left{
+    text-align:center;
+    padding:0 18px;
+  }
+  .hero-label{
+    font-size:.82rem;
+    color:var(--gray-500);
+    font-weight:600;
+    letter-spacing:.08em;
+    margin-bottom:6px;
+  }
+  .hero-num{
+    font-size:7.5rem;            /* 120px 級 */
+    font-weight:800;
+    line-height:1;
+    letter-spacing:-.04em;
+    font-variant-numeric:tabular-nums;
+    display:inline-flex;
+    align-items:flex-start;
+  }
+  .hero-num .pct{
+    font-size:2.2rem;
+    font-weight:700;
+    margin-top:1.2rem;
+    margin-left:6px;
+    letter-spacing:0;
+  }
+  .hero-badge{
+    display:inline-block;
+    margin-top:14px;
+    padding:6px 14px;
+    border-radius:999px;
+    font-size:.78rem;
+    font-weight:700;
+    letter-spacing:.04em;
+  }
+  /* hero 状態色 */
+  .hero.healthy .hero-num,.hero.healthy .hero-num .pct{color:var(--healthy-600)}
+  .hero.healthy .hero-badge{background:var(--healthy-bg);color:var(--healthy-700)}
+  .hero.warn .hero-num,.hero.warn .hero-num .pct{color:var(--warn-600)}
+  .hero.warn .hero-badge{background:var(--warn-bg);color:var(--warn-700)}
+  .hero.danger .hero-num,.hero.danger .hero-num .pct{color:var(--danger-600)}
+  .hero.danger .hero-badge{background:var(--danger-bg);color:var(--danger-700)}
+
+  /* ─────────── 2) 請負 ↔ 原価 プログレスバー ─────────── */
+  .hero-right{
+    border-left:1px solid var(--gray-200);
+    padding-left:36px;
+  }
+  .prog-title{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .prog-title .lab{
+    font-size:.78rem;color:var(--gray-500);font-weight:600;letter-spacing:.04em;
+  }
+  .prog-title .total{
+    font-size:1.05rem;font-weight:700;color:var(--gray-900);
+    font-variant-numeric:tabular-nums;
+  }
+  .prog-title .total .u{font-size:.78rem;color:var(--gray-500);font-weight:500;margin-left:3px}
+  .prog-bar{
+    position:relative;
+    width:100%;
+    height:54px;
+    background:var(--healthy-bg);
+    border:1px solid var(--gray-200);
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    box-shadow:inset 0 1px 2px rgba(15,23,42,.05);
+  }
+  .prog-cost{
+    position:absolute;left:0;top:0;bottom:0;
+    background:linear-gradient(180deg,var(--cost-500) 0%,var(--cost-600) 100%);
+    transition:width .6s cubic-bezier(.4,0,.2,1);
+  }
+  .prog-label{
+    position:absolute;top:50%;transform:translateY(-50%);
+    font-size:.82rem;font-weight:700;
+    color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.18);
+    white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.01em;
+  }
+  .prog-label.cost{left:12px}
+  .prog-label.profit{
+    right:12px;color:var(--healthy-700);text-shadow:none;
+    background:rgba(236,253,245,.92);
+    padding:3px 8px;border-radius:6px;
+  }
+  .prog-legend{
+    display:flex;justify-content:space-between;
+    margin-top:8px;font-size:.74rem;color:var(--gray-500);
+  }
+  .prog-legend .lg{display:flex;align-items:center;gap:6px}
+  .prog-legend .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .prog-legend .dot.cost{background:var(--cost-500)}
+  .prog-legend .dot.profit{background:var(--healthy-500)}
+
+  @media (max-width: 900px){
+    .hero-grid{grid-template-columns:1fr;gap:20px}
+    .hero-right{border-left:none;border-top:1px solid var(--gray-200);padding-left:0;padding-top:24px}
+    .hero-num{font-size:5.5rem}
+  }
+
+  /* ─────────── 3) カテゴリ別 横棒 ─────────── */
+  .cat-panel{
+    background:var(--gray-0);
+    border:1px solid var(--gray-200);
+    border-radius:var(--radius-lg);
+    padding:22px 26px 24px;
     box-shadow:var(--shadow-sm);
+    margin-bottom:18px;
   }
-  .kpi-card .label{
-    font-size:.74rem;color:var(--gray-500);font-weight:600;
-    letter-spacing:.05em;margin-bottom:10px;
+  .panel-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:18px;
   }
-  .kpi-card .value{
-    font-size:1.7rem;font-weight:700;color:var(--gray-900);
-    font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  .panel-head h2{
+    font-size:.95rem;font-weight:700;color:var(--gray-900);letter-spacing:.02em;
   }
-  .kpi-card .value .unit{font-size:.85rem;color:var(--gray-500);font-weight:500;margin-left:4px}
-  .kpi-card.accent .value{color:var(--green-700)}
-  .kpi-card.warn .value{color:var(--warn-700)}
+  .panel-head .hint{font-size:.72rem;color:var(--gray-500);font-weight:500}
 
-  /* 表 + グラフ */
-  .grid-2col{
-    display:grid;grid-template-columns:1fr 1fr;gap:18px;
+  .cat-list{display:flex;flex-direction:column;gap:14px}
+  .cat-row{
+    display:grid;
+    grid-template-columns:160px 1fr 130px;
+    gap:14px;
+    align-items:center;
   }
-  @media (max-width: 1080px){
-    .grid-2col{grid-template-columns:1fr}
-    .kpi-strip{grid-template-columns:repeat(2,1fr)}
+  .cat-name{
+    font-size:.84rem;font-weight:600;color:var(--gray-900);
+    display:flex;flex-direction:column;gap:1px;
+  }
+  .cat-name .pct{
+    font-size:.7rem;color:var(--gray-500);font-weight:500;
+    font-variant-numeric:tabular-nums;
+  }
+  .cat-track{
+    position:relative;height:26px;
+    background:var(--gray-100);
+    border-radius:var(--radius-sm);
+    overflow:hidden;
+  }
+  .cat-fill{
+    position:absolute;left:0;top:0;bottom:0;
+    background:var(--blue-500);
+    border-radius:var(--radius-sm);
+    transition:width .55s cubic-bezier(.4,0,.2,1);
+  }
+  .cat-row.top .cat-fill{background:linear-gradient(90deg,var(--cost-500) 0%,var(--cost-600) 100%)}
+  .cat-row.top .cat-name{color:var(--cost-600)}
+  .cat-row.zero .cat-track{background:repeating-linear-gradient(45deg,var(--gray-100),var(--gray-100) 6px,var(--gray-50) 6px,var(--gray-50) 12px)}
+  .cat-row.zero .cat-amt{color:var(--gray-400);font-style:italic}
+  .cat-amt{
+    text-align:right;
+    font-size:.92rem;font-weight:700;color:var(--gray-900);
+    font-variant-numeric:tabular-nums;letter-spacing:-.005em;
+  }
+  .cat-amt .u{font-size:.72rem;color:var(--gray-500);font-weight:500;margin-left:2px}
+  .cat-row.top .cat-amt{color:var(--cost-600)}
+
+  @media (max-width: 720px){
+    .cat-row{grid-template-columns:120px 1fr 100px;gap:8px}
+    .cat-amt{font-size:.8rem}
   }
 
-  .panel{
+  /* ─────────── 補助: 折りたたみ表 ─────────── */
+  details.cat-table-wrap{
     background:var(--gray-0);border:1px solid var(--gray-200);
-    border-radius:var(--radius-md);padding:18px 20px;
+    border-radius:var(--radius-md);padding:0;
     box-shadow:var(--shadow-sm);
+    overflow:hidden;
   }
-  .panel h2{
-    font-size:.9rem;font-weight:700;color:var(--gray-900);
-    margin-bottom:14px;letter-spacing:.02em;
+  details.cat-table-wrap summary{
+    list-style:none;cursor:pointer;
+    padding:14px 22px;
+    font-size:.85rem;font-weight:600;color:var(--gray-700);
     display:flex;align-items:center;justify-content:space-between;
+    user-select:none;
   }
-  .panel h2 .hint{font-size:.7rem;font-weight:500;color:var(--gray-500)}
+  details.cat-table-wrap summary::-webkit-details-marker{display:none}
+  details.cat-table-wrap summary::after{
+    content:"▼";font-size:.7rem;color:var(--gray-400);transition:transform .2s;
+  }
+  details.cat-table-wrap[open] summary::after{transform:rotate(180deg)}
+  details.cat-table-wrap summary:hover{background:var(--gray-50)}
 
   table.cat{
-    width:100%;border-collapse:collapse;font-size:.85rem;
+    width:100%;border-collapse:collapse;font-size:.84rem;
     font-variant-numeric:tabular-nums;
   }
   table.cat th{
     text-align:left;font-weight:600;color:var(--gray-500);
-    font-size:.72rem;letter-spacing:.05em;
-    padding:8px 10px;border-bottom:2px solid var(--gray-200);cursor:pointer;
-    user-select:none;
+    font-size:.7rem;letter-spacing:.05em;
+    padding:8px 22px;border-top:1px solid var(--gray-200);
+    border-bottom:2px solid var(--gray-200);
+    background:var(--gray-50);
   }
-  table.cat th:hover{color:var(--blue-700)}
   table.cat th.num{text-align:right}
-  table.cat th .arrow{display:inline-block;width:.7em;color:var(--blue-700)}
   table.cat td{
-    padding:9px 10px;border-bottom:1px solid var(--gray-100);
-    color:var(--gray-900);
+    padding:8px 22px;border-bottom:1px solid var(--gray-100);color:var(--gray-900);
   }
   table.cat td.num{text-align:right;font-variant-numeric:tabular-nums}
-  table.cat tr:hover td{background:var(--gray-50)}
+  table.cat tr.top td{color:var(--cost-600);font-weight:600}
   table.cat tfoot td{
     font-weight:700;color:var(--gray-900);
     border-top:2px solid var(--gray-300);border-bottom:none;
-    background:var(--gray-50);
+    background:var(--gray-50);padding:10px 22px;
   }
 
-  .chart-wrap{position:relative;height:340px}
-
   footer{
-    max-width:1440px;margin:18px auto 32px;padding:0 28px;
-    font-size:.7rem;color:var(--gray-400);text-align:right;
+    max-width:1280px;margin:18px auto 32px;padding:0 28px;
+    font-size:.68rem;color:var(--gray-400);text-align:right;
   }
 </style>
 </head>
@@ -193,13 +356,10 @@
     <div class="header-inner">
       <div class="brand">
         <div class="brand-mark">予算</div>
-        <div>
-          <h1>実行予算ダッシュボード</h1>
-          <div class="sub">JIKKO YOSAN — REAL-TIME COST OVERVIEW</div>
-        </div>
+        <div class="ttl">実行予算ダッシュボード</div>
       </div>
       <div class="build-info">
-        生成: 2026-06-16 20:16 JST<br>
+        生成: 2026-06-16 20:45 JST<br>
         ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
       </div>
     </div>
@@ -210,45 +370,72 @@
   </div>
 
   <main>
-    <div class="kpi-strip" id="kpi-strip"></div>
-
-    <div class="grid-2col">
-      <div class="panel">
-        <h2>カテゴリ別実績 <span class="hint">列クリックで並び替え</span></h2>
-        <table class="cat" id="cat-table">
-          <thead>
-            <tr>
-              <th data-key="label">カテゴリ <span class="arrow"></span></th>
-              <th class="num" data-key="amount">金額 (円) <span class="arrow"></span></th>
-              <th class="num" data-key="pct">構成比 (%) <span class="arrow"></span></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-          <tfoot>
-            <tr>
-              <td>合計</td>
-              <td class="num" id="cat-total">—</td>
-              <td class="num">100.0%</td>
-            </tr>
-          </tfoot>
-        </table>
+    <!-- 1) 粗利率 hero + 2) 請負/原価プログレス -->
+    <section class="hero" id="hero">
+      <div class="hero-grid">
+        <div class="hero-left">
+          <div class="hero-label">粗利率</div>
+          <div class="hero-num" id="hero-num">—</div>
+          <div><span class="hero-badge" id="hero-badge">—</span></div>
+        </div>
+        <div class="hero-right">
+          <div class="prog-title">
+            <span class="lab">請負金額 ↔ 原価消化</span>
+            <span class="total" id="prog-total">—<span class="u">円</span></span>
+          </div>
+          <div class="prog-bar">
+            <div class="prog-cost" id="prog-cost" style="width:0%"></div>
+            <span class="prog-label cost" id="prog-label-cost">—</span>
+            <span class="prog-label profit" id="prog-label-profit">—</span>
+          </div>
+          <div class="prog-legend">
+            <span class="lg"><span class="dot cost"></span>原価合計（消化分）</span>
+            <span class="lg"><span class="dot profit"></span>粗利益（残余）</span>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div class="panel">
-        <h2>カテゴリ別 棒グラフ <span class="hint">金額 (円)</span></h2>
-        <div class="chart-wrap"><canvas id="cat-chart"></canvas></div>
+    <!-- 3) カテゴリ別 横棒 -->
+    <section class="cat-panel">
+      <div class="panel-head">
+        <h2>カテゴリ別 原価実績</h2>
+        <span class="hint">金額順、トップ強調</span>
       </div>
-    </div>
+      <div class="cat-list" id="cat-list"></div>
+    </section>
+
+    <!-- 補助: 折りたたみ表 -->
+    <details class="cat-table-wrap">
+      <summary>カテゴリ別 数表（合計含む）</summary>
+      <table class="cat" id="cat-table">
+        <thead>
+          <tr>
+            <th>カテゴリ</th>
+            <th class="num">金額 (円)</th>
+            <th class="num">構成比 (%)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr>
+            <td>合計</td>
+            <td class="num" id="cat-total">—</td>
+            <td class="num">100.0%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </details>
   </main>
 
   <footer>
-    実行予算 xlsx → 単一 HTML build / Chart.js 4.4 / デジタル庁デザイン準拠
+    実行予算 xlsx → 単一 HTML build / 外部依存ゼロ / デジタル庁デザイン準拠
   </footer>
 </div>
 
 <script>
 /* ───────── データ inline ───────── */
-const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 20:16 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 20:45 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
 const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
 
 /* ───────── ログイン ───────── */
@@ -276,7 +463,8 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
 
 /* ───────── 描画 ───────── */
 const fmtYen = (n) => Math.round(n).toLocaleString("ja-JP");
-const fmtPct = (n) => n.toFixed(1) + "%";
+const fmtPct1 = (n) => n.toFixed(1) + "%";
+const fmtPct2 = (n) => n.toFixed(2) + "%";
 
 function renderProject() {
   const i = DATA.info;
@@ -288,129 +476,98 @@ function renderProject() {
     { lab: "着工日",   val: i.start || "—",    cls: "" },
   ];
   const html = fields.map(f =>
-    `<div class="pj-field ${f.cls}"><div class="lab">${f.lab}</div><div class="val">${f.val}</div></div>`
+    `<div class="pj-field ${f.cls}"><span class="lab">${f.lab}</span><span class="val">${f.val}</span></div>`
   ).join("");
   document.getElementById("project-fields").innerHTML = html;
 }
 
-function renderKpi() {
+/* 1) 粗利率 hero */
+function renderHero() {
   const k = DATA.kpi;
-  const cards = [
-    { label: "請負金額",   value: fmtYen(k.contract_amount), unit: "円", cls: "" },
-    { label: "原価合計",   value: fmtYen(k.cost_total),      unit: "円", cls: "warn" },
-    { label: "粗利益",     value: fmtYen(k.gross_profit),    unit: "円", cls: "accent" },
-    { label: "粗利率",     value: (k.gross_margin * 100).toFixed(2), unit: "%", cls: "accent" },
-  ];
-  document.getElementById("kpi-strip").innerHTML = cards.map(c =>
-    `<div class="kpi-card ${c.cls}">
-       <div class="label">${c.label}</div>
-       <div class="value">${c.value}<span class="unit">${c.unit}</span></div>
-     </div>`
-  ).join("");
+  const marginPct = k.gross_margin * 100;  /* 例: 23.35 */
+
+  const hero = document.getElementById("hero");
+  let cls = "danger", badge = "危険（粗利率 < 15%）";
+  if (marginPct >= 25) {
+    cls = "healthy"; badge = "健全（粗利率 25% 以上）";
+  } else if (marginPct >= 15) {
+    cls = "warn"; badge = "注意（粗利率 15-25%）";
+  }
+  hero.classList.remove("healthy", "warn", "danger");
+  hero.classList.add(cls);
+
+  const num = document.getElementById("hero-num");
+  num.innerHTML = `${marginPct.toFixed(2)}<span class="pct">%</span>`;
+
+  document.getElementById("hero-badge").textContent = badge;
+
+  /* 2) プログレス */
+  const contract = k.contract_amount;
+  const cost     = k.cost_total;
+  const profit   = k.gross_profit;
+  const costPct  = contract > 0 ? (cost / contract) * 100 : 0;
+  const profPct  = contract > 0 ? (profit / contract) * 100 : 0;
+
+  document.getElementById("prog-total").innerHTML =
+    `請負 ${fmtYen(contract)}<span class="u">円</span>`;
+  document.getElementById("prog-cost").style.width = costPct.toFixed(4) + "%";
+  document.getElementById("prog-label-cost").textContent =
+    `原価 ${fmtYen(cost)} 円 (${fmtPct2(costPct)})`;
+  document.getElementById("prog-label-profit").textContent =
+    `粗利 ${fmtYen(profit)} 円 (${fmtPct2(profPct)})`;
 }
 
-/* ───────── テーブル（ソート） ───────── */
-let sortKey = "amount";
-let sortDesc = true;
+/* 3) カテゴリ別 横棒 */
+function renderCategories() {
+  const sorted = [...DATA.categories].sort((a, b) => b.amount - a.amount);
+  const max = Math.max(...sorted.map(c => c.amount), 1);
+  const list = document.getElementById("cat-list");
 
+  list.innerHTML = sorted.map((c, idx) => {
+    const isZero = c.amount === 0;
+    const isTop  = !isZero && idx === 0;
+    const cls = [
+      "cat-row",
+      isTop  ? "top"  : "",
+      isZero ? "zero" : "",
+    ].filter(Boolean).join(" ");
+    const widthPct = isZero ? 0 : (c.amount / max) * 100;
+    const amtHtml = isZero
+      ? `<span class="u">未計上</span>`
+      : `${fmtYen(c.amount)}<span class="u">円</span>`;
+    return `
+      <div class="${cls}">
+        <div class="cat-name">
+          <span>${c.label}</span>
+          <span class="pct">構成比 ${fmtPct1(c.pct)}</span>
+        </div>
+        <div class="cat-track">
+          <div class="cat-fill" style="width:${widthPct.toFixed(4)}%"></div>
+        </div>
+        <div class="cat-amt">${amtHtml}</div>
+      </div>`;
+  }).join("");
+}
+
+/* 補助: 表 */
 function renderTable() {
-  const rows = [...DATA.categories].sort((a, b) => {
-    let av = a[sortKey], bv = b[sortKey];
-    if (typeof av === "string") {
-      return sortDesc ? bv.localeCompare(av, "ja") : av.localeCompare(bv, "ja");
-    }
-    return sortDesc ? bv - av : av - bv;
-  });
+  const sorted = [...DATA.categories].sort((a, b) => b.amount - a.amount);
   const tbody = document.querySelector("#cat-table tbody");
-  tbody.innerHTML = rows.map(r =>
-    `<tr>
+  tbody.innerHTML = sorted.map((r, idx) =>
+    `<tr class="${idx === 0 && r.amount > 0 ? 'top' : ''}">
        <td>${r.label}</td>
        <td class="num">${fmtYen(r.amount)}</td>
-       <td class="num">${fmtPct(r.pct)}</td>
+       <td class="num">${fmtPct1(r.pct)}</td>
      </tr>`
   ).join("");
   document.getElementById("cat-total").textContent = fmtYen(DATA.category_total);
-
-  // arrow indicator
-  document.querySelectorAll("#cat-table th").forEach(th => {
-    const arrow = th.querySelector(".arrow");
-    if (!arrow) return;
-    if (th.dataset.key === sortKey) {
-      arrow.textContent = sortDesc ? "▼" : "▲";
-    } else {
-      arrow.textContent = "";
-    }
-  });
-}
-
-document.querySelectorAll("#cat-table th").forEach(th => {
-  th.addEventListener("click", () => {
-    const k = th.dataset.key;
-    if (!k) return;
-    if (sortKey === k) {
-      sortDesc = !sortDesc;
-    } else {
-      sortKey = k;
-      sortDesc = (k !== "label");
-    }
-    renderTable();
-  });
-});
-
-/* ───────── 棒グラフ ───────── */
-let chartInstance = null;
-function renderChart() {
-  // 金額降順で表示
-  const sorted = [...DATA.categories].sort((a, b) => b.amount - a.amount);
-  const ctx = document.getElementById("cat-chart").getContext("2d");
-  if (chartInstance) chartInstance.destroy();
-  chartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: sorted.map(c => c.label),
-      datasets: [{
-        label: "金額 (円)",
-        data: sorted.map(c => c.amount),
-        backgroundColor: "#4979F5",
-        borderColor: "#264AF4",
-        borderWidth: 1,
-        borderRadius: 4,
-      }],
-    },
-    options: {
-      indexAxis: "y",
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => " " + fmtYen(ctx.parsed.x) + " 円",
-          },
-        },
-      },
-      scales: {
-        x: {
-          ticks: {
-            callback: (v) => fmtYen(v),
-            font: { size: 11 },
-          },
-          grid: { color: "#F4F5F7" },
-        },
-        y: {
-          ticks: { font: { size: 12 } },
-          grid: { display: false },
-        },
-      },
-    },
-  });
 }
 
 function render() {
   renderProject();
-  renderKpi();
+  renderHero();
+  renderCategories();
   renderTable();
-  renderChart();
 }
 </script>
 </body>
