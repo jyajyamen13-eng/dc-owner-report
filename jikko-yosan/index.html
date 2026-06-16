@@ -23,10 +23,11 @@
     --healthy-bg:#ECFDF5; --healthy-600:#059669; --healthy-700:#047857;
     --warn-bg:#FFFBEB;    --warn-600:#D97706;    --warn-700:#B45309;
     --danger-bg:#FEF2F2;  --danger-600:#DC2626;  --danger-700:#B91C1C;
-    /* 原価系統（濃淡で面積大小を表現） */
-    --cost-50:#FFF1F2;  --cost-100:#FFE4E6;  --cost-200:#FECDD3;
-    --cost-300:#FDA4AF; --cost-400:#FB7185;  --cost-500:#E11D48;
-    --cost-600:#BE123C; --cost-700:#9F1239;
+    /* 原価系統（赤撤回→落ち着いた青系濃淡。赤は danger 状態色に温存。
+       primary --blue-* (action) と衝突しないよう slate-indigo 寄りに振る） */
+    --cost-50:#F1F5F9;  --cost-100:#E2E8F0;  --cost-200:#CBD5E1;
+    --cost-300:#94A3B8; --cost-400:#64748B;  --cost-500:#475569;
+    --cost-600:#334155; --cost-700:#1E293B;
     /* 影 */
     --shadow-xs:0 1px 2px rgba(15,23,42,.04);
     --shadow-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
@@ -372,7 +373,7 @@
         </div>
       </div>
       <div class="build-info">
-        生成: 2026-06-16 21:27 JST<br>
+        生成: 2026-06-16 21:43 JST<br>
         ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
       </div>
     </div>
@@ -446,7 +447,7 @@
 
 <script>
 /* ───────── データ inline ───────── */
-const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 21:27 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 21:43 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
 const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
 
 /* ───────── ログイン ───────── */
