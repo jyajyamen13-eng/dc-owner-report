@@ -3,35 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>実行予算ダッシュボード — トイザらス・ベビーザらス　原復工事</title>
+<title>実行予算ブロックパズル — トイザらス・ベビーザらス　原復工事</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
+    /* Blue family (primary) */
     --blue-50:#EEF2FF; --blue-100:#D9E6FF; --blue-300:#9DB7F9;
     --blue-500:#4979F5; --blue-700:#264AF4; --blue-900:#0017C1;
+    /* Neutrals */
     --gray-0:#FFFFFF; --gray-50:#FAFAFB; --gray-100:#F4F5F7;
     --gray-200:#E8EAEE; --gray-300:#D5D8DE; --gray-400:#A0A4AB;
     --gray-500:#6B7280; --gray-700:#3F4451; --gray-900:#1A1A1A;
-    /* 状態色 */
-    --healthy-500:#10B981; --healthy-600:#059669; --healthy-700:#047857;
-    --healthy-bg:#ECFDF5;
-    --warn-500:#F59E0B;   --warn-600:#D97706;   --warn-700:#B45309;
-    --warn-bg:#FFFBEB;
-    --danger-500:#EF4444; --danger-600:#DC2626; --danger-700:#B91C1C;
-    --danger-bg:#FEF2F2;
-    /* 原価/外注 強調 */
-    --cost-500:#E11D48;   --cost-600:#BE123C;
+    /* 粗利系統（深い緑） */
+    --green-50:#ECFDF5; --green-100:#D1FAE5; --green-300:#6EE7B7;
+    --green-500:#10B981; --green-600:#059669; --green-700:#047857;
+    /* 状態色（粗利率しきい値用、hero badge とブロック色相） */
+    --healthy-bg:#ECFDF5; --healthy-600:#059669; --healthy-700:#047857;
+    --warn-bg:#FFFBEB;    --warn-600:#D97706;    --warn-700:#B45309;
+    --danger-bg:#FEF2F2;  --danger-600:#DC2626;  --danger-700:#B91C1C;
+    /* 原価系統（濃淡で面積大小を表現） */
+    --cost-50:#FFF1F2;  --cost-100:#FFE4E6;  --cost-200:#FECDD3;
+    --cost-300:#FDA4AF; --cost-400:#FB7185;  --cost-500:#E11D48;
+    --cost-600:#BE123C; --cost-700:#9F1239;
+    /* 影 */
+    --shadow-xs:0 1px 2px rgba(15,23,42,.04);
     --shadow-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
     --shadow-md:0 4px 6px -1px rgba(15,23,42,.08),0 2px 4px -2px rgba(15,23,42,.04);
-    --shadow-lg:0 10px 20px -3px rgba(15,23,42,.10),0 4px 8px -2px rgba(15,23,42,.05);
-    --radius-sm:6px; --radius-md:10px; --radius-lg:14px; --radius-xl:20px;
+    --radius-sm:6px; --radius-md:10px; --radius-lg:14px;
     --font-sans:"Inter","Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic",sans-serif;
+    --font-num:"Inter","Noto Sans JP",sans-serif;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-900);min-height:100vh;line-height:1.5;font-feature-settings:"tnum" 1,"palt" 1}
+  body{
+    font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-900);
+    min-height:100vh;line-height:1.5;
+    font-feature-settings:"tnum" 1,"palt" 1;
+  }
 
   /* ── ログイン ── */
   #login-overlay{
@@ -59,271 +69,252 @@
     transition:background .15s;
   }
   .login-card button:hover{background:var(--blue-900)}
-  .login-card .err{
-    margin-top:10px;font-size:.78rem;color:var(--danger-700);
-    min-height:1.1em;font-weight:500;
-  }
+  .login-card .err{margin-top:10px;font-size:.78rem;color:var(--danger-600);min-height:1.1em;font-weight:500}
 
   /* ── 本体 ── */
   #app{display:none}
 
-  /* 控えめヘッダ + 工事情報を1段に */
   header.app-header{
     background:var(--gray-0);border-bottom:1px solid var(--gray-200);
-    padding:10px 28px;
+    padding:14px 28px;
   }
   .header-inner{
-    max-width:1280px;margin:0 auto;display:flex;align-items:center;
+    max-width:1480px;margin:0 auto;display:flex;align-items:center;
     justify-content:space-between;gap:14px;flex-wrap:wrap;
   }
-  .brand{display:flex;align-items:center;gap:10px}
+  .brand{display:flex;align-items:center;gap:12px}
   .brand-mark{
-    width:28px;height:28px;border-radius:6px;
+    width:34px;height:34px;border-radius:8px;
     background:linear-gradient(135deg,var(--blue-500) 0%,var(--blue-700) 100%);
     display:flex;align-items:center;justify-content:center;
-    color:#fff;font-weight:700;font-size:.72rem;letter-spacing:.04em;
+    color:#fff;font-weight:700;font-size:.82rem;letter-spacing:.04em;
+    box-shadow:var(--shadow-sm);
   }
-  .brand .ttl{font-size:.82rem;font-weight:700;color:var(--gray-700);letter-spacing:.02em}
-  .build-info{font-size:.65rem;color:var(--gray-400);text-align:right;line-height:1.4}
+  .brand-text h1{font-size:1rem;font-weight:700;color:var(--gray-900);letter-spacing:.01em;line-height:1.3}
+  .brand-text .subtitle{font-size:.7rem;color:var(--gray-500);font-weight:500;letter-spacing:.04em;margin-top:2px}
+  .build-info{
+    font-size:.66rem;color:var(--gray-500);text-align:right;line-height:1.5;
+    padding:6px 12px;background:var(--gray-100);border-radius:var(--radius-sm);
+    font-variant-numeric:tabular-nums;
+  }
 
   .project-bar{
     background:var(--gray-0);border-bottom:1px solid var(--gray-200);
     padding:10px 28px;
   }
   .project-inner{
-    max-width:1280px;margin:0 auto;display:flex;flex-wrap:wrap;
-    gap:8px 22px;align-items:baseline;
+    max-width:1480px;margin:0 auto;display:flex;flex-wrap:wrap;
+    gap:6px 22px;align-items:baseline;
   }
   .pj-field{display:flex;align-items:baseline;gap:6px}
-  .pj-field .lab{font-size:.66rem;color:var(--gray-400);font-weight:500;letter-spacing:.04em}
+  .pj-field .lab{font-size:.66rem;color:var(--gray-400);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
   .pj-field .val{font-size:.78rem;color:var(--gray-700);font-weight:600}
   .pj-field.name .val{font-size:.88rem;color:var(--gray-900)}
 
-  main{max-width:1280px;margin:22px auto;padding:0 28px 56px}
+  main{max-width:1480px;margin:22px auto;padding:0 28px 56px}
 
-  /* ─────────── 1) 粗利率 hero ─────────── */
-  .hero{
-    background:var(--gray-0);
-    border:1px solid var(--gray-200);
-    border-radius:var(--radius-xl);
-    padding:32px 36px 36px;
-    box-shadow:var(--shadow-md);
-    margin-bottom:22px;
-    position:relative;
-    overflow:hidden;
+  /* ── KPI ストリップ ── */
+  .kpi-strip{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    gap:14px;margin-bottom:20px;
   }
-  .hero-grid{
-    display:grid;
-    grid-template-columns:auto 1fr;
-    gap:36px;
+  .kpi-card{
+    background:var(--gray-0);border:1px solid var(--gray-200);
+    border-radius:var(--radius-md);padding:16px 20px;
+    box-shadow:var(--shadow-xs);position:relative;overflow:hidden;
+  }
+  .kpi-card::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--blue-500);border-radius:0 2px 2px 0;
+  }
+  .kpi-card.kpi-contract::before{background:var(--blue-500)}
+  .kpi-card.kpi-cost::before{background:var(--cost-500)}
+  .kpi-card.kpi-gross::before{background:var(--green-500)}
+  .kpi-card.kpi-margin::before{background:var(--green-600)}
+  .kpi-label{
+    font-size:.7rem;color:var(--gray-500);font-weight:600;
+    letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;
+  }
+  .kpi-value{
+    font-size:1.5rem;font-weight:700;color:var(--gray-900);
+    font-variant-numeric:tabular-nums;letter-spacing:-.015em;line-height:1.1;
+    font-family:var(--font-num);
+  }
+  .kpi-sub{
+    font-size:.7rem;color:var(--gray-500);margin-top:5px;
+    font-variant-numeric:tabular-nums;
+  }
+  .kpi-sub strong{color:var(--gray-700);font-weight:600}
+  .kpi-card.kpi-margin.healthy .kpi-value{color:var(--healthy-700)}
+  .kpi-card.kpi-margin.warn    .kpi-value{color:var(--warn-700)}
+  .kpi-card.kpi-margin.danger  .kpi-value{color:var(--danger-600)}
+
+  /* ── パズルカード ── */
+  .puzzle-card{
+    background:var(--gray-0);border:1px solid var(--gray-200);
+    border-radius:var(--radius-md);box-shadow:var(--shadow-xs);
+    padding:22px 26px 26px;margin-bottom:18px;
+  }
+  .card-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:12px;gap:16px;flex-wrap:wrap;
+  }
+  .card-head h2{font-size:.95rem;font-weight:700;color:var(--gray-900);letter-spacing:.02em}
+  .card-head .head-sub{font-size:.7rem;color:var(--gray-500);font-weight:500;letter-spacing:.02em}
+
+  /* 構造式チップ列 */
+  .formula-row{
+    display:flex;gap:10px;flex-wrap:wrap;
+    margin-bottom:14px;padding:10px 12px;
+    background:var(--gray-50);border-radius:var(--radius-sm);
     align-items:center;
   }
-  .hero-left{
-    text-align:center;
-    padding:0 18px;
+  .formula-chip{
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:.7rem;color:var(--gray-700);letter-spacing:.02em;
+    font-weight:500;white-space:nowrap;
   }
-  .hero-label{
-    font-size:.82rem;
-    color:var(--gray-500);
-    font-weight:600;
-    letter-spacing:.08em;
-    margin-bottom:6px;
+  .formula-chip .em{font-weight:700}
+  .formula-chip.cost .em{color:var(--cost-600)}
+  .formula-chip.gross .em{color:var(--green-700)}
+  .formula-divider{width:1px;height:14px;background:var(--gray-300)}
+  .formula-note{
+    font-size:.66rem;color:var(--gray-400);margin-bottom:14px;
+    font-weight:500;letter-spacing:.01em;
   }
-  .hero-num{
-    font-size:7.5rem;            /* 120px 級 */
-    font-weight:800;
-    line-height:1;
-    letter-spacing:-.04em;
-    font-variant-numeric:tabular-nums;
-    display:inline-flex;
-    align-items:flex-start;
-  }
-  .hero-num .pct{
-    font-size:2.2rem;
-    font-weight:700;
-    margin-top:1.2rem;
-    margin-left:6px;
-    letter-spacing:0;
-  }
-  .hero-badge{
-    display:inline-block;
-    margin-top:14px;
-    padding:6px 14px;
-    border-radius:999px;
-    font-size:.78rem;
-    font-weight:700;
-    letter-spacing:.04em;
-  }
-  /* hero 状態色 */
-  .hero.healthy .hero-num,.hero.healthy .hero-num .pct{color:var(--healthy-600)}
-  .hero.healthy .hero-badge{background:var(--healthy-bg);color:var(--healthy-700)}
-  .hero.warn .hero-num,.hero.warn .hero-num .pct{color:var(--warn-600)}
-  .hero.warn .hero-badge{background:var(--warn-bg);color:var(--warn-700)}
-  .hero.danger .hero-num,.hero.danger .hero-num .pct{color:var(--danger-600)}
-  .hero.danger .hero-badge{background:var(--danger-bg);color:var(--danger-700)}
 
-  /* ─────────── 2) 請負 ↔ 原価 プログレスバー ─────────── */
-  .hero-right{
-    border-left:1px solid var(--gray-200);
-    padding-left:36px;
+  /* ── パズル本体（請負金額の外枠） ── */
+  .puzzle-row-wrap{
+    overflow-x:auto;overflow-y:visible;
+    margin:0 -2px;padding:2px;
   }
-  .prog-title{
-    display:flex;align-items:baseline;justify-content:space-between;
-    margin-bottom:10px;
+  .puzzle-row{
+    display:flex;align-items:flex-start;
+    background:var(--gray-50);border-radius:var(--radius-md);
+    padding:14px;overflow:visible;
+    min-width:980px;
   }
-  .prog-title .lab{
-    font-size:.78rem;color:var(--gray-500);font-weight:600;letter-spacing:.04em;
-  }
-  .prog-title .total{
-    font-size:1.05rem;font-weight:700;color:var(--gray-900);
-    font-variant-numeric:tabular-nums;
-  }
-  .prog-title .total .u{font-size:.78rem;color:var(--gray-500);font-weight:500;margin-left:3px}
-  .prog-bar{
-    position:relative;
-    width:100%;
-    height:54px;
-    background:var(--healthy-bg);
+  #puzzle-canvas{
+    position:relative;flex:1 1 auto;min-width:0;
+    border-radius:var(--radius-sm);overflow:hidden;
     border:1px solid var(--gray-200);
-    border-radius:var(--radius-md);
-    overflow:hidden;
-    box-shadow:inset 0 1px 2px rgba(15,23,42,.05);
-  }
-  .prog-cost{
-    position:absolute;left:0;top:0;bottom:0;
-    background:linear-gradient(180deg,var(--cost-500) 0%,var(--cost-600) 100%);
-    transition:width .6s cubic-bezier(.4,0,.2,1);
-  }
-  .prog-label{
-    position:absolute;top:50%;transform:translateY(-50%);
-    font-size:.82rem;font-weight:700;
-    color:#fff;
-    text-shadow:0 1px 2px rgba(0,0,0,.18);
-    white-space:nowrap;
-    font-variant-numeric:tabular-nums;
-    letter-spacing:.01em;
-  }
-  .prog-label.cost{left:12px}
-  .prog-label.profit{
-    right:12px;color:var(--healthy-700);text-shadow:none;
-    background:rgba(236,253,245,.92);
-    padding:3px 8px;border-radius:6px;
-  }
-  .prog-legend{
-    display:flex;justify-content:space-between;
-    margin-top:8px;font-size:.74rem;color:var(--gray-500);
-  }
-  .prog-legend .lg{display:flex;align-items:center;gap:6px}
-  .prog-legend .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
-  .prog-legend .dot.cost{background:var(--cost-500)}
-  .prog-legend .dot.profit{background:var(--healthy-500)}
-
-  @media (max-width: 900px){
-    .hero-grid{grid-template-columns:1fr;gap:20px}
-    .hero-right{border-left:none;border-top:1px solid var(--gray-200);padding-left:0;padding-top:24px}
-    .hero-num{font-size:5.5rem}
   }
 
-  /* ─────────── 3) カテゴリ別 横棒 ─────────── */
-  .cat-panel{
-    background:var(--gray-0);
-    border:1px solid var(--gray-200);
-    border-radius:var(--radius-lg);
-    padding:22px 26px 24px;
-    box-shadow:var(--shadow-sm);
-    margin-bottom:18px;
+  /* 「請負金額 100%」上部キャプション */
+  .canvas-caption{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:0 0 8px;padding:0 4px;
+    font-size:.74rem;color:var(--gray-500);font-weight:500;
   }
-  .panel-head{
-    display:flex;align-items:baseline;justify-content:space-between;
-    margin-bottom:18px;
-  }
-  .panel-head h2{
-    font-size:.95rem;font-weight:700;color:var(--gray-900);letter-spacing:.02em;
-  }
-  .panel-head .hint{font-size:.72rem;color:var(--gray-500);font-weight:500}
-
-  .cat-list{display:flex;flex-direction:column;gap:14px}
-  .cat-row{
-    display:grid;
-    grid-template-columns:160px 1fr 130px;
-    gap:14px;
-    align-items:center;
-  }
-  .cat-name{
-    font-size:.84rem;font-weight:600;color:var(--gray-900);
-    display:flex;flex-direction:column;gap:1px;
-  }
-  .cat-name .pct{
-    font-size:.7rem;color:var(--gray-500);font-weight:500;
+  .canvas-caption .total{
+    font-size:.85rem;color:var(--gray-900);font-weight:700;
     font-variant-numeric:tabular-nums;
   }
-  .cat-track{
-    position:relative;height:26px;
-    background:var(--gray-100);
-    border-radius:var(--radius-sm);
-    overflow:hidden;
-  }
-  .cat-fill{
-    position:absolute;left:0;top:0;bottom:0;
-    background:var(--blue-500);
-    border-radius:var(--radius-sm);
-    transition:width .55s cubic-bezier(.4,0,.2,1);
-  }
-  .cat-row.top .cat-fill{background:linear-gradient(90deg,var(--cost-500) 0%,var(--cost-600) 100%)}
-  .cat-row.top .cat-name{color:var(--cost-600)}
-  .cat-row.zero .cat-track{background:repeating-linear-gradient(45deg,var(--gray-100),var(--gray-100) 6px,var(--gray-50) 6px,var(--gray-50) 12px)}
-  .cat-row.zero .cat-amt{color:var(--gray-400);font-style:italic}
-  .cat-amt{
-    text-align:right;
-    font-size:.92rem;font-weight:700;color:var(--gray-900);
-    font-variant-numeric:tabular-nums;letter-spacing:-.005em;
-  }
-  .cat-amt .u{font-size:.72rem;color:var(--gray-500);font-weight:500;margin-left:2px}
-  .cat-row.top .cat-amt{color:var(--cost-600)}
+  .canvas-caption .total .u{font-size:.7rem;color:var(--gray-500);font-weight:500;margin-left:2px}
 
-  @media (max-width: 720px){
-    .cat-row{grid-template-columns:120px 1fr 100px;gap:8px}
-    .cat-amt{font-size:.8rem}
+  /* ブロック（absolute 配置） */
+  .bp-cell{
+    position:absolute;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    overflow:hidden;transition:filter .15s;
+    text-align:center;padding:4px 6px;
+    box-sizing:border-box;
   }
+  .bp-cell:hover{filter:brightness(.96)}
+  .bp-cell .cell-label{
+    font-size:.82rem;font-weight:600;line-height:1.3;letter-spacing:.02em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+  }
+  .bp-cell .cell-amount{
+    font-size:.92rem;font-weight:700;margin-top:4px;
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+    font-family:var(--font-num);white-space:nowrap;
+  }
+  .bp-cell .cell-pct{
+    font-size:.68rem;font-weight:500;margin-top:2px;opacity:.78;
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  /* 小ブロック用の縮小モード */
+  .bp-cell.size-md .cell-label{font-size:.74rem}
+  .bp-cell.size-md .cell-amount{font-size:.78rem;margin-top:2px}
+  .bp-cell.size-md .cell-pct{font-size:.62rem;margin-top:1px}
+  .bp-cell.size-sm .cell-label{font-size:.66rem}
+  .bp-cell.size-sm .cell-amount{font-size:.7rem;margin-top:1px}
+  .bp-cell.size-sm .cell-pct{display:none}
+  .bp-cell.size-xs .cell-label{font-size:.6rem;line-height:1.1}
+  .bp-cell.size-xs .cell-amount{display:none}
+  .bp-cell.size-xs .cell-pct{display:none}
 
-  /* ─────────── 補助: 折りたたみ表 ─────────── */
+  /* 配色（カテゴリ別、外注費=最濃で大きさを示唆） */
+  .cell-gross{background:var(--green-100);color:var(--green-700)}
+  .cell-gross .cell-label,.cell-gross .cell-amount,.cell-gross .cell-pct{color:var(--green-700)}
+  .cell-cost-1{background:var(--cost-500);color:#fff}
+  .cell-cost-1 .cell-label,.cell-cost-1 .cell-amount,.cell-cost-1 .cell-pct{color:#fff}
+  .cell-cost-2{background:var(--cost-400);color:#fff}
+  .cell-cost-2 .cell-label,.cell-cost-2 .cell-amount,.cell-cost-2 .cell-pct{color:#fff}
+  .cell-cost-3{background:var(--cost-300);color:var(--cost-700)}
+  .cell-cost-3 .cell-label,.cell-cost-3 .cell-amount,.cell-cost-3 .cell-pct{color:var(--cost-700)}
+  .cell-cost-4{background:var(--cost-200);color:var(--cost-700)}
+  .cell-cost-4 .cell-label,.cell-cost-4 .cell-amount,.cell-cost-4 .cell-pct{color:var(--cost-700)}
+  .cell-cost-5{background:var(--cost-100);color:var(--cost-700)}
+  .cell-cost-5 .cell-label,.cell-cost-5 .cell-amount,.cell-cost-5 .cell-pct{color:var(--cost-700)}
+  .cell-cost-zero{
+    background:repeating-linear-gradient(45deg,var(--gray-100),var(--gray-100) 6px,var(--gray-50) 6px,var(--gray-50) 12px);
+    color:var(--gray-400);
+  }
+  .cell-cost-zero .cell-label{color:var(--gray-400);font-style:italic}
+
+  /* ブロック間の白いギャップ用 ボーダー */
+  .bp-cell{border:1px solid var(--gray-0)}
+
+  /* インラインタグ（粗利率） */
+  .inline-tag{
+    position:absolute;background:var(--gray-0);
+    border:1px solid var(--gray-200);border-radius:999px;
+    padding:5px 12px;display:inline-flex;align-items:center;gap:6px;
+    white-space:nowrap;z-index:20;pointer-events:none;
+    box-shadow:var(--shadow-sm);font-family:var(--font-num);
+  }
+  .inline-tag .tag-label{font-size:.66rem;color:var(--gray-500);font-weight:600;letter-spacing:.04em}
+  .inline-tag .tag-value{font-size:.82rem;color:var(--gray-900);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .inline-tag.healthy .tag-value{color:var(--healthy-700)}
+  .inline-tag.warn    .tag-value{color:var(--warn-700)}
+  .inline-tag.danger  .tag-value{color:var(--danger-600)}
+
+  /* ── 補助: 折りたたみ表 ── */
   details.cat-table-wrap{
     background:var(--gray-0);border:1px solid var(--gray-200);
     border-radius:var(--radius-md);padding:0;
-    box-shadow:var(--shadow-sm);
-    overflow:hidden;
+    box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:18px;
   }
   details.cat-table-wrap summary{
     list-style:none;cursor:pointer;
     padding:14px 22px;
-    font-size:.85rem;font-weight:600;color:var(--gray-700);
-    display:flex;align-items:center;justify-content:space-between;
-    user-select:none;
+    font-size:.82rem;font-weight:600;color:var(--gray-700);
+    display:flex;align-items:center;gap:10px;user-select:none;
+    transition:background .1s;
   }
   details.cat-table-wrap summary::-webkit-details-marker{display:none}
-  details.cat-table-wrap summary::after{
-    content:"▼";font-size:.7rem;color:var(--gray-400);transition:transform .2s;
+  details.cat-table-wrap summary::before{
+    content:"";width:8px;height:8px;
+    border-right:1.5px solid var(--gray-500);
+    border-bottom:1.5px solid var(--gray-500);
+    transform:rotate(-45deg);transition:transform .15s;
   }
-  details.cat-table-wrap[open] summary::after{transform:rotate(180deg)}
+  details.cat-table-wrap[open] summary::before{transform:rotate(45deg)}
   details.cat-table-wrap summary:hover{background:var(--gray-50)}
-
-  table.cat{
-    width:100%;border-collapse:collapse;font-size:.84rem;
-    font-variant-numeric:tabular-nums;
-  }
+  details.cat-table-wrap[open] summary{border-bottom:1px solid var(--gray-200)}
+  table.cat{width:100%;border-collapse:collapse;font-size:.84rem;font-variant-numeric:tabular-nums;font-family:var(--font-num)}
   table.cat th{
     text-align:left;font-weight:600;color:var(--gray-500);
-    font-size:.7rem;letter-spacing:.05em;
-    padding:8px 22px;border-top:1px solid var(--gray-200);
-    border-bottom:2px solid var(--gray-200);
-    background:var(--gray-50);
+    font-size:.7rem;letter-spacing:.05em;padding:8px 22px;
+    border-bottom:1px solid var(--gray-200);background:var(--gray-50);
   }
   table.cat th.num{text-align:right}
-  table.cat td{
-    padding:8px 22px;border-bottom:1px solid var(--gray-100);color:var(--gray-900);
-  }
-  table.cat td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.cat td{padding:8px 22px;border-bottom:1px solid var(--gray-100);color:var(--gray-900)}
+  table.cat td.num{text-align:right}
   table.cat tr.top td{color:var(--cost-600);font-weight:600}
+  table.cat tr.zero td{color:var(--gray-400);font-style:italic}
   table.cat tfoot td{
     font-weight:700;color:var(--gray-900);
     border-top:2px solid var(--gray-300);border-bottom:none;
@@ -331,8 +322,27 @@
   }
 
   footer{
-    max-width:1280px;margin:18px auto 32px;padding:0 28px;
-    font-size:.68rem;color:var(--gray-400);text-align:right;
+    max-width:1480px;margin:18px auto 32px;padding:0 28px;
+    font-size:.66rem;color:var(--gray-400);text-align:right;
+  }
+
+  @media (max-width: 1100px){
+    .kpi-strip{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width: 720px){
+    main{padding:0 16px 32px;margin:14px auto}
+    .kpi-strip{grid-template-columns:1fr 1fr;gap:10px}
+    .kpi-card{padding:12px 14px}
+    .kpi-value{font-size:1.25rem}
+    .puzzle-card{padding:18px 16px}
+    .puzzle-row{padding:8px}
+    .formula-row{font-size:.62rem}
+  }
+  @media print{
+    body{background:#fff}
+    .puzzle-card,.kpi-card,details.cat-table-wrap{
+      box-shadow:none;border:1px solid var(--gray-300);page-break-inside:avoid;
+    }
   }
 </style>
 </head>
@@ -341,7 +351,7 @@
 <!-- ───────── ログイン ───────── -->
 <div id="login-overlay">
   <form class="login-card" id="login-form" autocomplete="off">
-    <h1>実行予算ダッシュボード</h1>
+    <h1>実行予算ブロックパズル</h1>
     <div class="sub">トイザらス・ベビーザらス　原復工事</div>
     <label for="pw">パスワード</label>
     <input type="password" id="pw" autocomplete="current-password" required>
@@ -356,10 +366,13 @@
     <div class="header-inner">
       <div class="brand">
         <div class="brand-mark">予算</div>
-        <div class="ttl">実行予算ダッシュボード</div>
+        <div class="brand-text">
+          <h1>実行予算ブロックパズル</h1>
+          <div class="subtitle">和仁達也方式 ・ 請負 ÷ 原価 ÷ 粗利の面積比</div>
+        </div>
       </div>
       <div class="build-info">
-        生成: 2026-06-16 20:45 JST<br>
+        生成: 2026-06-16 20:57 JST<br>
         ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
       </div>
     </div>
@@ -370,39 +383,37 @@
   </div>
 
   <main>
-    <!-- 1) 粗利率 hero + 2) 請負/原価プログレス -->
-    <section class="hero" id="hero">
-      <div class="hero-grid">
-        <div class="hero-left">
-          <div class="hero-label">粗利率</div>
-          <div class="hero-num" id="hero-num">—</div>
-          <div><span class="hero-badge" id="hero-badge">—</span></div>
-        </div>
-        <div class="hero-right">
-          <div class="prog-title">
-            <span class="lab">請負金額 ↔ 原価消化</span>
-            <span class="total" id="prog-total">—<span class="u">円</span></span>
-          </div>
-          <div class="prog-bar">
-            <div class="prog-cost" id="prog-cost" style="width:0%"></div>
-            <span class="prog-label cost" id="prog-label-cost">—</span>
-            <span class="prog-label profit" id="prog-label-profit">—</span>
-          </div>
-          <div class="prog-legend">
-            <span class="lg"><span class="dot cost"></span>原価合計（消化分）</span>
-            <span class="lg"><span class="dot profit"></span>粗利益（残余）</span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- KPI ストリップ -->
+    <div class="kpi-strip" id="kpi-strip"></div>
 
-    <!-- 3) カテゴリ別 横棒 -->
-    <section class="cat-panel">
-      <div class="panel-head">
-        <h2>カテゴリ別 原価実績</h2>
-        <span class="hint">金額順、トップ強調</span>
+    <!-- ブロックパズル -->
+    <section class="puzzle-card">
+      <div class="card-head">
+        <h2>お金のブロックパズル — 請負金額の中身</h2>
+        <span class="head-sub">面積 ＝ 金額 ／ 原価エリアは squarified treemap</span>
       </div>
-      <div class="cat-list" id="cat-list"></div>
+
+      <div class="formula-row">
+        <span class="formula-chip">請負 ＝ <span class="em" style="color:var(--cost-600);">原価合計</span> ＋ <span class="em" style="color:var(--green-700);">粗利益</span></span>
+        <span class="formula-divider"></span>
+        <span class="formula-chip cost"><span class="em">原価合計</span> ＝ 外注 ＋ 産廃 ＋ 労務 ＋ 機械 ＋ 車両 ＋ …</span>
+        <span class="formula-divider"></span>
+        <span class="formula-chip gross">粗利率 ＝ <span class="em">粗利 ÷ 請負</span></span>
+      </div>
+
+      <div class="formula-note">
+        ※ 各ブロックの面積は金額に比例。原価エリアの内訳は squarified treemap で配置（外注費が最大、産廃費が次点）。仮設 0 円は非表示。
+      </div>
+
+      <div class="puzzle-row-wrap">
+        <div class="canvas-caption">
+          <span>請負金額（100%）の内訳をブロックで表示</span>
+          <span class="total" id="canvas-total">—<span class="u">円</span></span>
+        </div>
+        <div class="puzzle-row">
+          <div id="puzzle-canvas"></div>
+        </div>
+      </div>
     </section>
 
     <!-- 補助: 折りたたみ表 -->
@@ -429,13 +440,13 @@
   </main>
 
   <footer>
-    実行予算 xlsx → 単一 HTML build / 外部依存ゼロ / デジタル庁デザイン準拠
+    実行予算 xlsx → 単一 HTML build / 外部依存ゼロ / お金のブロックパズル (和仁達也方式)
   </footer>
 </div>
 
 <script>
 /* ───────── データ inline ───────── */
-const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 20:45 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 20:57 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
 const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
 
 /* ───────── ログイン ───────── */
@@ -461,11 +472,16 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   }
 });
 
-/* ───────── 描画 ───────── */
-const fmtYen = (n) => Math.round(n).toLocaleString("ja-JP");
+/* ───────── フォーマット ───────── */
+const fmtYen  = (n) => Math.round(n).toLocaleString("ja-JP");
+const fmtMan  = (n) => {
+  const man = Math.round(n / 10000);
+  return man.toLocaleString("ja-JP") + "万";
+};
 const fmtPct1 = (n) => n.toFixed(1) + "%";
 const fmtPct2 = (n) => n.toFixed(2) + "%";
 
+/* ───────── プロジェクト情報 ───────── */
 function renderProject() {
   const i = DATA.info;
   const fields = [
@@ -475,100 +491,283 @@ function renderProject() {
     { lab: "契約日",   val: i.contract || "—", cls: "" },
     { lab: "着工日",   val: i.start || "—",    cls: "" },
   ];
-  const html = fields.map(f =>
+  document.getElementById("project-fields").innerHTML = fields.map(f =>
     `<div class="pj-field ${f.cls}"><span class="lab">${f.lab}</span><span class="val">${f.val}</span></div>`
   ).join("");
-  document.getElementById("project-fields").innerHTML = html;
 }
 
-/* 1) 粗利率 hero */
-function renderHero() {
+/* ───────── KPI ストリップ ───────── */
+function renderKpi() {
   const k = DATA.kpi;
-  const marginPct = k.gross_margin * 100;  /* 例: 23.35 */
+  const marginPct = k.gross_margin * 100;
+  let marginCls = "danger";
+  if (marginPct >= 25) marginCls = "healthy";
+  else if (marginPct >= 15) marginCls = "warn";
 
-  const hero = document.getElementById("hero");
-  let cls = "danger", badge = "危険（粗利率 < 15%）";
-  if (marginPct >= 25) {
-    cls = "healthy"; badge = "健全（粗利率 25% 以上）";
-  } else if (marginPct >= 15) {
-    cls = "warn"; badge = "注意（粗利率 15-25%）";
+  const html = `
+    <div class="kpi-card kpi-contract">
+      <div class="kpi-label">請負金額</div>
+      <div class="kpi-value">${fmtYen(k.contract_amount)}<span style="font-size:.6em;font-weight:500;color:var(--gray-500);margin-left:3px;">円</span></div>
+      <div class="kpi-sub">受注総額（100%）</div>
+    </div>
+    <div class="kpi-card kpi-cost">
+      <div class="kpi-label">原価合計</div>
+      <div class="kpi-value">${fmtYen(k.cost_total)}<span style="font-size:.6em;font-weight:500;color:var(--gray-500);margin-left:3px;">円</span></div>
+      <div class="kpi-sub">請負比 <strong>${fmtPct1((k.cost_total / k.contract_amount) * 100)}</strong></div>
+    </div>
+    <div class="kpi-card kpi-gross">
+      <div class="kpi-label">粗利益</div>
+      <div class="kpi-value">${fmtYen(k.gross_profit)}<span style="font-size:.6em;font-weight:500;color:var(--gray-500);margin-left:3px;">円</span></div>
+      <div class="kpi-sub">請負 − 原価 の残余</div>
+    </div>
+    <div class="kpi-card kpi-margin ${marginCls}">
+      <div class="kpi-label">粗利率</div>
+      <div class="kpi-value">${fmtPct2(marginPct)}</div>
+      <div class="kpi-sub">${marginCls === "healthy" ? "健全 (≧ 25%)" : marginCls === "warn" ? "注意 (15-25%)" : "危険 (< 15%)"}</div>
+    </div>
+  `;
+  document.getElementById("kpi-strip").innerHTML = html;
+  return marginCls;
+}
+
+/* ───────── Squarified Treemap ─────────
+ * 古典的 Bruls/Huijsen/van Wijk アルゴリズム。
+ * 入力: items = [{value, ...meta}], 矩形 {x, y, w, h}（金額の合計 ＝ 矩形面積）
+ * 出力: 各 item に rect = {x, y, w, h} を割り当て、items を返す
+ */
+function squarify(items, rect) {
+  // 値降順で並び替え（破壊的回避のためコピー）
+  const sorted = items.slice().sort((a, b) => b.value - a.value);
+  const totalVal = sorted.reduce((s, it) => s + it.value, 0);
+  if (totalVal <= 0) {
+    sorted.forEach(it => { it.rect = { x: rect.x, y: rect.y, w: 0, h: 0 }; });
+    return sorted;
   }
-  hero.classList.remove("healthy", "warn", "danger");
-  hero.classList.add(cls);
+  // 値を rect 面積にスケール（後段で面積→寸法に戻すための係数）
+  const area = rect.w * rect.h;
+  const scale = area / totalVal;
+  const scaled = sorted.map(it => ({ ...it, _area: it.value * scale }));
 
-  const num = document.getElementById("hero-num");
-  num.innerHTML = `${marginPct.toFixed(2)}<span class="pct">%</span>`;
+  const result = [];
+  let remaining = { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+  let row = [];
+  let i = 0;
 
-  document.getElementById("hero-badge").textContent = badge;
+  const worstAspect = (row, side) => {
+    if (row.length === 0) return Infinity;
+    const sum = row.reduce((s, it) => s + it._area, 0);
+    const rMax = Math.max(...row.map(it => it._area));
+    const rMin = Math.min(...row.map(it => it._area));
+    // worst = max(side^2 * rMax / sum^2, sum^2 / (side^2 * rMin))
+    const s2 = side * side;
+    return Math.max(s2 * rMax / (sum * sum), (sum * sum) / (s2 * rMin));
+  };
 
-  /* 2) プログレス */
+  while (i < scaled.length) {
+    const side = Math.min(remaining.w, remaining.h);
+    const next = scaled[i];
+    const cur  = worstAspect(row, side);
+    const trial = worstAspect(row.concat([next]), side);
+
+    if (row.length === 0 || trial <= cur) {
+      // 行に追加
+      row.push(next);
+      i++;
+    } else {
+      // 行を確定して remaining を切り出し
+      placeRow(row, remaining, result);
+      remaining = sliceRemaining(row, remaining);
+      row = [];
+    }
+  }
+  if (row.length > 0) {
+    placeRow(row, remaining, result);
+  }
+  return result;
+}
+
+function placeRow(row, remaining, result) {
+  const sum = row.reduce((s, it) => s + it._area, 0);
+  if (remaining.w >= remaining.h) {
+    // 左側に縦列で並べる
+    const colW = sum / remaining.h;
+    let y = remaining.y;
+    for (const it of row) {
+      const itH = it._area / colW;
+      it.rect = { x: remaining.x, y: y, w: colW, h: itH };
+      result.push(it);
+      y += itH;
+    }
+  } else {
+    // 上側に横行で並べる
+    const rowH = sum / remaining.w;
+    let x = remaining.x;
+    for (const it of row) {
+      const itW = it._area / rowH;
+      it.rect = { x: x, y: remaining.y, w: itW, h: rowH };
+      result.push(it);
+      x += itW;
+    }
+  }
+}
+
+function sliceRemaining(row, remaining) {
+  const sum = row.reduce((s, it) => s + it._area, 0);
+  if (remaining.w >= remaining.h) {
+    const colW = sum / remaining.h;
+    return { x: remaining.x + colW, y: remaining.y, w: remaining.w - colW, h: remaining.h };
+  } else {
+    const rowH = sum / remaining.w;
+    return { x: remaining.x, y: remaining.y + rowH, w: remaining.w, h: remaining.h - rowH };
+  }
+}
+
+/* ───────── ブロックサイズ → font クラス ───────── */
+function sizeClass(w, h) {
+  const area = w * h;
+  if (area < 1800) return "size-xs";   // 30x60 程度
+  if (area < 5400) return "size-sm";   // 60x90
+  if (area < 14000) return "size-md";  // 100x140
+  return "";  // 通常
+}
+
+/* ───────── 原価カテゴリのカラークラス割り当て ───────── */
+function costColorClass(rank, isZero) {
+  if (isZero) return "cell-cost-zero";
+  // 金額順 rank 0..n-1 を 5 段階のコスト色に割り振る
+  if (rank === 0) return "cell-cost-1";  // 最濃: 外注費
+  if (rank === 1) return "cell-cost-2";  // 産廃費
+  if (rank <= 3) return "cell-cost-3";   // 労務費・機械代
+  if (rank <= 5) return "cell-cost-4";   // 車両費・法定福利
+  return "cell-cost-5";                  // 消耗品・燃料費他
+}
+
+/* ───────── パズル描画本体 ───────── */
+function renderPuzzle(marginCls) {
+  const k = DATA.kpi;
   const contract = k.contract_amount;
   const cost     = k.cost_total;
   const profit   = k.gross_profit;
-  const costPct  = contract > 0 ? (cost / contract) * 100 : 0;
-  const profPct  = contract > 0 ? (profit / contract) * 100 : 0;
+  const marginPct = k.gross_margin * 100;
 
-  document.getElementById("prog-total").innerHTML =
-    `請負 ${fmtYen(contract)}<span class="u">円</span>`;
-  document.getElementById("prog-cost").style.width = costPct.toFixed(4) + "%";
-  document.getElementById("prog-label-cost").textContent =
-    `原価 ${fmtYen(cost)} 円 (${fmtPct2(costPct)})`;
-  document.getElementById("prog-label-profit").textContent =
-    `粗利 ${fmtYen(profit)} 円 (${fmtPct2(profPct)})`;
+  const canvas = document.getElementById("puzzle-canvas");
+  // キャンバス寸法: 横長 16:9 / デスクトップ前提
+  const W = Math.max(canvas.clientWidth || 0, 980);
+  const H = 460;
+  canvas.style.height = H + "px";
+
+  // 横分割: 原価 76.65% : 粗利 23.35%
+  const costRatio = contract > 0 ? cost / contract : 0.7665;
+  const profRatio = 1 - costRatio;
+  // 粗利エリアの最小幅を確保（数字読めるように）
+  const PROFIT_MIN_W = 140;
+  let costW   = Math.round(W * costRatio);
+  let profitW = W - costW;
+  if (profitW < PROFIT_MIN_W) {
+    profitW = PROFIT_MIN_W;
+    costW = W - profitW;
+  }
+
+  // 原価エリア内の squarified treemap
+  // ゼロ円カテゴリは除外して計算 → 後で非表示扱い
+  const cats = DATA.categories.slice().sort((a, b) => b.amount - a.amount);
+  const nonZero = cats.filter(c => c.amount > 0);
+  const placed = squarify(
+    nonZero.map(c => ({ value: c.amount, label: c.label, amount: c.amount, pct: c.pct })),
+    { x: 0, y: 0, w: costW, h: H }
+  );
+
+  // HTML 構築
+  const blocks = [];
+
+  // ① 粗利ブロック（右側）
+  blocks.push(`
+    <div class="bp-cell cell-gross" style="
+      left:${costW}px; top:0;
+      width:${profitW}px; height:${H}px;
+    " title="粗利益 ${fmtYen(profit)} 円 (${fmtPct2(profRatio * 100)})">
+      <div class="cell-label">粗利益</div>
+      <div class="cell-amount">${fmtYen(profit)}<span style="font-size:.7em;font-weight:500;margin-left:2px;">円</span></div>
+      <div class="cell-pct">${fmtPct2(profRatio * 100)}</div>
+    </div>
+  `);
+
+  // ② 原価カテゴリブロック（左側 treemap）
+  placed.forEach((p, idx) => {
+    const r = p.rect;
+    const cls = costColorClass(idx, false);
+    const sz  = sizeClass(r.w, r.h);
+    blocks.push(`
+      <div class="bp-cell ${cls} ${sz}" style="
+        left:${r.x}px; top:${r.y}px;
+        width:${r.w}px; height:${r.h}px;
+      " title="${p.label} ${fmtYen(p.amount)} 円 (${fmtPct2(p.pct)})">
+        <div class="cell-label">${p.label}</div>
+        <div class="cell-amount">${fmtYen(p.amount)}<span style="font-size:.7em;font-weight:500;margin-left:2px;">円</span></div>
+        <div class="cell-pct">${fmtPct2(p.pct)}</div>
+      </div>
+    `);
+  });
+
+  // ③ 粗利率タグ（粗利ブロック上部）
+  const tagCls = marginCls;
+  blocks.push(`
+    <div class="inline-tag ${tagCls}" style="
+      left:${costW + profitW / 2}px; top:12px;
+      transform:translateX(-50%);
+    ">
+      <span class="tag-label">粗利率</span>
+      <span class="tag-value">${fmtPct2(marginPct)}</span>
+    </div>
+  `);
+
+  canvas.innerHTML = blocks.join("");
+
+  // 総額表示
+  document.getElementById("canvas-total").innerHTML =
+    `${fmtYen(contract)}<span class="u">円</span>`;
 }
 
-/* 3) カテゴリ別 横棒 */
-function renderCategories() {
-  const sorted = [...DATA.categories].sort((a, b) => b.amount - a.amount);
-  const max = Math.max(...sorted.map(c => c.amount), 1);
-  const list = document.getElementById("cat-list");
-
-  list.innerHTML = sorted.map((c, idx) => {
-    const isZero = c.amount === 0;
-    const isTop  = !isZero && idx === 0;
-    const cls = [
-      "cat-row",
-      isTop  ? "top"  : "",
-      isZero ? "zero" : "",
-    ].filter(Boolean).join(" ");
-    const widthPct = isZero ? 0 : (c.amount / max) * 100;
-    const amtHtml = isZero
-      ? `<span class="u">未計上</span>`
-      : `${fmtYen(c.amount)}<span class="u">円</span>`;
-    return `
-      <div class="${cls}">
-        <div class="cat-name">
-          <span>${c.label}</span>
-          <span class="pct">構成比 ${fmtPct1(c.pct)}</span>
-        </div>
-        <div class="cat-track">
-          <div class="cat-fill" style="width:${widthPct.toFixed(4)}%"></div>
-        </div>
-        <div class="cat-amt">${amtHtml}</div>
-      </div>`;
-  }).join("");
-}
-
-/* 補助: 表 */
+/* ───────── 折りたたみ表 ───────── */
 function renderTable() {
   const sorted = [...DATA.categories].sort((a, b) => b.amount - a.amount);
   const tbody = document.querySelector("#cat-table tbody");
-  tbody.innerHTML = sorted.map((r, idx) =>
-    `<tr class="${idx === 0 && r.amount > 0 ? 'top' : ''}">
+  tbody.innerHTML = sorted.map((r, idx) => {
+    const isZero = r.amount === 0;
+    const isTop  = !isZero && idx === 0;
+    const cls = [isTop ? "top" : "", isZero ? "zero" : ""].filter(Boolean).join(" ");
+    return `<tr class="${cls}">
        <td>${r.label}</td>
-       <td class="num">${fmtYen(r.amount)}</td>
+       <td class="num">${isZero ? "—" : fmtYen(r.amount)}</td>
        <td class="num">${fmtPct1(r.pct)}</td>
-     </tr>`
-  ).join("");
+     </tr>`;
+  }).join("");
   document.getElementById("cat-total").textContent = fmtYen(DATA.category_total);
 }
 
+/* ───────── メイン ───────── */
 function render() {
   renderProject();
-  renderHero();
-  renderCategories();
+  const marginCls = renderKpi();
+  renderPuzzle(marginCls);
   renderTable();
 }
+
+/* リサイズ対応（パズル再描画） */
+let _rTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(_rTimer);
+  _rTimer = setTimeout(() => {
+    if (document.getElementById("app").style.display === "block") {
+      const k = DATA.kpi;
+      const marginPct = k.gross_margin * 100;
+      let marginCls = "danger";
+      if (marginPct >= 25) marginCls = "healthy";
+      else if (marginPct >= 15) marginCls = "warn";
+      renderPuzzle(marginCls);
+    }
+  }, 200);
+});
 </script>
 </body>
 </html>
