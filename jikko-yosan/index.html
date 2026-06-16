@@ -372,7 +372,7 @@
         </div>
       </div>
       <div class="build-info">
-        生成: 2026-06-16 20:57 JST<br>
+        生成: 2026-06-16 21:27 JST<br>
         ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
       </div>
     </div>
@@ -446,7 +446,7 @@
 
 <script>
 /* ───────── データ inline ───────── */
-const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 20:57 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 21:27 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
 const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
 
 /* ───────── ログイン ───────── */
@@ -651,8 +651,17 @@ function renderPuzzle(marginCls) {
   const marginPct = k.gross_margin * 100;
 
   const canvas = document.getElementById("puzzle-canvas");
-  // キャンバス寸法: 横長 16:9 / デスクトップ前提
-  const W = Math.max(canvas.clientWidth || 0, 980);
+  // キャンバス寸法: 実寸法そのまま使う（min-980 hack は禁止
+  // ── 過去バグ: 980 floor を使うと clientWidth < 980 のとき治具寸法と
+  //    描画寸法がズレて、ブロック面積が金額比と合わなくなる）。
+  // puzzle-row 側に min-width:980 + overflow-x:auto があるので、
+  // clientWidth は実描画と同じ値が返る。0 のときはまだレイアウト
+  // 確定前なので次フレームに再試行。
+  const W = canvas.clientWidth;
+  if (!W) {
+    requestAnimationFrame(() => renderPuzzle(marginCls));
+    return;
+  }
   const H = 460;
   canvas.style.height = H + "px";
 
@@ -661,7 +670,8 @@ function renderPuzzle(marginCls) {
   const profRatio = 1 - costRatio;
   // 粗利エリアの最小幅を確保（数字読めるように）
   const PROFIT_MIN_W = 140;
-  let costW   = Math.round(W * costRatio);
+  // 浮動小数で持つ（Math.round で1px丸めると 0.5pp 程度ズレる）
+  let costW   = W * costRatio;
   let profitW = W - costW;
   if (profitW < PROFIT_MIN_W) {
     profitW = PROFIT_MIN_W;
@@ -670,10 +680,18 @@ function renderPuzzle(marginCls) {
 
   // 原価エリア内の squarified treemap
   // ゼロ円カテゴリは除外して計算 → 後で非表示扱い
+  // 分母 normalize: pct は「原価合計に対する比率」として再計算する
+  // （DATA.categories[].pct と一致するが、明示的に計算して self-test と揃える）
   const cats = DATA.categories.slice().sort((a, b) => b.amount - a.amount);
   const nonZero = cats.filter(c => c.amount > 0);
+  const costSum = nonZero.reduce((s, c) => s + c.amount, 0);
   const placed = squarify(
-    nonZero.map(c => ({ value: c.amount, label: c.label, amount: c.amount, pct: c.pct })),
+    nonZero.map(c => ({
+      value: c.amount,
+      label: c.label,
+      amount: c.amount,
+      pct: (c.amount / costSum) * 100,
+    })),
     { x: 0, y: 0, w: costW, h: H }
   );
 
