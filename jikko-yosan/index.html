@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実行予算ダッシュボード — トイザらス・ベビーザらス　原復工事</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+<style>
+  :root {
+    --blue-50:#EEF2FF; --blue-100:#D9E6FF; --blue-300:#9DB7F9;
+    --blue-500:#4979F5; --blue-700:#264AF4; --blue-900:#0017C1;
+    --gray-0:#FFFFFF; --gray-50:#FAFAFB; --gray-100:#F4F5F7;
+    --gray-200:#E8EAEE; --gray-300:#D5D8DE; --gray-400:#A0A4AB;
+    --gray-500:#6B7280; --gray-700:#3F4451; --gray-900:#1A1A1A;
+    --green-500:#10B981; --green-700:#047857;
+    --warn-500:#F97316; --warn-700:#C2410C;
+    --shadow-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
+    --shadow-md:0 4px 6px -1px rgba(15,23,42,.08),0 2px 4px -2px rgba(15,23,42,.04);
+    --radius-sm:6px; --radius-md:10px; --radius-lg:14px;
+    --font-sans:"Inter","Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic",sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-900);min-height:100vh;line-height:1.5;font-feature-settings:"tnum" 1,"palt" 1}
+
+  /* ── ログイン ── */
+  #login-overlay{
+    position:fixed;inset:0;background:var(--gray-50);
+    display:flex;align-items:center;justify-content:center;z-index:100;
+  }
+  .login-card{
+    background:var(--gray-0);border:1px solid var(--gray-200);
+    border-radius:var(--radius-lg);box-shadow:var(--shadow-md);
+    padding:36px 40px;max-width:380px;width:90%;
+  }
+  .login-card h1{font-size:1.15rem;font-weight:700;margin-bottom:6px;letter-spacing:.01em}
+  .login-card .sub{font-size:.78rem;color:var(--gray-500);margin-bottom:22px}
+  .login-card label{display:block;font-size:.78rem;color:var(--gray-700);margin-bottom:6px;font-weight:500}
+  .login-card input[type=password]{
+    width:100%;padding:10px 12px;border:1px solid var(--gray-300);
+    border-radius:var(--radius-sm);font-family:inherit;font-size:.95rem;
+    background:var(--gray-50);transition:border-color .15s,background .15s;
+  }
+  .login-card input[type=password]:focus{outline:none;border-color:var(--blue-500);background:var(--gray-0)}
+  .login-card button{
+    width:100%;margin-top:14px;padding:10px;background:var(--blue-700);
+    color:#fff;border:none;border-radius:var(--radius-sm);
+    font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;
+    transition:background .15s;
+  }
+  .login-card button:hover{background:var(--blue-900)}
+  .login-card .err{
+    margin-top:10px;font-size:.78rem;color:var(--warn-700);
+    min-height:1.1em;font-weight:500;
+  }
+
+  /* ── 本体 ── */
+  #app{display:none}
+  header.app-header{
+    background:var(--gray-0);border-bottom:1px solid var(--gray-200);
+    padding:18px 32px;
+  }
+  .header-inner{
+    max-width:1440px;margin:0 auto;display:flex;align-items:center;
+    justify-content:space-between;gap:18px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{
+    width:34px;height:34px;border-radius:8px;
+    background:linear-gradient(135deg,var(--blue-500) 0%,var(--blue-700) 100%);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:.9rem;letter-spacing:.05em;
+    box-shadow:var(--shadow-md);
+  }
+  .brand h1{font-size:1rem;font-weight:700}
+  .brand .sub{font-size:.7rem;color:var(--gray-500);margin-top:2px;letter-spacing:.04em}
+  .build-info{font-size:.7rem;color:var(--gray-500);text-align:right}
+
+  /* 工事情報 */
+  .project-bar{
+    background:var(--gray-0);border-bottom:1px solid var(--gray-200);
+    padding:14px 32px;
+  }
+  .project-inner{
+    max-width:1440px;margin:0 auto;display:flex;flex-wrap:wrap;
+    gap:24px 32px;align-items:baseline;
+  }
+  .pj-field{display:flex;flex-direction:column;gap:2px}
+  .pj-field .lab{font-size:.7rem;color:var(--gray-500);font-weight:500;letter-spacing:.04em}
+  .pj-field .val{font-size:.92rem;color:var(--gray-900);font-weight:600}
+  .pj-field.name .val{font-size:1.05rem}
+
+  main{max-width:1440px;margin:24px auto;padding:0 28px 56px}
+
+  /* KPI */
+  .kpi-strip{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;
+  }
+  .kpi-card{
+    background:var(--gray-0);border:1px solid var(--gray-200);
+    border-radius:var(--radius-md);padding:18px 20px;
+    box-shadow:var(--shadow-sm);
+  }
+  .kpi-card .label{
+    font-size:.74rem;color:var(--gray-500);font-weight:600;
+    letter-spacing:.05em;margin-bottom:10px;
+  }
+  .kpi-card .value{
+    font-size:1.7rem;font-weight:700;color:var(--gray-900);
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  }
+  .kpi-card .value .unit{font-size:.85rem;color:var(--gray-500);font-weight:500;margin-left:4px}
+  .kpi-card.accent .value{color:var(--green-700)}
+  .kpi-card.warn .value{color:var(--warn-700)}
+
+  /* 表 + グラフ */
+  .grid-2col{
+    display:grid;grid-template-columns:1fr 1fr;gap:18px;
+  }
+  @media (max-width: 1080px){
+    .grid-2col{grid-template-columns:1fr}
+    .kpi-strip{grid-template-columns:repeat(2,1fr)}
+  }
+
+  .panel{
+    background:var(--gray-0);border:1px solid var(--gray-200);
+    border-radius:var(--radius-md);padding:18px 20px;
+    box-shadow:var(--shadow-sm);
+  }
+  .panel h2{
+    font-size:.9rem;font-weight:700;color:var(--gray-900);
+    margin-bottom:14px;letter-spacing:.02em;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .panel h2 .hint{font-size:.7rem;font-weight:500;color:var(--gray-500)}
+
+  table.cat{
+    width:100%;border-collapse:collapse;font-size:.85rem;
+    font-variant-numeric:tabular-nums;
+  }
+  table.cat th{
+    text-align:left;font-weight:600;color:var(--gray-500);
+    font-size:.72rem;letter-spacing:.05em;
+    padding:8px 10px;border-bottom:2px solid var(--gray-200);cursor:pointer;
+    user-select:none;
+  }
+  table.cat th:hover{color:var(--blue-700)}
+  table.cat th.num{text-align:right}
+  table.cat th .arrow{display:inline-block;width:.7em;color:var(--blue-700)}
+  table.cat td{
+    padding:9px 10px;border-bottom:1px solid var(--gray-100);
+    color:var(--gray-900);
+  }
+  table.cat td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.cat tr:hover td{background:var(--gray-50)}
+  table.cat tfoot td{
+    font-weight:700;color:var(--gray-900);
+    border-top:2px solid var(--gray-300);border-bottom:none;
+    background:var(--gray-50);
+  }
+
+  .chart-wrap{position:relative;height:340px}
+
+  footer{
+    max-width:1440px;margin:18px auto 32px;padding:0 28px;
+    font-size:.7rem;color:var(--gray-400);text-align:right;
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────── ログイン ───────── -->
+<div id="login-overlay">
+  <form class="login-card" id="login-form" autocomplete="off">
+    <h1>実行予算ダッシュボード</h1>
+    <div class="sub">トイザらス・ベビーザらス　原復工事</div>
+    <label for="pw">パスワード</label>
+    <input type="password" id="pw" autocomplete="current-password" required>
+    <button type="submit">ログイン</button>
+    <div class="err" id="login-err">&nbsp;</div>
+  </form>
+</div>
+
+<!-- ───────── 本体 ───────── -->
+<div id="app">
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">予算</div>
+        <div>
+          <h1>実行予算ダッシュボード</h1>
+          <div class="sub">JIKKO YOSAN — REAL-TIME COST OVERVIEW</div>
+        </div>
+      </div>
+      <div class="build-info">
+        生成: 2026-06-16 20:16 JST<br>
+        ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
+      </div>
+    </div>
+  </header>
+
+  <div class="project-bar">
+    <div class="project-inner" id="project-fields"></div>
+  </div>
+
+  <main>
+    <div class="kpi-strip" id="kpi-strip"></div>
+
+    <div class="grid-2col">
+      <div class="panel">
+        <h2>カテゴリ別実績 <span class="hint">列クリックで並び替え</span></h2>
+        <table class="cat" id="cat-table">
+          <thead>
+            <tr>
+              <th data-key="label">カテゴリ <span class="arrow"></span></th>
+              <th class="num" data-key="amount">金額 (円) <span class="arrow"></span></th>
+              <th class="num" data-key="pct">構成比 (%) <span class="arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <td>合計</td>
+              <td class="num" id="cat-total">—</td>
+              <td class="num">100.0%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>カテゴリ別 棒グラフ <span class="hint">金額 (円)</span></h2>
+        <div class="chart-wrap"><canvas id="cat-chart"></canvas></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    実行予算 xlsx → 単一 HTML build / Chart.js 4.4 / デジタル庁デザイン準拠
+  </footer>
+</div>
+
+<script>
+/* ───────── データ inline ───────── */
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-16 20:16 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
+
+/* ───────── ログイン ───────── */
+async function sha256(s) {
+  const buf = new TextEncoder().encode(s);
+  const h   = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw  = document.getElementById("pw").value;
+  const err = document.getElementById("login-err");
+  err.textContent = "";
+  const h = await sha256(pw);
+  if (h === PW_HASH) {
+    document.getElementById("login-overlay").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    render();
+  } else {
+    err.textContent = "パスワードが違います";
+    document.getElementById("pw").value = "";
+  }
+});
+
+/* ───────── 描画 ───────── */
+const fmtYen = (n) => Math.round(n).toLocaleString("ja-JP");
+const fmtPct = (n) => n.toFixed(1) + "%";
+
+function renderProject() {
+  const i = DATA.info;
+  const fields = [
+    { lab: "工事名",   val: i.name || "—",     cls: "name" },
+    { lab: "場所",     val: i.place || "—",    cls: "" },
+    { lab: "元請",     val: i.client || "—",   cls: "" },
+    { lab: "契約日",   val: i.contract || "—", cls: "" },
+    { lab: "着工日",   val: i.start || "—",    cls: "" },
+  ];
+  const html = fields.map(f =>
+    `<div class="pj-field ${f.cls}"><div class="lab">${f.lab}</div><div class="val">${f.val}</div></div>`
+  ).join("");
+  document.getElementById("project-fields").innerHTML = html;
+}
+
+function renderKpi() {
+  const k = DATA.kpi;
+  const cards = [
+    { label: "請負金額",   value: fmtYen(k.contract_amount), unit: "円", cls: "" },
+    { label: "原価合計",   value: fmtYen(k.cost_total),      unit: "円", cls: "warn" },
+    { label: "粗利益",     value: fmtYen(k.gross_profit),    unit: "円", cls: "accent" },
+    { label: "粗利率",     value: (k.gross_margin * 100).toFixed(2), unit: "%", cls: "accent" },
+  ];
+  document.getElementById("kpi-strip").innerHTML = cards.map(c =>
+    `<div class="kpi-card ${c.cls}">
+       <div class="label">${c.label}</div>
+       <div class="value">${c.value}<span class="unit">${c.unit}</span></div>
+     </div>`
+  ).join("");
+}
+
+/* ───────── テーブル（ソート） ───────── */
+let sortKey = "amount";
+let sortDesc = true;
+
+function renderTable() {
+  const rows = [...DATA.categories].sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (typeof av === "string") {
+      return sortDesc ? bv.localeCompare(av, "ja") : av.localeCompare(bv, "ja");
+    }
+    return sortDesc ? bv - av : av - bv;
+  });
+  const tbody = document.querySelector("#cat-table tbody");
+  tbody.innerHTML = rows.map(r =>
+    `<tr>
+       <td>${r.label}</td>
+       <td class="num">${fmtYen(r.amount)}</td>
+       <td class="num">${fmtPct(r.pct)}</td>
+     </tr>`
+  ).join("");
+  document.getElementById("cat-total").textContent = fmtYen(DATA.category_total);
+
+  // arrow indicator
+  document.querySelectorAll("#cat-table th").forEach(th => {
+    const arrow = th.querySelector(".arrow");
+    if (!arrow) return;
+    if (th.dataset.key === sortKey) {
+      arrow.textContent = sortDesc ? "▼" : "▲";
+    } else {
+      arrow.textContent = "";
+    }
+  });
+}
+
+document.querySelectorAll("#cat-table th").forEach(th => {
+  th.addEventListener("click", () => {
+    const k = th.dataset.key;
+    if (!k) return;
+    if (sortKey === k) {
+      sortDesc = !sortDesc;
+    } else {
+      sortKey = k;
+      sortDesc = (k !== "label");
+    }
+    renderTable();
+  });
+});
+
+/* ───────── 棒グラフ ───────── */
+let chartInstance = null;
+function renderChart() {
+  // 金額降順で表示
+  const sorted = [...DATA.categories].sort((a, b) => b.amount - a.amount);
+  const ctx = document.getElementById("cat-chart").getContext("2d");
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: sorted.map(c => c.label),
+      datasets: [{
+        label: "金額 (円)",
+        data: sorted.map(c => c.amount),
+        backgroundColor: "#4979F5",
+        borderColor: "#264AF4",
+        borderWidth: 1,
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => " " + fmtYen(ctx.parsed.x) + " 円",
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            callback: (v) => fmtYen(v),
+            font: { size: 11 },
+          },
+          grid: { color: "#F4F5F7" },
+        },
+        y: {
+          ticks: { font: { size: 12 } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+
+function render() {
+  renderProject();
+  renderKpi();
+  renderTable();
+  renderChart();
+}
+</script>
+</body>
+</html>
