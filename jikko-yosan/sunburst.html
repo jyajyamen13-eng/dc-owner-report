@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実行予算サンバースト — トイザらス・ベビーザらス　原復工事</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue-50:#EEF2FF; --blue-100:#D9E6FF; --blue-300:#9DB7F9;
+    --blue-500:#4979F5; --blue-700:#264AF4; --blue-900:#0017C1;
+    --gray-0:#FFFFFF; --gray-50:#FAFAFB; --gray-100:#F4F5F7;
+    --gray-200:#E8EAEE; --gray-300:#D5D8DE; --gray-400:#A0A4AB;
+    --gray-500:#6B7280; --gray-700:#3F4451; --gray-900:#1A1A1A;
+    --green-50:#ECFDF5; --green-100:#D1FAE5; --green-300:#6EE7B7;
+    --green-500:#10B981; --green-600:#059669; --green-700:#047857;
+    --healthy-bg:#ECFDF5; --healthy-600:#059669; --healthy-700:#047857;
+    --warn-bg:#FFFBEB;    --warn-600:#D97706;    --warn-700:#B45309;
+    --danger-bg:#FEF2F2;  --danger-600:#DC2626;  --danger-700:#B91C1C;
+    --cost-50:#F1F5F9;  --cost-100:#E2E8F0;  --cost-200:#CBD5E1;
+    --cost-300:#94A3B8; --cost-400:#64748B;  --cost-500:#475569;
+    --cost-600:#334155; --cost-700:#1E293B;
+    --shadow-xs:0 1px 2px rgba(15,23,42,.04);
+    --shadow-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
+    --shadow-md:0 4px 6px -1px rgba(15,23,42,.08),0 2px 4px -2px rgba(15,23,42,.04);
+    --radius-sm:6px; --radius-md:10px; --radius-lg:14px;
+    --font-sans:"Inter","Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo","Yu Gothic",sans-serif;
+    --font-num:"Inter","Noto Sans JP",sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-900);min-height:100vh;line-height:1.5;font-feature-settings:"tnum" 1,"palt" 1;}
+  #login-overlay{position:fixed;inset:0;background:var(--gray-50);display:flex;align-items:center;justify-content:center;z-index:100;}
+  .login-card{background:var(--gray-0);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:36px 40px;max-width:380px;width:90%;}
+  .login-card h1{font-size:1.15rem;font-weight:700;margin-bottom:6px;letter-spacing:.01em}
+  .login-card .sub{font-size:.78rem;color:var(--gray-500);margin-bottom:22px}
+  .login-card label{display:block;font-size:.78rem;color:var(--gray-700);margin-bottom:6px;font-weight:500}
+  .login-card input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:var(--radius-sm);font-family:inherit;font-size:.95rem;background:var(--gray-50);transition:border-color .15s,background .15s;}
+  .login-card input[type=password]:focus{outline:none;border-color:var(--blue-500);background:var(--gray-0)}
+  .login-card button{width:100%;margin-top:14px;padding:10px;background:var(--blue-700);color:#fff;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:background .15s;}
+  .login-card button:hover{background:var(--blue-900)}
+  .login-card .err{margin-top:10px;font-size:.78rem;color:var(--danger-600);min-height:1.1em;font-weight:500}
+  #app{display:none}
+  header.app-header{background:var(--gray-0);border-bottom:1px solid var(--gray-200);padding:14px 28px;}
+  .header-inner{max-width:1480px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--blue-500) 0%,var(--blue-700) 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.82rem;letter-spacing:.04em;box-shadow:var(--shadow-sm);}
+  .brand-text h1{font-size:1rem;font-weight:700;color:var(--gray-900);letter-spacing:.01em;line-height:1.3}
+  .brand-text .subtitle{font-size:.7rem;color:var(--gray-500);font-weight:500;letter-spacing:.04em;margin-top:2px}
+  .build-info{font-size:.66rem;color:var(--gray-500);text-align:right;line-height:1.5;padding:6px 12px;background:var(--gray-100);border-radius:var(--radius-sm);font-variant-numeric:tabular-nums;}
+  .project-bar{background:var(--gray-0);border-bottom:1px solid var(--gray-200);padding:10px 28px;}
+  .project-inner{max-width:1480px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline;}
+  .pj-field{display:flex;align-items:baseline;gap:6px}
+  .pj-field .lab{font-size:.66rem;color:var(--gray-400);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .pj-field .val{font-size:.78rem;color:var(--gray-700);font-weight:600}
+  .pj-field.name .val{font-size:.88rem;color:var(--gray-900)}
+  main{max-width:1480px;margin:22px auto;padding:0 28px 56px}
+  .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+  .kpi-card{background:var(--gray-0);border:1px solid var(--gray-200);border-radius:var(--radius-md);padding:16px 20px;box-shadow:var(--shadow-xs);position:relative;overflow:hidden;}
+  .kpi-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0 2px 2px 0;}
+  .kpi-card.kpi-contract::before{background:var(--kpi-contract-bar,var(--blue-500))}
+  .kpi-card.kpi-cost::before{background:var(--kpi-cost-bar,var(--cost-500))}
+  .kpi-card.kpi-gross::before{background:var(--kpi-gross-bar,var(--green-500))}
+  .kpi-card.kpi-margin::before{background:var(--kpi-margin-bar,var(--green-600))}
+  .kpi-label{font-size:.7rem;color:var(--gray-500);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .kpi-value{font-size:1.5rem;font-weight:700;color:var(--gray-900);font-variant-numeric:tabular-nums;letter-spacing:-.015em;line-height:1.1;font-family:var(--font-num);}
+  .kpi-sub{font-size:.7rem;color:var(--gray-500);margin-top:5px;font-variant-numeric:tabular-nums;}
+  .kpi-sub strong{color:var(--gray-700);font-weight:600}
+  .kpi-card.kpi-margin.healthy .kpi-value{color:var(--healthy-700)}
+  .kpi-card.kpi-margin.warn    .kpi-value{color:var(--warn-700)}
+  .kpi-card.kpi-margin.danger  .kpi-value{color:var(--danger-600)}
+  .sunburst-card{background:var(--gray-0);border:1px solid var(--gray-200);border-radius:var(--radius-md);box-shadow:var(--shadow-xs);padding:22px 26px 26px;margin-bottom:18px;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:16px;flex-wrap:wrap;}
+  .card-head h2{font-size:.95rem;font-weight:700;color:var(--gray-900);letter-spacing:.02em}
+  .card-head .head-sub{font-size:.7rem;color:var(--gray-500);font-weight:500;letter-spacing:.02em}
+  /* ── 色案トグル ── */
+  .variant-toggle{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+  .variant-btn{
+    padding:4px 10px;font-size:.7rem;font-weight:600;font-family:inherit;
+    border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);
+    background:var(--gray-0);color:var(--gray-600,#4B5563);cursor:pointer;
+    transition:border-color .15s,background .15s,color .15s;
+    white-space:nowrap;
+  }
+  .variant-btn:hover{border-color:var(--blue-500);color:var(--blue-700)}
+  .variant-btn.active{
+    border-color:var(--blue-700);background:var(--blue-700);color:#fff;
+  }
+  .formula-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--gray-50);border-radius:var(--radius-sm);align-items:center;}
+  .formula-chip{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;color:var(--gray-700);letter-spacing:.02em;font-weight:500;white-space:nowrap;}
+  .formula-chip .em{font-weight:700}
+  .formula-chip.cost .em{color:var(--color-inner-cost,var(--cost-600))}
+  .formula-chip.gross .em{color:var(--color-inner-profit,var(--green-700))}
+  .formula-divider{width:1px;height:14px;background:var(--gray-300)}
+  .formula-note{font-size:.66rem;color:var(--gray-400);margin-bottom:14px;font-weight:500;letter-spacing:.01em;}
+  .sunburst-layout{display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;}
+  .sunburst-wrap{position:relative;flex:0 0 auto;}
+  #sunburst-svg{display:block;overflow:visible;transition:opacity .15s;}
+  #sb-tooltip{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+  #sb-tooltip .tt-label{font-size:.82rem;font-weight:700;color:var(--gray-900);letter-spacing:.02em;line-height:1.3;max-width:120px;}
+  #sb-tooltip .tt-amount{font-size:1.1rem;font-weight:700;color:var(--gray-900);font-variant-numeric:tabular-nums;margin-top:5px;font-family:var(--font-num);}
+  #sb-tooltip .tt-pct{font-size:.76rem;font-weight:600;color:var(--gray-500);font-variant-numeric:tabular-nums;margin-top:3px;}
+  .sb-side{flex:1 1 260px;min-width:200px;display:flex;flex-direction:column;gap:14px;}
+  .gross-panel{background:var(--green-50);border:1px solid var(--green-300);border-radius:var(--radius-md);padding:16px 20px;}
+  .gross-panel .gp-label{font-size:.7rem;font-weight:700;color:var(--green-600);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .gross-panel .gp-value{font-size:1.5rem;font-weight:700;color:var(--green-700);font-variant-numeric:tabular-nums;letter-spacing:-.015em;line-height:1.1;font-family:var(--font-num);}
+  .gross-panel .gp-sub{font-size:.7rem;color:var(--green-600);margin-top:5px;font-variant-numeric:tabular-nums;}
+  .sb-legend{background:var(--gray-0);border:1px solid var(--gray-200);border-radius:var(--radius-md);padding:14px 16px;box-shadow:var(--shadow-xs);}
+  .sb-legend .leg-head{font-size:.7rem;font-weight:700;color:var(--gray-500);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}
+  .leg-item{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--gray-100);}
+  .leg-item:last-child{border-bottom:none}
+  .leg-swatch{width:12px;height:12px;border-radius:2px;flex-shrink:0;transition:background .3s;}
+  .leg-label{font-size:.78rem;color:var(--gray-700);font-weight:500;flex:1}
+  .leg-pct{font-size:.74rem;color:var(--gray-500);font-variant-numeric:tabular-nums;font-weight:600;}
+  .leg-amt{font-size:.72rem;color:var(--gray-400);font-variant-numeric:tabular-nums;margin-left:4px;}
+  details.cat-table-wrap{background:var(--gray-0);border:1px solid var(--gray-200);border-radius:var(--radius-md);padding:0;box-shadow:var(--shadow-xs);overflow:hidden;margin-bottom:18px;}
+  details.cat-table-wrap summary{list-style:none;cursor:pointer;padding:14px 22px;font-size:.82rem;font-weight:600;color:var(--gray-700);display:flex;align-items:center;gap:10px;user-select:none;transition:background .1s;}
+  details.cat-table-wrap summary::-webkit-details-marker{display:none}
+  details.cat-table-wrap summary::before{content:"";width:8px;height:8px;border-right:1.5px solid var(--gray-500);border-bottom:1.5px solid var(--gray-500);transform:rotate(-45deg);transition:transform .15s;}
+  details.cat-table-wrap[open] summary::before{transform:rotate(45deg)}
+  details.cat-table-wrap summary:hover{background:var(--gray-50)}
+  details.cat-table-wrap[open] summary{border-bottom:1px solid var(--gray-200)}
+  table.cat{width:100%;border-collapse:collapse;font-size:.84rem;font-variant-numeric:tabular-nums;font-family:var(--font-num)}
+  table.cat th{text-align:left;font-weight:600;color:var(--gray-500);font-size:.7rem;letter-spacing:.05em;padding:8px 22px;border-bottom:1px solid var(--gray-200);background:var(--gray-50);}
+  table.cat th.num{text-align:right}
+  table.cat td{padding:8px 22px;border-bottom:1px solid var(--gray-100);color:var(--gray-900)}
+  table.cat td.num{text-align:right}
+  table.cat tr.top td{color:var(--cost-600);font-weight:600}
+  table.cat tr.zero td{color:var(--gray-400);font-style:italic}
+  table.cat tfoot td{font-weight:700;color:var(--gray-900);border-top:2px solid var(--gray-300);border-bottom:none;background:var(--gray-50);padding:10px 22px;}
+  footer{max-width:1480px;margin:18px auto 32px;padding:0 28px;font-size:.66rem;color:var(--gray-400);text-align:right;}
+  @media (max-width: 1100px){.kpi-strip{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width: 720px){
+    main{padding:0 16px 32px;margin:14px auto}
+    .kpi-strip{grid-template-columns:1fr 1fr;gap:10px}
+    .kpi-card{padding:12px 14px}
+    .kpi-value{font-size:1.25rem}
+    .sunburst-card{padding:18px 16px}
+    .sunburst-layout{flex-direction:column;align-items:center}
+  }
+  @media print{
+    body{background:#fff}
+    .sunburst-card,.kpi-card,details.cat-table-wrap{box-shadow:none;border:1px solid var(--gray-300);page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────── ログイン ───────── -->
+<div id="login-overlay">
+  <form class="login-card" id="login-form" autocomplete="off">
+    <h1>実行予算サンバースト</h1>
+    <div class="sub">トイザらス・ベビーザらス　原復工事</div>
+    <label for="pw">パスワード</label>
+    <input type="password" id="pw" autocomplete="current-password" required>
+    <button type="submit">ログイン</button>
+    <div class="err" id="login-err">&nbsp;</div>
+  </form>
+</div>
+
+<!-- ───────── 本体 ───────── -->
+<div id="app">
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">予算</div>
+        <div class="brand-text">
+          <h1>実行予算サンバースト</h1>
+          <div class="subtitle">2層サンバースト: 内側=原価/粗利（請負基準）、外側=原価カテゴリ（請負基準）</div>
+        </div>
+      </div>
+      <div class="build-info">
+        生成: 2026-06-17 10:19 JST<br>
+        ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
+      </div>
+    </div>
+  </header>
+
+  <div class="project-bar">
+    <div class="project-inner" id="project-fields"></div>
+  </div>
+
+  <main>
+    <div class="kpi-strip" id="kpi-strip"></div>
+
+    <section class="sunburst-card">
+      <div class="card-head">
+        <h2>お金のサンバースト — 2層構成</h2>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <span class="head-sub">内側リング＝原価／粗利（請負基準）、外側リング＝原価 8 カテゴリ（請負基準）</span>
+          <div class="variant-toggle" id="variant-toggle">
+            <button class="variant-btn" data-variant="A" title="デジタル庁 Design System Blue系パレット完全準拠。官公庁・自治体向けの最も保守的な案。">A 政府標準</button>
+            <button class="variant-btn" data-variant="B" title="Indigo+Teal 2系統配色。金融ダッシュボード感を維持する中間案。Blue/Green=信頼・安定（海外 Best Practice）。">B 金融トラスト</button>
+            <button class="variant-btn" data-variant="C" title="カテゴリカルパレット。colorblind-friendly な Blue-Orange 主軸で判別性最優先。6系統に圧縮。">C カテゴリカル</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="formula-row">
+        <span class="formula-chip">請負 ＝ <span class="em" id="formula-cost-em">原価合計</span> ＋ <span class="em" id="formula-gross-em">粗利益</span></span>
+        <span class="formula-divider"></span>
+        <span class="formula-chip cost"><span class="em">内側リング</span> ＝ 原価 vs 粗利（請負比）</span>
+        <span class="formula-divider"></span>
+        <span class="formula-chip cost"><span class="em">外側リング</span> ＝ 原価 8 カテゴリ（請負比）</span>
+        <span class="formula-divider"></span>
+        <span class="formula-chip gross">粗利率 ＝ <span class="em">粗利 ÷ 請負</span></span>
+      </div>
+
+      <div class="formula-note">
+        ※ 中心角はすべて請負金額基準。外側の粗利対応部分はリング無し。中央に請負金額と粗利率。ホバーで詳細。
+      </div>
+
+      <div class="sunburst-layout">
+        <div class="sunburst-wrap" id="sunburst-wrap">
+          <svg id="sunburst-svg" role="img" aria-label="原価構成サンバースト"></svg>
+          <div id="sb-tooltip">
+            <div class="tt-label" id="tt-label">—</div>
+            <div class="tt-amount" id="tt-amount">—</div>
+            <div class="tt-pct" id="tt-pct">—</div>
+          </div>
+        </div>
+        <div class="sb-side">
+          <div class="gross-panel" id="gross-panel"></div>
+          <div class="sb-legend">
+            <div class="leg-head">原価カテゴリ</div>
+            <div id="sb-legend-body"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <details class="cat-table-wrap">
+      <summary>カテゴリ別 数表（合計含む）</summary>
+      <table class="cat" id="cat-table">
+        <thead>
+          <tr>
+            <th>カテゴリ</th>
+            <th class="num">金額 (円)</th>
+            <th class="num">構成比 (%)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr>
+            <td>合計</td>
+            <td class="num" id="cat-total">—</td>
+            <td class="num">100.0%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </details>
+  </main>
+
+  <footer>
+    実行予算 xlsx → 単一 HTML build / 外部依存ゼロ / 2層サンバースト (v3.2 比較版)
+  </footer>
+</div>
+
+<script>
+/* ───────── データ inline ───────── */
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-17 10:19 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
+
+/* ───────── 色案定義（A/B/C） ───────── */
+const COLOR_VARIANTS = {
+  A: {
+    label: "A 政府標準",
+    innerCost:   "#264AF4",  // Blue-700
+    innerProfit: "#4979F5",  // Blue-500
+    outer: [
+      "#0017C1",  // rank0 外注費   Blue-900
+      "#264AF4",  // rank1 産廃費   Blue-700
+      "#4979F5",  // rank2 労務費   Blue-500
+      "#4979F5",  // rank3 機械代   Blue-500
+      "#9DB7F9",  // rank4 車両費   Blue-300
+      "#9DB7F9",  // rank5 法定     Blue-300
+      "#D9E6FF",  // rank6 消耗品   Blue-100
+      "#D9E6FF",  // rank7 燃料費   Blue-100
+    ],
+    kpiContract: "#4979F5",  // Blue-500
+    kpiCost:     "#264AF4",  // Blue-700
+    kpiGross:    "#0017C1",  // Blue-900
+    kpiMargin:   "#9DB7F9",  // Blue-300
+    marginHealthy: "#059669",
+    marginWarn:    "#D97706",
+    marginDanger:  "#DC2626",
+  },
+  B: {
+    label: "B 金融トラスト",
+    innerCost:   "#1E319E",  // Indigo-900
+    innerProfit: "#0D9488",  // Teal-600
+    outer: [
+      "#1E319E",  // rank0 外注費   Indigo-900
+      "#3B4FC2",  // rank1 産廃費   Indigo-700
+      "#0D9488",  // rank2 労務費   Teal-600
+      "#0F766E",  // rank3 機械代   Teal-700
+      "#475569",  // rank4 車両費   Slate-600
+      "#64748B",  // rank5 法定     Slate-500
+      "#C7D2FE",  // rank6 消耗品   Indigo-200
+      "#CCFBF1",  // rank7 燃料費   Teal-100
+    ],
+    kpiContract: "#3B4FC2",  // Indigo-700
+    kpiCost:     "#1E319E",  // Indigo-900
+    kpiGross:    "#0D9488",  // Teal-600
+    kpiMargin:   "#0F766E",  // Teal-700
+    marginHealthy: "#059669",
+    marginWarn:    "#D97706",
+    marginDanger:  "#DC2626",
+  },
+  C: {
+    label: "C カテゴリカル",
+    innerCost:   "#1D4ED8",  // Blue-700
+    innerProfit: "#EA580C",  // Orange-600
+    outer: [
+      "#1D4ED8",  // rank0 外注費   Blue-700
+      "#C2410C",  // rank1 産廃費   Orange-700
+      "#B45309",  // rank2 労務費   Amber-700
+      "#0F766E",  // rank3 機械代   Teal-700
+      "#6D28D9",  // rank4 車両費   Violet-700
+      "#475569",  // rank5 法定     Slate-600
+      "#BFDBFE",  // rank6 消耗品   Blue-200
+      "#BFDBFE",  // rank7 燃料費   Blue-200
+    ],
+    kpiContract: "#2563EB",  // Blue-600
+    kpiCost:     "#1D4ED8",  // Blue-700
+    kpiGross:    "#EA580C",  // Orange-600
+    kpiMargin:   "#D97706",  // Amber-600
+    marginHealthy: "#059669",
+    marginWarn:    "#D97706",
+    marginDanger:  "#DC2626",
+  },
+};
+
+/* ───────── 現在の色案（localStorage 復元） ───────── */
+const LS_KEY = "jikko-yosan-color-variant";
+let currentVariant = localStorage.getItem(LS_KEY) || "A";
+if (!COLOR_VARIANTS[currentVariant]) currentVariant = "A";
+
+/* ───────── ログイン ───────── */
+async function sha256(s) {
+  const buf = new TextEncoder().encode(s);
+  const h   = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw  = document.getElementById("pw").value;
+  const err = document.getElementById("login-err");
+  err.textContent = "";
+  const h = await sha256(pw);
+  if (h === PW_HASH) {
+    document.getElementById("login-overlay").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    render();
+    initVariantToggle();
+  } else {
+    err.textContent = "パスワードが違います";
+    document.getElementById("pw").value = "";
+  }
+});
+
+/* ───────── フォーマット ───────── */
+const fmtYen  = (n) => Math.round(n).toLocaleString("ja-JP");
+const fmtPct1 = (n) => n.toFixed(1) + "%";
+const fmtPct2 = (n) => n.toFixed(2) + "%";
+
+/* ───────── プロジェクト情報 ───────── */
+function renderProject() {
+  const i = DATA.info;
+  const fields = [
+    { lab: "工事名",   val: i.name || "—",     cls: "name" },
+    { lab: "場所",     val: i.place || "—",    cls: "" },
+    { lab: "元請",     val: i.client || "—",   cls: "" },
+    { lab: "契約日",   val: i.contract || "—", cls: "" },
+    { lab: "着工日",   val: i.start || "—",    cls: "" },
+  ];
+  document.getElementById("project-fields").innerHTML = fields.map(f =>
+    `<div class="pj-field ${f.cls}"><span class="lab">${f.lab}</span><span class="val">${f.val}</span></div>`
+  ).join("");
+}
+
+/* ───────── KPI ストリップ ───────── */
+function renderKpi() {
+  const k = DATA.kpi;
+  const marginPct = k.gross_margin * 100;
+  let marginCls = "danger";
+  if (marginPct >= 25) marginCls = "healthy";
+  else if (marginPct >= 15) marginCls = "warn";
+
+  const html = `
+    <div class="kpi-card kpi-contract">
+      <div class="kpi-label">請負金額</div>
+      <div class="kpi-value">${fmtYen(k.contract_amount)}<span style="font-size:.6em;font-weight:500;color:var(--gray-500);margin-left:3px;">円</span></div>
+      <div class="kpi-sub">受注総額（100%）</div>
+    </div>
+    <div class="kpi-card kpi-cost">
+      <div class="kpi-label">原価合計</div>
+      <div class="kpi-value">${fmtYen(k.cost_total)}<span style="font-size:.6em;font-weight:500;color:var(--gray-500);margin-left:3px;">円</span></div>
+      <div class="kpi-sub">請負比 <strong>${fmtPct1((k.cost_total / k.contract_amount) * 100)}</strong></div>
+    </div>
+    <div class="kpi-card kpi-gross">
+      <div class="kpi-label">粗利益</div>
+      <div class="kpi-value">${fmtYen(k.gross_profit)}<span style="font-size:.6em;font-weight:500;color:var(--gray-500);margin-left:3px;">円</span></div>
+      <div class="kpi-sub">請負 − 原価 の残余</div>
+    </div>
+    <div class="kpi-card kpi-margin ${marginCls}">
+      <div class="kpi-label">粗利率</div>
+      <div class="kpi-value">${fmtPct2(marginPct)}</div>
+      <div class="kpi-sub">${marginCls === "healthy" ? "健全 (≧ 25%)" : marginCls === "warn" ? "注意 (15-25%)" : "危険 (< 15%)"}</div>
+    </div>
+  `;
+  document.getElementById("kpi-strip").innerHTML = html;
+  return marginCls;
+}
+
+/* ───────── 色案適用（CSS変数 + SVG path 再塗り + 凡例 + formula） ───────── */
+function applyVariant(variantKey) {
+  const v = COLOR_VARIANTS[variantKey];
+  if (!v) return;
+  const root = document.documentElement;
+
+  // CSS変数（KPI バー / margin テキスト）
+  root.style.setProperty("--kpi-contract-bar", v.kpiContract);
+  root.style.setProperty("--kpi-cost-bar",     v.kpiCost);
+  root.style.setProperty("--kpi-gross-bar",    v.kpiGross);
+  root.style.setProperty("--kpi-margin-bar",   v.kpiMargin);
+  root.style.setProperty("--color-inner-cost",   v.innerCost);
+  root.style.setProperty("--color-inner-profit", v.innerProfit);
+  root.style.setProperty("--color-margin-healthy", v.marginHealthy);
+  root.style.setProperty("--color-margin-warn",    v.marginWarn);
+  root.style.setProperty("--color-margin-danger",  v.marginDanger);
+
+  // formula-row 色付き em
+  const costEm  = document.getElementById("formula-cost-em");
+  const grossEm = document.getElementById("formula-gross-em");
+  if (costEm)  costEm.style.color  = v.innerCost;
+  if (grossEm) grossEm.style.color = v.innerProfit;
+
+  // SVG inner path 再塗り
+  document.querySelectorAll("path.sb-arc-inner").forEach((path) => {
+    const label = path.getAttribute("data-sb-label");
+    if (label === "原価合計") path.setAttribute("fill", v.innerCost);
+    if (label === "粗利益")   path.setAttribute("fill", v.innerProfit);
+  });
+
+  // SVG outer path 再塗り（rank 属性で照合）
+  document.querySelectorAll("path.sb-arc-outer").forEach((path) => {
+    const rank = parseInt(path.getAttribute("data-sb-rank") || "0", 10);
+    const fill = v.outer[Math.min(rank, v.outer.length - 1)];
+    path.setAttribute("fill", fill);
+  });
+
+  // 凡例 swatch 再塗り
+  document.querySelectorAll(".leg-swatch[data-leg-rank]").forEach((sw) => {
+    const rank = parseInt(sw.getAttribute("data-leg-rank") || "0", 10);
+    const fill = v.outer[Math.min(rank, v.outer.length - 1)];
+    sw.style.background = fill;
+  });
+
+  // 中央粗利率テキスト（SVG <text> data-sb-margin-text）
+  const marginText = document.querySelector("text[data-sb-margin-text]");
+  if (marginText) {
+    const marginCls = marginText.getAttribute("data-sb-margin-cls") || "warn";
+    const marginColor = marginCls === "healthy" ? v.marginHealthy
+                       : marginCls === "warn"   ? v.marginWarn
+                       : v.marginDanger;
+    marginText.setAttribute("fill", marginColor);
+  }
+
+  // ボタン強調
+  document.querySelectorAll(".variant-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-variant") === variantKey);
+  });
+}
+
+/* ───────── トグルボタン初期化 ───────── */
+function initVariantToggle() {
+  document.querySelectorAll(".variant-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const v = btn.getAttribute("data-variant");
+      currentVariant = v;
+      localStorage.setItem(LS_KEY, v);
+      applyVariant(v);
+    });
+  });
+  // 初期案を適用
+  applyVariant(currentVariant);
+}
+
+/* ───────── SVG ドーナツリング arc path ─────────
+ * 扇形ではなくドーナツ（環状）スライスを描く。
+ * M outer-start -> arc outer-end -> L inner-end -> arc-back inner-start -> Z
+ * -90° オフセットで 12時スタート
+ */
+function annularArc(cx, cy, rOuter, rInner, startDeg, endDeg) {
+  const toRad = (d) => (d - 90) * Math.PI / 180;
+  const ox1 = cx + rOuter * Math.cos(toRad(startDeg));
+  const oy1 = cy + rOuter * Math.sin(toRad(startDeg));
+  const ox2 = cx + rOuter * Math.cos(toRad(endDeg));
+  const oy2 = cy + rOuter * Math.sin(toRad(endDeg));
+  const ix1 = cx + rInner * Math.cos(toRad(endDeg));
+  const iy1 = cy + rInner * Math.sin(toRad(endDeg));
+  const ix2 = cx + rInner * Math.cos(toRad(startDeg));
+  const iy2 = cy + rInner * Math.sin(toRad(startDeg));
+  const span = endDeg - startDeg;
+  const large = span > 180 ? 1 : 0;
+  return [
+    `M ${ox1},${oy1}`,
+    `A ${rOuter},${rOuter} 0 ${large},1 ${ox2},${oy2}`,
+    `L ${ix1},${iy1}`,
+    `A ${rInner},${rInner} 0 ${large},0 ${ix2},${iy2}`,
+    `Z`,
+  ].join(" ");
+}
+
+/* ───────── 2層サンバースト描画 ───────── */
+function renderSunburst(marginCls) {
+  const k = DATA.kpi;
+  const v = COLOR_VARIANTS[currentVariant];
+
+  // 外側リング用: 非ゼロカテゴリを金額降順
+  const nonZero = DATA.categories
+    .filter(c => c.amount > 0)
+    .slice()
+    .sort((a, b) => b.amount - a.amount);
+
+  const contract = k.contract_amount;
+
+  const SIZE = 480;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const R_OUTERMOST = 210;  // 外側リング外縁
+  const R_MIDDLE    = 145;  // 外側リング内縁 = 内側リング外縁
+  const R_INNER     = 80;   // 内側リング内縁（中央穴）
+
+  const svg = document.getElementById("sunburst-svg");
+  svg.setAttribute("width", SIZE);
+  svg.setAttribute("height", SIZE);
+  svg.setAttribute("viewBox", `0 0 ${SIZE} ${SIZE}`);
+
+  const NS = "http://www.w3.org/2000/svg";
+  svg.innerHTML = "";
+
+  const ttLabel  = document.getElementById("tt-label");
+  const ttAmount = document.getElementById("tt-amount");
+  const ttPct    = document.getElementById("tt-pct");
+
+  function resetTooltip() {
+    // 中央常時表示は SVG <text> で描画済（addText × 4）。
+    // overlay は空にしてホバー時のみ詳細を出す（二重描画回避）。
+    ttLabel.textContent  = "";
+    ttAmount.textContent = "";
+    ttPct.textContent    = "";
+  }
+
+  /* ── 内側リング（2スライス: 原価 / 粗利） ── */
+  const innerSlices = [
+    {
+      label:   "原価合計",
+      amount:  k.cost_total,
+      startDeg: 0,
+      endDeg:   (k.cost_total / contract) * 360,
+      fill:     v.innerCost,
+      layer:    "inner",
+    },
+    {
+      label:   "粗利益",
+      amount:  k.gross_profit,
+      startDeg: (k.cost_total / contract) * 360,
+      endDeg:   360,
+      fill:     v.innerProfit,
+      layer:    "inner",
+    },
+  ];
+
+  for (const sl of innerSlices) {
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", annularArc(cx, cy, R_MIDDLE, R_INNER, sl.startDeg, sl.endDeg));
+    path.setAttribute("fill", sl.fill);
+    path.setAttribute("stroke", "#ffffff");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("data-sb-label", sl.label);
+    path.setAttribute("data-sb-start", sl.startDeg.toFixed(6));
+    path.setAttribute("data-sb-end",   sl.endDeg.toFixed(6));
+    path.setAttribute("data-sb-pct",   ((sl.amount / contract) * 100).toFixed(6));
+    path.setAttribute("data-sb-layer", "inner");
+    path.setAttribute("class", "sb-arc sb-arc-inner");
+    path.style.cursor = "default";
+    path.style.transition = "fill .3s";
+
+    const contractPct = (sl.amount / contract) * 100;
+    path.addEventListener("mouseenter", () => {
+      ttLabel.textContent  = sl.label;
+      ttAmount.textContent = fmtYen(sl.amount) + " 円";
+      ttPct.textContent    = "請負比 " + fmtPct2(contractPct);
+      path.setAttribute("opacity", "0.82");
+    });
+    path.addEventListener("mouseleave", () => {
+      resetTooltip();
+      path.setAttribute("opacity", "1");
+    });
+    svg.appendChild(path);
+  }
+
+  /* ── 外側リング（原価 8 カテゴリ、請負基準） ── */
+  let outerStartDeg = 0;
+  for (let i = 0; i < nonZero.length; i++) {
+    const c = nonZero[i];
+    const angleDeg = (c.amount / contract) * 360;
+    const endDeg   = outerStartDeg + angleDeg;
+
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", annularArc(cx, cy, R_OUTERMOST, R_MIDDLE, outerStartDeg, endDeg));
+    path.setAttribute("fill", v.outer[Math.min(i, v.outer.length - 1)]);
+    path.setAttribute("stroke", "#ffffff");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("data-sb-label", c.label);
+    path.setAttribute("data-sb-start", outerStartDeg.toFixed(6));
+    path.setAttribute("data-sb-end",   endDeg.toFixed(6));
+    path.setAttribute("data-sb-pct",   ((c.amount / contract) * 100).toFixed(6));
+    path.setAttribute("data-sb-layer", "outer");
+    path.setAttribute("data-sb-rank",  String(i));
+    path.setAttribute("class", "sb-arc sb-arc-outer");
+    path.style.cursor = "default";
+    path.style.transition = "fill .3s";
+
+    const contractPct = (c.amount / contract) * 100;
+    const costPct     = (c.amount / k.cost_total) * 100;
+    path.addEventListener("mouseenter", () => {
+      ttLabel.textContent  = c.label;
+      ttAmount.textContent = fmtYen(c.amount) + " 円";
+      ttPct.textContent    = "原価比 " + fmtPct2(costPct) + " ／ 請負比 " + fmtPct2(contractPct);
+      path.setAttribute("opacity", "0.82");
+    });
+    path.addEventListener("mouseleave", () => {
+      resetTooltip();
+      path.setAttribute("opacity", "1");
+    });
+    svg.appendChild(path);
+
+    outerStartDeg = endDeg;
+  }
+
+  /* ── 中央穴（白） ── */
+  const hole = document.createElementNS(NS, "circle");
+  hole.setAttribute("cx", cx);
+  hole.setAttribute("cy", cy);
+  hole.setAttribute("r", R_INNER);
+  hole.setAttribute("fill", "#ffffff");
+  svg.appendChild(hole);
+
+  /* ── 中央 KPI テキスト ── */
+  function addText(y, txt, fsRem, fw, fill, extra) {
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", cx);
+    t.setAttribute("y", y);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("dominant-baseline", "middle");
+    t.setAttribute("font-size", fsRem);
+    t.setAttribute("font-weight", fw);
+    t.setAttribute("fill", fill);
+    t.setAttribute("font-family", '"Inter","Noto Sans JP",sans-serif');
+    if (extra) { for (const [k2, val] of Object.entries(extra)) t.setAttribute(k2, val); }
+    t.textContent = txt;
+    svg.appendChild(t);
+    return t;
+  }
+
+  const marginPct   = k.gross_margin * 100;
+  const marginColor = marginCls === "healthy" ? v.marginHealthy
+                    : marginCls === "warn"    ? v.marginWarn
+                    : v.marginDanger;
+
+  addText(cy - 24, "請負金額",                           "10", "600", "#6B7280");
+  addText(cy - 7,  fmtYen(Math.round(contract)),          "13", "700", "#1A1A1A");
+  addText(cy + 9,  "円",                                 "9",  "500", "#6B7280");
+  addText(cy + 24, "粗利率 " + fmtPct2(marginPct),        "10", "700", marginColor,
+    { "data-sb-margin-text": "1", "data-sb-margin-cls": marginCls });
+
+  const wrap = document.getElementById("sunburst-wrap");
+  wrap.style.width  = SIZE + "px";
+  wrap.style.height = SIZE + "px";
+
+  // 初期ツールチップ
+  resetTooltip();
+
+  // 粗利サイドパネル
+  document.getElementById("gross-panel").innerHTML = `
+    <div class="gp-label">粗利益</div>
+    <div class="gp-value">${fmtYen(k.gross_profit)}<span style="font-size:.6em;font-weight:500;color:var(--green-600);margin-left:3px;">円</span></div>
+    <div class="gp-sub">請負比 ${fmtPct2((k.gross_profit / contract) * 100)} ／ 粗利率 ${fmtPct2(marginPct)}</div>
+  `;
+
+  // 凡例（外側8カテゴリ、請負比表示）—— data-leg-rank 付き
+  const legendSlices = DATA.categories
+    .filter(c => c.amount > 0)
+    .slice()
+    .sort((a, b) => b.amount - a.amount)
+    .map((c, i) => ({ ...c, fill: v.outer[Math.min(i, v.outer.length - 1)], rank: i }));
+
+  document.getElementById("sb-legend-body").innerHTML = legendSlices.map(sl => `
+    <div class="leg-item">
+      <span class="leg-swatch" style="background:${sl.fill}" data-leg-rank="${sl.rank}"></span>
+      <span class="leg-label">${sl.label}</span>
+      <span class="leg-pct">${fmtPct1((sl.amount / contract) * 100)}</span>
+      <span class="leg-amt">${fmtYen(sl.amount)}円</span>
+    </div>
+  `).join("");
+}
+
+/* ───────── 折りたたみ表 ───────── */
+function renderTable() {
+  const sorted = [...DATA.categories].sort((a, b) => b.amount - a.amount);
+  const tbody = document.querySelector("#cat-table tbody");
+  tbody.innerHTML = sorted.map((r, idx) => {
+    const isZero = r.amount === 0;
+    const isTop  = !isZero && idx === 0;
+    const cls = [isTop ? "top" : "", isZero ? "zero" : ""].filter(Boolean).join(" ");
+    return `<tr class="${cls}">
+       <td>${r.label}</td>
+       <td class="num">${isZero ? "—" : fmtYen(r.amount)}</td>
+       <td class="num">${fmtPct1(r.pct)}</td>
+     </tr>`;
+  }).join("");
+  document.getElementById("cat-total").textContent = fmtYen(DATA.category_total);
+}
+
+/* ───────── メイン ───────── */
+function render() {
+  renderProject();
+  const marginCls = renderKpi();
+  renderSunburst(marginCls);
+  renderTable();
+}
+</script>
+</body>
+</html>
