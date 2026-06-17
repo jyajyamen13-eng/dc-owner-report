@@ -75,19 +75,10 @@
   .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:16px;flex-wrap:wrap;}
   .card-head h2{font-size:.95rem;font-weight:700;color:var(--gray-900);letter-spacing:.02em}
   .card-head .head-sub{font-size:.7rem;color:var(--gray-500);font-weight:500;letter-spacing:.02em}
-  /* ── 色案トグル ── */
   .variant-toggle{display:flex;gap:6px;align-items:center;flex-shrink:0;}
-  .variant-btn{
-    padding:4px 10px;font-size:.7rem;font-weight:600;font-family:inherit;
-    border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);
-    background:var(--gray-0);color:var(--gray-600,#4B5563);cursor:pointer;
-    transition:border-color .15s,background .15s,color .15s;
-    white-space:nowrap;
-  }
+  .variant-btn{padding:4px 10px;font-size:.7rem;font-weight:600;font-family:inherit;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);background:var(--gray-0);color:var(--gray-600,#4B5563);cursor:pointer;transition:border-color .15s,background .15s,color .15s;white-space:nowrap;}
   .variant-btn:hover{border-color:var(--blue-500);color:var(--blue-700)}
-  .variant-btn.active{
-    border-color:var(--blue-700);background:var(--blue-700);color:#fff;
-  }
+  .variant-btn.active{border-color:var(--blue-700);background:var(--blue-700);color:#fff;}
   .formula-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--gray-50);border-radius:var(--radius-sm);align-items:center;}
   .formula-chip{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;color:var(--gray-700);letter-spacing:.02em;font-weight:500;white-space:nowrap;}
   .formula-chip .em{font-weight:700}
@@ -97,7 +88,7 @@
   .formula-note{font-size:.66rem;color:var(--gray-400);margin-bottom:14px;font-weight:500;letter-spacing:.01em;}
   .sunburst-layout{display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;}
   .sunburst-wrap{position:relative;flex:0 0 auto;}
-  #sunburst-svg{display:block;overflow:visible;transition:opacity .15s;}
+  #sunburst-svg{display:block;overflow:visible;}
   #sb-tooltip{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
   #sb-tooltip .tt-label{font-size:.82rem;font-weight:700;color:var(--gray-900);letter-spacing:.02em;line-height:1.3;max-width:120px;}
   #sb-tooltip .tt-amount{font-size:1.1rem;font-weight:700;color:var(--gray-900);font-variant-numeric:tabular-nums;margin-top:5px;font-family:var(--font-num);}
@@ -172,7 +163,7 @@
         </div>
       </div>
       <div class="build-info">
-        生成: 2026-06-17 10:19 JST<br>
+        生成: 2026-06-17 14:40 JST<br>
         ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
       </div>
     </div>
@@ -260,76 +251,34 @@
 
 <script>
 /* ───────── データ inline ───────── */
-const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-17 10:19 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-17 14:40 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
 const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
 
 /* ───────── 色案定義（A/B/C） ───────── */
 const COLOR_VARIANTS = {
   A: {
     label: "A 政府標準",
-    innerCost:   "#264AF4",  // Blue-700
-    innerProfit: "#4979F5",  // Blue-500
-    outer: [
-      "#0017C1",  // rank0 外注費   Blue-900
-      "#264AF4",  // rank1 産廃費   Blue-700
-      "#4979F5",  // rank2 労務費   Blue-500
-      "#4979F5",  // rank3 機械代   Blue-500
-      "#9DB7F9",  // rank4 車両費   Blue-300
-      "#9DB7F9",  // rank5 法定     Blue-300
-      "#D9E6FF",  // rank6 消耗品   Blue-100
-      "#D9E6FF",  // rank7 燃料費   Blue-100
-    ],
-    kpiContract: "#4979F5",  // Blue-500
-    kpiCost:     "#264AF4",  // Blue-700
-    kpiGross:    "#0017C1",  // Blue-900
-    kpiMargin:   "#9DB7F9",  // Blue-300
-    marginHealthy: "#059669",
-    marginWarn:    "#D97706",
-    marginDanger:  "#DC2626",
+    innerCost:   "#1E1B4B",
+    innerProfit: "#064E3B",
+    outer: ["#0017C1","#264AF4","#4979F5","#4979F5","#9DB7F9","#9DB7F9","#D9E6FF","#D9E6FF"],
+    kpiContract: "#4979F5", kpiCost: "#1E1B4B", kpiGross: "#064E3B", kpiMargin: "#9DB7F9",
+    marginHealthy: "#059669", marginWarn: "#D97706", marginDanger: "#DC2626",
   },
   B: {
     label: "B 金融トラスト",
-    innerCost:   "#1E319E",  // Indigo-900
-    innerProfit: "#0D9488",  // Teal-600
-    outer: [
-      "#1E319E",  // rank0 外注費   Indigo-900
-      "#3B4FC2",  // rank1 産廃費   Indigo-700
-      "#0D9488",  // rank2 労務費   Teal-600
-      "#0F766E",  // rank3 機械代   Teal-700
-      "#475569",  // rank4 車両費   Slate-600
-      "#64748B",  // rank5 法定     Slate-500
-      "#C7D2FE",  // rank6 消耗品   Indigo-200
-      "#CCFBF1",  // rank7 燃料費   Teal-100
-    ],
-    kpiContract: "#3B4FC2",  // Indigo-700
-    kpiCost:     "#1E319E",  // Indigo-900
-    kpiGross:    "#0D9488",  // Teal-600
-    kpiMargin:   "#0F766E",  // Teal-700
-    marginHealthy: "#059669",
-    marginWarn:    "#D97706",
-    marginDanger:  "#DC2626",
+    innerCost:   "#1E1B4B",
+    innerProfit: "#134E4A",
+    outer: ["#1E319E","#3B4FC2","#0D9488","#0F766E","#475569","#64748B","#C7D2FE","#CCFBF1"],
+    kpiContract: "#3B4FC2", kpiCost: "#1E1B4B", kpiGross: "#134E4A", kpiMargin: "#0F766E",
+    marginHealthy: "#059669", marginWarn: "#D97706", marginDanger: "#DC2626",
   },
   C: {
     label: "C カテゴリカル",
-    innerCost:   "#1D4ED8",  // Blue-700
-    innerProfit: "#EA580C",  // Orange-600
-    outer: [
-      "#1D4ED8",  // rank0 外注費   Blue-700
-      "#C2410C",  // rank1 産廃費   Orange-700
-      "#B45309",  // rank2 労務費   Amber-700
-      "#0F766E",  // rank3 機械代   Teal-700
-      "#6D28D9",  // rank4 車両費   Violet-700
-      "#475569",  // rank5 法定     Slate-600
-      "#BFDBFE",  // rank6 消耗品   Blue-200
-      "#BFDBFE",  // rank7 燃料費   Blue-200
-    ],
-    kpiContract: "#2563EB",  // Blue-600
-    kpiCost:     "#1D4ED8",  // Blue-700
-    kpiGross:    "#EA580C",  // Orange-600
-    kpiMargin:   "#D97706",  // Amber-600
-    marginHealthy: "#059669",
-    marginWarn:    "#D97706",
-    marginDanger:  "#DC2626",
+    innerCost:   "#0F172A",
+    innerProfit: "#7C2D12",
+    outer: ["#1D4ED8","#C2410C","#B45309","#0F766E","#6D28D9","#475569","#BFDBFE","#BFDBFE"],
+    kpiContract: "#2563EB", kpiCost: "#0F172A", kpiGross: "#7C2D12", kpiMargin: "#D97706",
+    marginHealthy: "#059669", marginWarn: "#D97706", marginDanger: "#DC2626",
   },
 };
 
@@ -416,51 +365,34 @@ function renderKpi() {
   return marginCls;
 }
 
-/* ───────── 色案適用（CSS変数 + SVG path 再塗り + 凡例 + formula） ───────── */
+/* ───────── 色案適用 ───────── */
 function applyVariant(variantKey) {
   const v = COLOR_VARIANTS[variantKey];
   if (!v) return;
   const root = document.documentElement;
-
-  // CSS変数（KPI バー / margin テキスト）
   root.style.setProperty("--kpi-contract-bar", v.kpiContract);
   root.style.setProperty("--kpi-cost-bar",     v.kpiCost);
   root.style.setProperty("--kpi-gross-bar",    v.kpiGross);
   root.style.setProperty("--kpi-margin-bar",   v.kpiMargin);
   root.style.setProperty("--color-inner-cost",   v.innerCost);
   root.style.setProperty("--color-inner-profit", v.innerProfit);
-  root.style.setProperty("--color-margin-healthy", v.marginHealthy);
-  root.style.setProperty("--color-margin-warn",    v.marginWarn);
-  root.style.setProperty("--color-margin-danger",  v.marginDanger);
-
-  // formula-row 色付き em
   const costEm  = document.getElementById("formula-cost-em");
   const grossEm = document.getElementById("formula-gross-em");
   if (costEm)  costEm.style.color  = v.innerCost;
   if (grossEm) grossEm.style.color = v.innerProfit;
-
-  // SVG inner path 再塗り
   document.querySelectorAll("path.sb-arc-inner").forEach((path) => {
     const label = path.getAttribute("data-sb-label");
     if (label === "原価合計") path.setAttribute("fill", v.innerCost);
     if (label === "粗利益")   path.setAttribute("fill", v.innerProfit);
   });
-
-  // SVG outer path 再塗り（rank 属性で照合）
   document.querySelectorAll("path.sb-arc-outer").forEach((path) => {
     const rank = parseInt(path.getAttribute("data-sb-rank") || "0", 10);
-    const fill = v.outer[Math.min(rank, v.outer.length - 1)];
-    path.setAttribute("fill", fill);
+    path.setAttribute("fill", v.outer[Math.min(rank, v.outer.length - 1)]);
   });
-
-  // 凡例 swatch 再塗り
   document.querySelectorAll(".leg-swatch[data-leg-rank]").forEach((sw) => {
     const rank = parseInt(sw.getAttribute("data-leg-rank") || "0", 10);
-    const fill = v.outer[Math.min(rank, v.outer.length - 1)];
-    sw.style.background = fill;
+    sw.style.background = v.outer[Math.min(rank, v.outer.length - 1)];
   });
-
-  // 中央粗利率テキスト（SVG <text> data-sb-margin-text）
   const marginText = document.querySelector("text[data-sb-margin-text]");
   if (marginText) {
     const marginCls = marginText.getAttribute("data-sb-margin-cls") || "warn";
@@ -469,8 +401,6 @@ function applyVariant(variantKey) {
                        : v.marginDanger;
     marginText.setAttribute("fill", marginColor);
   }
-
-  // ボタン強調
   document.querySelectorAll(".variant-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-variant") === variantKey);
   });
@@ -486,7 +416,6 @@ function initVariantToggle() {
       applyVariant(v);
     });
   });
-  // 初期案を適用
   applyVariant(currentVariant);
 }
 
@@ -549,8 +478,6 @@ function renderSunburst(marginCls) {
   const ttPct    = document.getElementById("tt-pct");
 
   function resetTooltip() {
-    // 中央常時表示は SVG <text> で描画済（addText × 4）。
-    // overlay は空にしてホバー時のみ詳細を出す（二重描画回避）。
     ttLabel.textContent  = "";
     ttAmount.textContent = "";
     ttPct.textContent    = "";
