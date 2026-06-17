@@ -163,7 +163,7 @@
         </div>
       </div>
       <div class="build-info">
-        生成: 2026-06-17 14:40 JST<br>
+        生成: 2026-06-17 14:54 JST<br>
         ソース: R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx
       </div>
     </div>
@@ -251,33 +251,39 @@
 
 <script>
 /* ───────── データ inline ───────── */
-const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-17 14:40 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
+const DATA = {"info": {"name": "トイザらス・ベビーザらス　原復工事", "place": "盛岡市本宮", "client": "イケダコーポレーション", "start": "2024-01-14", "contract": "2025-11-29"}, "kpi": {"contract_amount": 5447000.0, "cost_total": 4175018.952, "gross_profit": 1271981.048, "gross_margin": 0.2335195608}, "categories": [{"label": "仮設", "amount": 0, "pct": 0.0}, {"label": "労務費", "amount": 182268.0, "pct": 4.365680780807562}, {"label": "法定福利費", "amount": 27212.6124, "pct": 0.651796140574569}, {"label": "外注費", "amount": 2500000.0, "pct": 59.87996769602402}, {"label": "産廃費", "amount": 1158600.0, "pct": 27.750772229045367}, {"label": "消耗品", "amount": 23550.0, "pct": 0.5640692956965462}, {"label": "機械代", "amount": 175000.0, "pct": 4.191597738721681}, {"label": "車両費", "amount": 90000.0, "pct": 2.1556788370568647}, {"label": "燃料費他", "amount": 18388.34, "pct": 0.44043728207340244}], "category_total": 4175018.9524, "built_at": "2026-06-17 14:54 JST", "source_xlsx": "R7.1.14　盛岡市　トイザらス・ベビーザらス原復工事　　　　　　　　　　（イケダコーポレーション　.xlsx"};
 const PW_HASH = "412c31b7feb59137361293d732413c3a2498d0583d818ac4fd1d36fb821b78b2";
 
 /* ───────── 色案定義（A/B/C） ───────── */
 const COLOR_VARIANTS = {
   A: {
     label: "A 政府標準",
-    innerCost:   "#1E1B4B",
-    innerProfit: "#064E3B",
+    // v2: 内側を Cyan 系(H191-192°)に変更。外側 Blue 系(H220-237°)と色相差46°で分離。
+    // 旧ダーク版 #1E1B4B/#064E3B は葬式色として不採用。
+    innerCost:   "#0E7490",
+    innerProfit: "#06B6D4",
     outer: ["#0017C1","#264AF4","#4979F5","#4979F5","#9DB7F9","#9DB7F9","#D9E6FF","#D9E6FF"],
-    kpiContract: "#4979F5", kpiCost: "#1E1B4B", kpiGross: "#064E3B", kpiMargin: "#9DB7F9",
+    kpiContract: "#4979F5", kpiCost: "#0E7490", kpiGross: "#06B6D4", kpiMargin: "#9DB7F9",
     marginHealthy: "#059669", marginWarn: "#D97706", marginDanger: "#DC2626",
   },
   B: {
     label: "B 金融トラスト",
-    innerCost:   "#1E1B4B",
-    innerProfit: "#134E4A",
+    // v2: 内側を Violet/Purple 系(H263-270°)に変更。外側 Indigo(H240°)/Teal(H180°)/Slate(H213°)と色調差で分離。
+    // 旧ダーク版 #1E1B4B/#134E4A は葬式色として不採用。
+    innerCost:   "#6D28D9",
+    innerProfit: "#A855F7",
     outer: ["#1E319E","#3B4FC2","#0D9488","#0F766E","#475569","#64748B","#C7D2FE","#CCFBF1"],
-    kpiContract: "#3B4FC2", kpiCost: "#1E1B4B", kpiGross: "#134E4A", kpiMargin: "#0F766E",
+    kpiContract: "#3B4FC2", kpiCost: "#6D28D9", kpiGross: "#A855F7", kpiMargin: "#0F766E",
     marginHealthy: "#059669", marginWarn: "#D97706", marginDanger: "#DC2626",
   },
   C: {
     label: "C カテゴリカル",
-    innerCost:   "#0F172A",
-    innerProfit: "#7C2D12",
+    // v2: 内側を Green(H142°)/Pink(H330°)に変更。外側6色系統(Blue/Orange/Amber/Teal/Violet/Slate)未使用の色相で完全分離。
+    // 旧ダーク版 #0F172A/#7C2D12 は葬式色として不採用。
+    innerCost:   "#16A34A",
+    innerProfit: "#DB2777",
     outer: ["#1D4ED8","#C2410C","#B45309","#0F766E","#6D28D9","#475569","#BFDBFE","#BFDBFE"],
-    kpiContract: "#2563EB", kpiCost: "#0F172A", kpiGross: "#7C2D12", kpiMargin: "#D97706",
+    kpiContract: "#2563EB", kpiCost: "#16A34A", kpiGross: "#DB2777", kpiMargin: "#D97706",
     marginHealthy: "#059669", marginWarn: "#D97706", marginDanger: "#DC2626",
   },
 };
