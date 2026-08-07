@@ -1,0 +1,217 @@
+<meta charset="utf-8">
+<title>優子の仕組み — 全体像と直す場所</title>
+<style>
+  :root{
+    --blue:#0031D8; --red:#FA0000; --body:#1A1A1A; --desc:#626264;
+    --b100:#D9E6FF; --b300:#9DB7F9; --bg:#F8F8F8; --line:#D8D8DC;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:0;background:#fff;color:var(--body);
+       font-family:"Noto Sans JP","Yu Gothic",Meiryo,sans-serif;line-height:1.75;
+       font-size:15px;-webkit-text-size-adjust:100%}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:.01em}
+  .sub{color:var(--desc);font-size:13px;margin:0 0 28px}
+  h2{font-size:19px;margin:44px 0 14px;padding:0 0 8px;border-bottom:2px solid var(--body)}
+  h3{font-size:16px;margin:26px 0 8px}
+  p{margin:0 0 12px}
+  .lead{background:var(--bg);border-left:4px solid var(--blue);padding:14px 16px;margin:0 0 24px}
+  .lead strong{color:var(--blue)}
+
+  /* 流れ図 */
+  .flow{border:1px solid var(--line);background:#fff;padding:18px;margin:0 0 10px;overflow-x:auto}
+  .row{display:flex;align-items:stretch;gap:10px;min-width:640px;margin:0 0 10px}
+  .box{flex:1;border:2px solid var(--body);padding:10px 12px;background:#fff;min-width:120px}
+  .box .t{font-weight:700;font-size:14px;margin:0 0 4px}
+  .box .d{font-size:12px;color:var(--desc);line-height:1.55}
+  .box.ok{border-color:var(--blue)}
+  .box.ok .t{color:var(--blue)}
+  .box.ng{border-color:var(--red);background:#FFF5F5}
+  .box.ng .t{color:var(--red)}
+  .arw{display:flex;align-items:center;font-size:20px;color:var(--desc);padding:0 2px}
+  .backline{border:2px dashed var(--red);color:var(--red);padding:8px 12px;font-size:13px;
+            font-weight:700;background:#FFF5F5;min-width:640px}
+
+  /* 番号札 */
+  .no{display:inline-block;min-width:22px;height:22px;line-height:22px;text-align:center;
+      background:var(--red);color:#fff;font-size:12px;font-weight:700;border-radius:11px;
+      margin-right:6px;padding:0 6px}
+  .no.b{background:var(--blue)}
+
+  table{border-collapse:collapse;width:100%;margin:0 0 18px;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+  th{background:var(--bg);font-weight:700;white-space:nowrap}
+  td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .big{font-size:22px;font-weight:700}
+  .big.r{color:var(--red)} .big.b{color:var(--blue)}
+
+  .card{border:1px solid var(--line);border-left:5px solid var(--red);padding:14px 16px;margin:0 0 14px}
+  .card.fix{border-left-color:var(--blue)}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card .meta{font-size:12px;color:var(--desc);margin:8px 0 0;
+              font-family:Consolas,"Courier New",monospace;word-break:break-all}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border:1px solid var(--desc);
+       color:var(--desc);margin:0 6px 0 0;vertical-align:1px}
+  .tag.now{border-color:var(--red);color:var(--red);font-weight:700}
+
+  ol.steps{padding-left:0;counter-reset:s;list-style:none;margin:0}
+  ol.steps li{counter-increment:s;border:1px solid var(--line);padding:14px 16px 14px 56px;
+              position:relative;margin:0 0 10px}
+  ol.steps li::before{content:counter(s);position:absolute;left:14px;top:13px;width:28px;height:28px;
+              line-height:28px;text-align:center;background:var(--blue);color:#fff;
+              font-weight:700;border-radius:50%}
+  ol.steps b{display:block;font-size:15px;margin:0 0 4px}
+
+  .foot{margin:48px 0 0;padding:14px 0 0;border-top:1px solid var(--line);
+        font-size:12px;color:var(--desc)}
+  code{background:var(--bg);padding:1px 5px;font-size:12.5px;
+       font-family:Consolas,"Courier New",monospace}
+  @media(max-width:640px){ .wrap{padding:18px 14px 60px} h1{font-size:21px} }
+</style>
+
+<div class="wrap">
+
+<h1>優子の仕組み — 全体像と、直す場所</h1>
+<p class="sub">作成 2026-08-08 08:20 JST ／ 数字はすべてこの時刻の実測値。推測は「未確認」と明記しています。</p>
+
+<div class="lead">
+<strong>結論を先に。</strong>絵が良くならない原因は、絵の作り方ではなく<strong>「直し」の入口が間違っていること</strong>です。
+社長が×を付けた絵は、直しの材料に一度も使われていません。毎回ゼロから焼き直しています。
+わたしはそこを直さずに、タグや設定値を足したり引いたりして8回外しました。それが「小石を殴っていた」ことの中身です。
+</div>
+
+<h2>1. いま、どう流れているか</h2>
+
+<div class="flow">
+  <div class="row">
+    <div class="box ok"><div class="t">① 社長が判定</div>
+      <div class="d">判定台（8795）で ○ / × / 直し。<br>×には理由とひとことが付く</div></div>
+    <div class="arw">→</div>
+    <div class="box ok"><div class="t">② 台帳に残る</div>
+      <div class="d">判定・理由・ひとことが<br>そのまま保存される</div></div>
+    <div class="arw">→</div>
+    <div class="box ng"><div class="t">③ 直し便が動く</div>
+      <div class="d"><b>入力＝ポーズ元絵</b><br>社長が×を付けた絵は使わない</div></div>
+  </div>
+  <div class="row">
+    <div class="box ng"><div class="t">④ いろはに聞く</div>
+      <div class="d">「どう直すか」をタグで答えさせる<br>8割が断られるか答えられない</div></div>
+    <div class="arw">→</div>
+    <div class="box ok"><div class="t">⑤ 焼く</div>
+      <div class="d">元絵から作り替える<br>（2回焼き・LoRA・骨格拘束）</div></div>
+    <div class="arw">→</div>
+    <div class="box ng"><div class="t">⑥ 検品</div>
+      <div class="d">タンライン検査が<br><b>動いていない</b></div></div>
+  </div>
+  <div class="backline">↑ ①へ戻る。ただし④で止まった分は「機械が直せませんでした」として社長へ差し戻される</div>
+</div>
+
+<h2>2. 数字（すべて実測）</h2>
+
+<table>
+<tr><th>何を測ったか</th><th style="width:120px">数</th><th>意味</th></tr>
+<tr><td>台帳にある素材</td><td class="num"><span class="big b">604</span> 件</td><td>直しの対象になりうる全体</td></tr>
+<tr><td>判定台で止まっている絵</td><td class="num"><span class="big r">51</span> 件</td><td>「機械が直せませんでした」と表示され、社長を待っている</td></tr>
+<tr><td>いろはに聞いた回数</td><td class="num">91 回</td><td>—</td></tr>
+<tr><td>　└ そのうち使えた答え</td><td class="num"><span class="big r">17</span> 回</td><td><b>18.7%</b>。残り74回は断られたか、答えられなかった</td></tr>
+<tr><td>社長が「直し」を付けた総数</td><td class="num">377 件</td><td>ひとこと付きのもの</td></tr>
+<tr><td>　└ タンラインの指摘</td><td class="num"><span class="big r">117</span> 件</td><td><b>ずっと1位</b>。7/28以降ずっと首位のまま</td></tr>
+<tr><td>　└ 表情の指摘</td><td class="num">91 件</td><td>2位</td></tr>
+<tr><td>　└ 構図・ポーズ</td><td class="num">39 件</td><td>3位</td></tr>
+<tr><td>　└ 崩れ・ノイズ</td><td class="num">30 件</td><td>4位</td></tr>
+</table>
+
+<h2>3. 止まっている場所（5つ）</h2>
+
+<div class="card">
+<h3><span class="no">1</span>直しの入口が、社長の見た絵じゃない</h3>
+<p>社長が×を付けた絵は、直しの材料に<b>一度も使われていません</b>。毎回「ポーズの元になった別の絵」から作り直しています。
+だから「この絵のここだけ直す」ができず、毎回まったく違う絵が出てきます。</p>
+<p><b>これが一番大きい問題です。</b>ここが直らない限り、タグをどう書いても「直し」になりません。</p>
+<p class="meta">実測: 8/7 の shotspec に source_image = anirole-poses-2026-07-09/2026-07-08T07-01-00Z.png（ポーズ元絵）。社長が×を付けた orig_〜.png は入力に現れない</p>
+</div>
+
+<div class="card">
+<h3><span class="no">2</span>いろはが8割断る</h3>
+<p>「どう直すか」をいろはに聞く工程がありますが、<b>91回中17回しか使える答えが返っていません</b>。
+性的な描写の指示を書くことを断るためで、断られると社長へ差し戻されます。</p>
+<p>つまり<b>「断ると分かっている相手に投げて、断られたら社長を呼ぶ」を91回やっていました。</b></p>
+<p class="meta">実測: 断り30・分からない25・タグの形で書けていない17・使えた17・わたしが手で書いた2</p>
+</div>
+
+<div class="card">
+<h3><span class="no">3</span>タンライン検査が動いていない</h3>
+<p>絵ができた後にタンラインを見る検査が、<b>機械が呼べずに止まっています</b>。
+今朝焼いた10枚すべてに「検査を実行できなかった」の札が付きました。
+社長の×理由の1位がタンラインなのに、<b>機械は誰もそこを見ていません。</b></p>
+<p class="meta">実測: 2026-08-08 03:38 の便で 10/10 枚に「qwen unavailable」。関連する可能性として生成ログに CUDA の警告あり（未確認）</p>
+</div>
+
+<div class="card">
+<h3><span class="no">4</span>過去の決まりが、今回の指摘と関係なく発火する</h3>
+<p>7/19 に<b>別の絵</b>で「シャワールームに見えない」と言われて作った決まりが、
+元絵に「濡れ」の印が付いているだけで発火し、今回の指摘と無関係な6語（シャワーヘッド・タイル壁・湯気…）を毎回足していました。
+社長の「なんでこんなに液体まみれなの？」の直接の原因です。</p>
+<p class="meta">実測: 決まり shower_scene_2026_07_19。条件は「元絵のタグに shower / bathroom / wet のどれか」</p>
+</div>
+
+<div class="card">
+<h3><span class="no">5</span>タンラインが、指示は届いているのに絵に出ない</h3>
+<p>タンラインの形の指定も専用の学習物も、焼く時の両方の工程に<b>ちゃんと入っています</b>。
+入っているのに絵に出ません。<b>指示漏れではありません。</b>原因はまだ分かっていません。</p>
+<p class="meta">実測: 8/7 の payload に racerback / pale skin on torso と tanline_V2（1回目0.6・2回目0.8）が両方入っていることを確認済み</p>
+</div>
+
+<h2>4. 直す順番（わたしの提案）</h2>
+
+<p>上から順に効きます。<b>1 を直さずに 2〜5 をやっても、絵は良くなりません。</b>これが昨日わたしがやっていたことです。</p>
+
+<ol class="steps">
+<li><b>直しの入口を、社長が見た絵に変える</b>
+社長が×を付けた絵そのものを材料にして、そこから「ここだけ」変える形にします。
+技術的に可能な位置までは確認済みです（絵の指定を差し替える口が既にある）。<b>まだ実行していません。</b>
+<span class="tag now">最優先</span><span class="tag">効果が一番大きい</span></li>
+
+<li><b>タンライン検査を復活させる</b>
+社長の×理由の1位を、機械が誰も見ていない状態を解消します。原因の切り分けから。
+<span class="tag">1位の指摘に直結</span></li>
+
+<li><b>いろはに聞く工程をやめるか、聞き方を変える</b>
+断ると分かっている相手に投げ続ける工程を残す理由がありません。
+「タグを書け」ではなく「見て違いを述べよ」に変えると通る、という実測が既にあります（別の担当では拒否ゼロ）。
+<span class="tag">社長への差し戻しが止まる</span></li>
+
+<li><b>過去の決まりの発火条件を見直す</b>
+今回の指摘と無関係な決まりが発火しないようにします。
+<span class="tag">液体まみれの再発防止</span></li>
+
+<li><b>タンラインが出ない原因の切り分け</b>
+1〜4 が済んでから。ここは原因が分かっていないので、時間が読めません。
+<span class="tag">未解明</span></li>
+</ol>
+
+<h2>5. わたしが昨日やっていたこと（記録）</h2>
+
+<table>
+<tr><th>回</th><th>変えたところ</th><th>結果</th></tr>
+<tr><td class="num">1</td><td>タグを5語足した</td><td>シャワー室の別の絵になった</td></tr>
+<tr><td class="num">2</td><td>作り替えの強さを 0.30 に下げた</td><td>構図は残ったが肌が優子でなくなった</td></tr>
+<tr><td class="num">3</td><td>0.45 に上げた</td><td>同じ</td></tr>
+<tr><td class="num">4</td><td>手形の語を細かくした</td><td>獣の足跡になった</td></tr>
+<tr><td class="num">5</td><td>シャワーの決まりを外した</td><td>シャワー室は消えた（これは効いた）</td></tr>
+<tr><td class="num">6</td><td>設定値をレシピどおり 0.7 に戻した</td><td>肌は褐色に戻った（これも効いた）</td></tr>
+<tr><td class="num">7</td><td>手形の語を全部消した</td><td>赤みになった（これも効いた）</td></tr>
+<tr><td class="num">8</td><td>液体を消す語をネガに7つ足した</td><td>絵が崩れた</td></tr>
+</table>
+
+<p><b>8回焼いて、社長の合格は0枚です。</b>効いた3回はどれも「わたしが足したものを外した」時で、
+足して良くなったことは一度もありませんでした。</p>
+
+<div class="foot">
+出典 ／ 台帳 <code>brain/labels.jsonl</code>・いろはの記録 <code>state/yuuko-iroha-watcher/iroha-judgments.jsonl</code>・
+判定台 <code>2026-08-06-repair-live/manifest.json</code>・レシピ <code>yuuko/recipe.yaml</code>・
+8/7 の焼き上がり <code>atelier_data/output/2026-08-07-*</code><br>
+数字はすべて 2026-08-08 08:20 JST 時点の実測。原因が分かっていないものは「未確認」と書いています。
+</div>
+
+</div>
