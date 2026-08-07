@@ -6,42 +6,6 @@
 <title>就労後給与シミュレーション — 出勤簿 PDF ドロップ</title>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
-@media print {
-  html, body { background: white !important; padding: 0 !important; margin: 0 !important; }
-  .no-print { display: none !important; }
-  #sheets { display: block !important; }
-  @page { size: A4; margin: 0; }
-  .sheet { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; padding: 8mm 12mm !important; page-break-after: always; font-size: 11px; }
-  .sheet:last-child { page-break-after: auto; }
-  .sheet .sheet-header { margin-bottom: 6px; }
-  .sheet h1 { font-size: 15px; margin: 0 0 1px; letter-spacing: 0.05em; }
-  .sheet .sim-notice { font-size: 8px; margin-bottom: 4px; padding: 2px 6px; }
-  .sheet .subtitle { font-size: 11px; margin-bottom: 3px; }
-  .sheet .issued-at { font-size: 9px; }
-  .sheet .company-block { margin: 0 0 6px; padding: 5px 8px; }
-  .sheet .company-block .company-name { font-size: 12px; }
-  .sheet .company-block .company-contact { font-size: 9px; }
-  .sheet .row { gap: 12px; margin-bottom: 2px; }
-  .sheet .row label { font-size: 9px; margin-bottom: 1px; }
-  .sheet .row .val { font-size: 11px; padding: 1px 0; min-height: 14px; }
-  .sheet .section-title { font-size: 10px; margin-top: 3px; margin-bottom: 1px; padding: 2px 8px; }
-  .sheet table { font-size: 10px; margin-top: 2px; }
-  .sheet th, .sheet td { padding: 2px 5px; }
-  .sheet th { font-size: 9px; }
-  .sheet .total-row td { font-size: 12px; padding: 3px 5px; }
-  .sheet .gross-row td { font-size: 13px; padding: 3px 5px; }
-  .sheet .section-title.net-title { font-size: 11px; padding: 2px 8px; }
-  .sheet .net-table .net-row td { font-size: 14px; padding: 3px 8px; }
-  .deduction-grid { gap: 4px !important; margin-top: 2px !important; }
-  .deduction-grid .ded-item { padding: 2px 4px !important; }
-  .deduction-grid .ded-item .ded-label { font-size: 8px !important; }
-  .deduction-grid .ded-item .ded-val { font-size: 10px !important; }
-  .ded-total-line { font-size: 10px !important; padding: 2px 5px !important; }
-  .sheet .notes { font-size: 8px; margin-top: 2px; line-height: 1.3; }
-  .sheet .signature-area { margin-top: 3px; gap: 20px; font-size: 9px; }
-  .sheet .signature-area .stamp { width: 44px; height: 44px; font-size: 6px; line-height: 1.2; padding: 2px; margin-top: 2px; }
-  .sheet { page-break-inside: avoid; }
-}
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body { background: #f5f5f0; color: #222; font-family: "游ゴシック","Yu Gothic","Hiragino Sans",sans-serif; padding: 16px; }
@@ -123,6 +87,33 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
 .sheet .signature-area .stamp { width: 90px; height: 90px; border: 2px solid #c30; border-radius: 50%; margin: 8px auto; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #c30; font-size: 10px; line-height: 1.4; padding: 6px; text-align: center; white-space: nowrap; }
 .sheet .signature-area .stamp.empty { font-size: 11px; }
 
+/* ===== 利用時間グラフ（1 日〜末日の横棒 + 定時 6h の基準線） ===== */
+/* --ratio（基準線の位置 0〜1）と --grid-step（目盛間隔 %）は 1 人ごとにインラインで入る。
+   calc() は「長さ × 数値」しか掛けられないため、位置指定用の比率は必ず単位なしの数値で渡す */
+.chart { --chart-day-w: 22px; --chart-row-h: 14px; --chart-bar-h: 10px; --chart-font: 9px;
+         margin-top: 8px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.chart-head, .chart-axis { position: relative; height: 15px; font-size: var(--chart-font); color: #666; }
+.chart-line-label { position: absolute; bottom: 1px; white-space: nowrap; font-weight: bold; color: #222;
+                    left: calc(var(--chart-day-w) + (100% - var(--chart-day-w)) * var(--ratio));
+                    transform: translateX(-100%); padding-right: 4px; }
+.chart-rows { position: relative; }
+/* 定時 6 時間の基準線（行の並び全体を縦に貫く 1 本） */
+.chart-rows::after { content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: #222;
+                     left: calc(var(--chart-day-w) + (100% - var(--chart-day-w)) * var(--ratio)); }
+.chart-row { display: flex; align-items: center; height: var(--chart-row-h); }
+.chart-day { flex: 0 0 var(--chart-day-w); text-align: right; padding-right: 4px;
+             font-size: var(--chart-font); line-height: 1; color: #555; }
+.chart-day.off { color: #bbb; }
+.chart-track { flex: 1 1 auto; height: var(--chart-bar-h);
+               background: #f3f3ef repeating-linear-gradient(to right, #e2e2da 0 1px, transparent 1px var(--grid-step)); }
+.chart-bar { display: block; height: 100%; border: 1px solid rgba(0,0,0,0.4); border-left: none; }
+.chart-bar.over { background-color: #2f7a4f; }
+.chart-bar.under { background-color: #e3a33c; }
+.chart-tick { position: absolute; top: 2px; transform: translateX(-50%);
+              left: calc(var(--chart-day-w) + (100% - var(--chart-day-w)) * var(--p)); }
+.chart-unit { position: absolute; bottom: 1px; right: 0; }
+.chart-empty { font-size: 12px; color: #666; padding: 8px 0; }
+
 @media (max-width: 600px) {
   body { padding: 10px; }
   h1.app-title { font-size: 18px; margin: 0 0 12px; }
@@ -141,13 +132,54 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   .deduction-grid { gap: 6px; }
   .deduction-grid .ded-item { min-width: 80px; }
 }
+
+/* 印刷用（A4 縦・1 人 1 枚）。画面用ルールを上書きするため必ず末尾に置く */
+@media print {
+  html, body { background: white !important; padding: 0 !important; margin: 0 !important; }
+  .no-print { display: none !important; }
+  #sheets { display: block !important; }
+  @page { size: A4; margin: 0; }
+  .sheet { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; padding: 8mm 12mm !important; page-break-after: always; font-size: 11px; }
+  .sheet:last-child { page-break-after: auto; }
+  .sheet .sheet-header { margin-bottom: 6px; }
+  .sheet h1 { font-size: 15px; margin: 0 0 1px; letter-spacing: 0.05em; }
+  .sheet .sim-notice { font-size: 8px; margin-bottom: 4px; padding: 2px 6px; }
+  .sheet .subtitle { font-size: 11px; margin-bottom: 3px; }
+  .sheet .issued-at { font-size: 9px; }
+  .sheet .company-block { margin: 0 0 6px; padding: 5px 8px; }
+  .sheet .company-block .company-name { font-size: 12px; }
+  .sheet .company-block .company-contact { font-size: 9px; }
+  .sheet .row { gap: 12px; margin-bottom: 2px; }
+  .sheet .row label { font-size: 9px; margin-bottom: 1px; }
+  .sheet .row .val { font-size: 11px; padding: 1px 0; min-height: 14px; }
+  .sheet .section-title { font-size: 10px; margin-top: 3px; margin-bottom: 1px; padding: 2px 8px; }
+  .sheet table { font-size: 10px; margin-top: 2px; }
+  .sheet th, .sheet td { padding: 2px 5px; }
+  .sheet th { font-size: 9px; }
+  .sheet .total-row td { font-size: 12px; padding: 3px 5px; }
+  .sheet .gross-row td { font-size: 13px; padding: 3px 5px; }
+  .sheet .section-title.net-title { font-size: 11px; padding: 2px 8px; }
+  .sheet .net-table .net-row td { font-size: 14px; padding: 3px 8px; }
+  .deduction-grid { gap: 4px !important; margin-top: 2px !important; }
+  .deduction-grid .ded-item { padding: 2px 4px !important; }
+  .deduction-grid .ded-item .ded-label { font-size: 8px !important; }
+  .deduction-grid .ded-item .ded-val { font-size: 10px !important; }
+  .ded-total-line { font-size: 10px !important; padding: 2px 5px !important; }
+  .sheet .notes { font-size: 8px; margin-top: 2px; line-height: 1.3; }
+  .sheet .signature-area { margin-top: 3px; gap: 20px; font-size: 9px; }
+  .sheet .signature-area .stamp { width: 44px; height: 44px; font-size: 6px; line-height: 1.2; padding: 2px; margin-top: 2px; }
+  .sheet { page-break-inside: avoid; }
+  .chart { --chart-day-w: 16px; --chart-row-h: 10px; --chart-bar-h: 7px; --chart-font: 6px; margin-top: 2px; }
+  .chart-head, .chart-axis { height: 10px; }
+  .chart-empty { font-size: 8px; padding: 2px 0; }
+}
 </style>
 </head>
 <body>
 <div class="container no-print">
   <h1 class="app-title">就労後給与シミュレーション</h1>
   <div class="intro">
-    出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で就労後給与シミュレーションを作ります。<strong>最大 30 人まで一括処理可能</strong>。<br>
+    出勤簿 PDF（<code>就労移行支援提供実績記録票</code>等）をエリアにドロップすると、自動で就労後給与シミュレーションを作ります。<strong>最大 35 人まで一括処理可能</strong>。<br>
     <strong>計算ルール</strong>: 実打刻ベース（労基法34条準拠の休憩控除: 6h以下=0分・6〜8h=45分・8h超=60分）/ 時給 1,000 円 / 交通費 500 円/日 / 控除あり（健保・厚年は標準報酬月額等級ベース / 雇用保険・所得税）
   </div>
 
@@ -164,14 +196,14 @@ table.people-table .del-btn:hover { background: #c33; color: #fff; }
   <div class="dropzone" id="dz" tabindex="0" role="button" aria-label="PDFファイルを選択またはドロップ">
     <div class="icon">📄</div>
     <div class="text">タップして PDF を選択</div>
-    <div class="subtext">PC ならドラッグ＆ドロップも OK（複数同時可・最大 30 人まで）</div>
+    <div class="subtext">PC ならドラッグ＆ドロップも OK（複数同時可・最大 35 人まで）</div>
     <input type="file" id="fileInput" accept="application/pdf" multiple>
   </div>
 
   <div class="error" id="errorBox"></div>
 
   <div class="people-section" id="peopleSection">
-    <h2>追加された人 <span class="count" id="peopleCount">0 / 30</span></h2>
+    <h2>追加された人 <span class="count" id="peopleCount">0 / 35</span></h2>
     <div class="table-wrap">
       <table class="people-table" id="peopleTable">
         <thead>
@@ -208,7 +240,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dis
 
 const HOURLY_WAGE = 1000;
 const TRANSPORT_PER_DAY = 500;
-const MAX_PEOPLE = 30;
+const MAX_PEOPLE = 35;
 const PAY_DAY_OF_NEXT_MONTH = 25;
 const DAILY_WORK_HOURS = 5;  // 雇用契約想定: 10:00-16:00 / 休憩60分 = 5h
 
@@ -236,6 +268,11 @@ const BREAK_RULE = (workMinutes) => {
   if (workMinutes <= 480) return 45;  // 6h 超〜8h 以下
   return 60;                           // 8h 超
 };
+
+// 利用時間グラフ
+const FULL_TIME_MINUTES = 360;       // 定時 6 時間（基準線）
+const CHART_MIN_SCALE_MINUTES = 480; // 横軸の最小上限 8 時間（これを超える日があれば伸ばす）
+const CHART_GRID_MINUTES = 120;      // 目盛 2 時間ごと
 
 // 健康保険 標準報酬月額等級表（協会けんぽ 全都道府県共通 令和8年度 第1〜50等級）
 // 出典: 協会けんぽ https://www.kyoukaikenpo.or.jp/g7/cat330/sb3150/r08/r8ryougakuhyou3gatukara/
@@ -682,15 +719,8 @@ function parseAttendance(text) {
   // 合計労働時間（分）: 同日複数シフト合算 → 労基法34条準拠の休憩控除
   // 6h以下=控除0 / 6h超〜8h以下=45分 / 8h超=60分
   // 短時間勤務（就労移行支援）では実質ほぼ0控除になる
-  const shiftsByDay = {};
-  for (const s of uniqueShifts) {
-    if (!shiftsByDay[s.day]) shiftsByDay[s.day] = 0;
-    shiftsByDay[s.day] += shiftMinutes(s.start, s.end);
-  }
-  const total_work_minutes = Object.values(shiftsByDay).reduce((sum, dayMinutes) => {
-    const breakMin = BREAK_RULE(dayMinutes);
-    return sum + Math.max(0, dayMinutes - breakMin);
-  }, 0);
+  const total_work_minutes = Object.values(dailyWorkedMinutes(uniqueShifts))
+    .reduce((sum, dayMinutes) => sum + dayMinutes, 0);
 
   return {
     name,
@@ -710,6 +740,21 @@ function shiftMinutes(start, end) {
   const [sh, smin] = start.split(":").map(Number);
   const [eh, emin] = end.split(":").map(Number);
   return (eh * 60 + emin) - (sh * 60 + smin);
+}
+
+// 1 日ごとの実働分（拘束 − 労基法34条の休憩控除）を { 日: 分 } で返す。
+// 打刻の無い日はキーを持たない（＝グラフでは棒ゼロの行になる）。
+// 給与計算の合計値もこの関数から作るので、棒の長さと支給額は同じ土俵になる。
+function dailyWorkedMinutes(shifts) {
+  const rawByDay = {};
+  for (const s of (shifts || [])) {
+    rawByDay[s.day] = (rawByDay[s.day] || 0) + shiftMinutes(s.start, s.end);
+  }
+  const workedByDay = {};
+  for (const day of Object.keys(rawByDay)) {
+    workedByDay[day] = Math.max(0, rawByDay[day] - BREAK_RULE(rawByDay[day]));
+  }
+  return workedByDay;
 }
 
 function renderTable() {
@@ -777,6 +822,50 @@ genBtn.addEventListener("click", () => {
 });
 
 printBtn.addEventListener("click", () => window.print());
+
+// 利用時間の横棒グラフ。その月の 1 日から末日まで全ての日を縦に並べ、
+// 休んだ日は棒ゼロのまま行を残す（空きがそのまま「まばら」の可視化になる）。
+// 棒の長さは実働（拘束 − 休憩控除）。定時 6 時間の位置に縦の基準線を引く。
+function buildChartHTML(p) {
+  const year = parseInt(p.year);
+  const month = parseInt(p.month);
+  const lastDay = new Date(year, month, 0).getDate();
+  const daily = dailyWorkedMinutes(p.shifts);
+
+  if (!(p.shifts || []).length) {
+    return `
+      <div class="section-title">利用時間（1 日〜末日 / 実働）</div>
+      <div class="chart-empty">この記録票からは打刻を読み取れませんでした。</div>`;
+  }
+
+  // 横軸の上限は 8 時間。それを超える日があれば 1 時間刻みで伸ばす
+  const longest = Math.max(CHART_MIN_SCALE_MINUTES, ...Object.values(daily));
+  const scaleMax = Math.ceil(longest / 60) * 60;
+  const pct  = mins => (mins / scaleMax * 100).toFixed(2) + "%"; // 棒の長さ・目盛間隔
+  const frac = mins => (mins / scaleMax).toFixed(4);             // calc() で掛ける位置比率
+
+  const rows = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const mins = daily[d] || 0;
+    const bar = mins > 0
+      ? `<i class="chart-bar ${mins >= FULL_TIME_MINUTES ? "over" : "under"}" style="width:${pct(mins)}"></i>`
+      : "";
+    rows.push(`<div class="chart-row"><div class="chart-day${mins > 0 ? "" : " off"}">${d}</div><div class="chart-track">${bar}</div></div>`);
+  }
+
+  const ticks = [];
+  for (let t = 0; t <= scaleMax; t += CHART_GRID_MINUTES) {
+    ticks.push(`<span class="chart-tick" style="--p:${frac(t)}">${t / 60}</span>`);
+  }
+
+  return `
+      <div class="section-title">利用時間（1 日〜末日 / 実働）</div>
+      <div class="chart" style="--ratio:${frac(FULL_TIME_MINUTES)};--grid-step:${pct(CHART_GRID_MINUTES)}">
+        <div class="chart-head"><span class="chart-line-label">定時 6 時間</span><span class="chart-unit">（時間）</span></div>
+        <div class="chart-rows">${rows.join("")}</div>
+        <div class="chart-axis">${ticks.join("")}</div>
+      </div>`;
+}
 
 function buildSheetHTML(p) {
   const days = parseInt(p.attendance_days) || 0;
@@ -863,6 +952,7 @@ function buildSheetHTML(p) {
           <td>${days > 0 ? fmtHM(Math.round(totalMinutes / days)) : "—"}</td>
         </tr>
       </table>
+${buildChartHTML(p)}
 
       <div class="section-title">支給</div>
       <table>

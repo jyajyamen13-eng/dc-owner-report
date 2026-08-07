@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>利用時間グラフ — 実績記録票 PDF ドロップ</title>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<style>
+/* ===== デジタル庁 Design System のカラートークン =====
+   出典: デジタル庁「ダッシュボードデザインの実践ガイドブック」(2024年9月)
+   グラフ色面は背景と 3:1 以上、テキストは 4.5:1 以上を確保する。
+   定時以上／未満は「良い状態／悪い状態」の対比なので、同系色の濃淡ではなく
+   ガイドの意味色 Positive(青) / Negative(赤) を割り当てる。
+   実測（WCAG 2.1 相対輝度）: Positive #0031D8 vs #F8F8F8 = 8.13:1 /
+   Negative #FA0000 vs #F8F8F8 = 3.90:1 / Blue-900 = 10.45:1 /
+   Description #626264 vs #FFF = 6.09:1 / Body #1A1A1A vs #FFF = 17.40:1 */
+:root {
+  --blue-100: #D9E6FF;
+  --blue-300: #9DB7F9;
+  --blue-700: #264AF4;
+  --blue-900: #0017C1;
+  --positive: #0031D8;  /* 定時以上（良い状態） */
+  --negative: #FA0000;  /* 定時未満（注意が要る状態） */
+  --text-body: #1A1A1A;
+  --text-desc: #626264;
+  --bg-secondary: #F8F8F8;
+  --rule: #D7D7D7;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg-secondary); color: var(--text-body); font-size: 14px;
+       font-family: "游ゴシック","Yu Gothic","Hiragino Sans",sans-serif; padding: 16px; }
+.container { max-width: 920px; margin: 0 auto; }
+h1.app-title { color: var(--text-body); font-size: 22px; margin: 0 0 4px; }
+.app-sub { color: var(--text-desc); font-size: 14px; margin: 0 0 16px; }
+.intro { font-size: 14px; color: var(--text-body); line-height: 1.7; margin: 0 0 16px; background: #fff; padding: 14px 16px; border: 1px solid var(--rule); }
+.intro code { background: var(--blue-100); color: var(--blue-900); padding: 2px 6px; font-size: 13px; }
+.intro strong { color: var(--blue-900); }
+.dropzone { position: relative; display: block; border: 2px dashed var(--blue-700); padding: 28px 16px; text-align: center; background: var(--blue-100); cursor: pointer; margin: 0 0 16px; }
+.dropzone.drag-over { background: var(--blue-300); border-color: var(--blue-900); }
+.dropzone .icon { font-size: 36px; margin-bottom: 8px; line-height: 1; pointer-events: none; }
+.dropzone .text { font-size: 15px; color: var(--text-body); font-weight: bold; pointer-events: none; }
+.dropzone .subtext { font-size: 12px; color: var(--text-desc); margin-top: 6px; line-height: 1.5; pointer-events: none; }
+.dropzone input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+/* エラーは Negative(#FA0000) を「面」ではなく縁取りに使い、本文は Body 色で 4.5:1 を確保する */
+.error { background: #fff; border: 1px solid var(--negative); border-left: 4px solid var(--negative); color: var(--text-body); padding: 12px; margin: 0 0 16px; display: none; font-size: 14px; line-height: 1.6; }
+.people-section { background: #fff; padding: 12px; border: 1px solid var(--rule); margin: 0 0 16px; display: none; }
+.people-section h2 { font-size: 14px; color: var(--text-body); margin: 0 0 10px; padding: 0 4px; display: flex; justify-content: space-between; align-items: center; }
+.people-section h2 .count { color: var(--blue-900); font-weight: bold; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.people-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; }
+table.people-table th, table.people-table td { border: 1px solid var(--rule); padding: 4px 6px; text-align: left; vertical-align: middle; }
+table.people-table th { background: var(--bg-secondary); font-weight: normal; color: var(--text-desc); font-size: 12px; white-space: nowrap; }
+table.people-table input { width: 100%; padding: 4px 6px; font-size: 13px; border: 1px solid #9A9A9A; font-family: inherit; color: var(--text-body); }
+table.people-table input[type=number] { min-width: 50px; }
+table.people-table .col-no { width: 32px; text-align: center; color: var(--text-desc); }
+table.people-table .col-punch { width: 70px; text-align: center; color: var(--text-body); white-space: nowrap; }
+table.people-table .col-del { width: 56px; text-align: center; }
+table.people-table .del-btn { background: #fff; color: var(--text-body); border: 1px solid var(--text-desc); padding: 3px 8px; cursor: pointer; font-size: 12px; }
+table.people-table .del-btn:hover { background: var(--bg-secondary); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 20px; }
+.actions button { flex: 1 1 140px; padding: 12px 8px; font-size: 14px; background: var(--positive); color: white; border: 1px solid var(--positive); cursor: pointer; font-weight: bold; }
+.actions button:hover { background: var(--blue-900); border-color: var(--blue-900); }
+.actions button:disabled { background: var(--bg-secondary); color: var(--text-desc); border-color: #9A9A9A; cursor: not-allowed; }
+.actions .print-btn { background: var(--text-body); border-color: var(--text-body); }
+.actions .print-btn:hover { background: #000; border-color: #000; }
+.actions .clear-btn { background: #fff; color: var(--text-body); border-color: var(--text-desc); flex: 0 0 auto; padding: 12px 16px; }
+.actions .clear-btn:hover { background: var(--bg-secondary); }
+
+#sheets { display: none; }
+#sheets.shown { display: block; }
+/* ドロップシャドウ・角丸・グラデーションは使わない（ガイド: 不要な装飾を使わない） */
+.sheet { background: white; max-width: 720px; margin: 16px auto; padding: 24px 32px; border: 1px solid var(--rule); }
+
+/* --- 見出し（誰の・いつの・どこの記録か）。
+   紙は「誰の分か」から読むので氏名を最上段に置き、資料種別と事業所は 1 行へまとめる
+   （3 行 → 2 行。畳んだぶんの高さはグラフの縦へ回す） --- */
+.sheet .who { font-size: 19px; font-weight: bold; color: var(--text-body); margin: 0; line-height: 1.2; }
+.sheet .who .period { font-weight: normal; font-size: 14px; color: var(--text-desc); margin-left: 12px; }
+.sheet .head-sub { display: flex; align-items: baseline; gap: 10px; margin: 2px 0 0; }
+.sheet .doc-kind { font-size: 12px; color: var(--text-desc); margin: 0; letter-spacing: 0.04em; }
+/* 区切りは文字ではなく細い罫（テキストとして拾われる記号を増やさない） */
+.sheet .org { font-size: 12px; color: var(--text-desc); margin: 0;
+              border-left: 1px solid var(--rule); padding-left: 10px; }
+.sheet .head-block { border-bottom: 2px solid var(--text-body); padding-bottom: 6px; margin-bottom: 10px; }
+
+/* --- 最上部の全体指標（KPI）。左の帯の太さと文字サイズで主指標を強調する（色だけに頼らない）。
+   見出し / 数値 / 注記の 3 行積みは高さを食うので、数値と注記を 1 行に並べて 2 行に畳む --- */
+.sheet .kpi { display: flex; gap: 8px; margin: 0 0 10px; }
+.sheet .kpi-card { flex: 1 1 0; background: var(--bg-secondary); border: 1px solid var(--blue-100);
+                   border-left: 4px solid var(--blue-300); padding: 6px 10px; }
+.sheet .kpi-card.kpi-main { border-left-width: 8px; border-left-color: var(--blue-700); }
+.sheet .kpi-label { font-size: 12px; color: var(--text-desc); margin: 0 0 2px; line-height: 1.25; }
+.sheet .kpi-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 0; }
+.sheet .kpi-value { font-size: 20px; font-weight: bold; color: var(--text-body); line-height: 1.15; }
+.sheet .kpi-main .kpi-value { font-size: 25px; }
+.sheet .kpi-value .u { font-size: 13px; font-weight: normal; }
+.sheet .kpi-value .sub { font-size: 13px; font-weight: normal; color: var(--text-desc); }
+/* 欠席は補足ではなく読ませたい数字なので、同じ大きさでも文字色は本文色にする */
+.sheet .kpi-value .sub.abs { color: var(--text-body); }
+.sheet .kpi-note { font-size: 12px; color: var(--text-desc); line-height: 1.3; }
+
+/* --- グラフのタイトルと凡例を 1 行に並べる（タイトル左・凡例右）。
+   凡例に入れるのは「横軸に位置を持たない情報」だけ＝色と斜線パターンの 3 つ。
+   基準線（0・定時）と早出は、線の真上に軸ラベルが出るので位置だけで読める。
+   凡例へ重ねて書くと同じ語が上下 2 段に並ぶため、軸ラベル側に一本化する
+   （ガイド: 不要な要素を削除する／凡例はグラフ本体に隣接させる） --- */
+.sheet .chart-header { display: flex; justify-content: space-between; align-items: baseline;
+                       gap: 12px; margin: 0 0 3px; }
+.sheet .chart-title { font-size: 15px; font-weight: bold; color: var(--text-body); margin: 0; }
+.sheet .legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--text-body); margin: 0; }
+.sheet .legend span { display: flex; align-items: center; gap: 5px; }
+.sheet .legend i { display: inline-block; width: 20px; height: 11px; }
+/* 凡例の見本は棒と同じ塗り＋同じパターンを使う（凡例と本体がずれないよう値を一箇所にまとめる） */
+.sheet .legend i.k-over  { background-color: var(--positive); }
+.sheet .legend i.k-under { background-color: var(--negative);
+                           background-image: repeating-linear-gradient(135deg, #FFFFFF 0 3px, transparent 3px 7px); }
+/* 遅刻・早退の見本は本体の破線そのもの（同じパターン・同じ色） */
+.sheet .legend i.k-gap { background-image: repeating-linear-gradient(to right, var(--text-desc) 0 2px, transparent 2px 5px);
+                         background-size: 100% 2px; background-position: 0 50%; background-repeat: no-repeat; }
+/* 欠席の見本は本体の帯と同じ斜線（45 度）＋札と同じ白地・枠 */
+.sheet .legend i.k-absent { background-color: #FFFFFF; border: 1px solid var(--text-desc);
+                           background-image: repeating-linear-gradient(45deg, var(--text-desc) 0 1px, transparent 1px 5px); }
+
+/* ===== 利用時間グラフ（1 日〜末日の横棒 + 基準線 2 本） ===== */
+/* 横軸は「時刻」。棒は打刻の時刻そのままの位置に置く。
+   基準線は 10:00（太い＝定時の開始）と 15:45（細い＝定時の終了）の 2 本。
+   15:45 は「10:00 に来て休憩 1 時間を挟んで実働 285 分」を満たす退勤時刻なので、
+   線の位置と色の合格ラインは同じ 1 つの値（FULL_TIME_MINUTES）から出ている。
+   横軸の範囲は固定値（人・月で変えない）。10:00 の線の横位置が全シートで同じになるので
+   複数人を並べて比べられる。
+   --p（0〜1 の位置比率）、--grid-step（目盛間隔 %）がインラインで入る。
+   calc() は「長さ × 数値」しか掛けられないため、位置指定用の比率は必ず単位なしの数値で渡す */
+.chart { --chart-day-w: 26px; --chart-row-h: 20px; --chart-bar-h: 14px; --chart-font: 12px;
+         margin-top: 2px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.chart-head, .chart-axis { position: relative; height: 17px; font-size: var(--chart-font); color: var(--text-desc); }
+.chart-line-label { position: absolute; bottom: 1px; white-space: nowrap; font-weight: bold; color: var(--text-body);
+                    left: calc(var(--chart-day-w) + (100% - var(--chart-day-w)) * var(--p)); }
+.chart-line-label.at-start { padding-left: 5px; }                              /* 10:00 の線の右へ置く */
+.chart-line-label.at-full  { transform: translateX(-100%); padding-right: 5px; } /* 15:45 の線の左へ置く */
+/* 早出・休憩の見出しはその区画の真ん中へ（その区画が何かを見出しだけで読ませる） */
+.chart-line-label.at-early, .chart-line-label.at-break { transform: translateX(-50%); }
+.chart-line-label.at-break { font-weight: normal; color: var(--text-desc); }
+.chart-rows { position: relative; }
+/* 基準線（行の並び全体を縦に貫く）。行より後ろの兄弟要素として置くことで、棒の上に描かれる。
+   芯（Body）は青い棒との明るさの比が 2.02:1 しかないので、白 1px のフチを付けて
+   棒の上でも線として読めるようにする（白 vs 青は 8.64:1） */
+.chart-rule { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-body);
+              box-shadow: 0 0 0 1px #FFFFFF;
+              left: calc(var(--chart-day-w) + (100% - var(--chart-day-w)) * var(--p)); }
+/* 10:00（定時の開始）の線は横軸の基準。ここが全シートで同じ横位置に立っていることが
+   人を並べて比べられる根拠なので、15:45 の線より太くする
+   （太さの差そのものが「どちらが基準の開始か」の目印になる） */
+.chart-rule.at-start { width: 4px; }
+/* 休憩帯（12:00〜13:00）。行のあとに置いて棒を白く抜く。
+   長さを持つ棒と取り違えないよう、地は白のまま・左右にだけ細い縁を付けて帯として読ませる。
+   横位置は基準線と同じ式で取る（この要素は行の外に置くので、日付欄の幅を差し引かないと
+   トラック内の棒と 1 日ぶんずれる）。--w は帯の幅の比率 */
+.chart-break { position: absolute; top: 0; bottom: 0; background: #FFFFFF;
+               box-shadow: inset 1px 0 0 var(--blue-100), inset -1px 0 0 var(--blue-100);
+               left: calc(var(--chart-day-w) + (100% - var(--chart-day-w)) * var(--p));
+               width: calc((100% - var(--chart-day-w)) * var(--w)); }
+.chart-row { display: flex; align-items: center; height: var(--chart-row-h); }
+.chart-day { flex: 0 0 var(--chart-day-w); text-align: right; padding-right: 4px;
+             font-size: var(--chart-font); line-height: 1; color: var(--text-body); }
+.chart-day.off { color: var(--text-desc); }
+/* グリッド線は 1 時間ごとの最小限。Blue-100 の細線に留める。
+   トラックの左端＝横軸の左端（正時）を起点にし、全幅も 60 分単位なので、
+   基準線 2 本を含めて全ての線が正時に揃う。
+   overflow は、既定の範囲外の打刻が出ても棒が日付欄まではみ出さないための歯止め */
+.chart-track { position: relative; flex: 1 1 auto; height: var(--chart-bar-h); overflow: hidden;
+               background: var(--bg-secondary) repeating-linear-gradient(to right, var(--blue-100) 0 1px, transparent 1px var(--grid-step)); }
+/* 棒は打刻の時刻そのままの区間（開始〜終了）。位置が遅刻・早退を、色が実働の充足を表す。
+   定時以上＝Positive の青 / 定時未満＝Negative の赤。色相が反対なので一目で見分けられる。
+   その上で色だけに頼らず、定時未満＝白の斜線＋実働時間の数値、で形でも判別できるようにする。
+   repeating-linear-gradient はハードストップのみ（グラデーションではなくパターン） */
+.chart-bar { position: absolute; top: 0; height: 100%; }
+.chart-bar.over { background-color: var(--positive); }
+.chart-bar.under { background-color: var(--negative);
+                   background-image: repeating-linear-gradient(135deg, #FFFFFF 0 3px, transparent 3px 7px); }
+/* 定時の枠（10:00〜15:45）のうち来ていなかった時間。左端の空き＝遅刻／右端の空き＝早退。
+   「働いた時間の長さ」ではなく「不在」なので、面で塗らず高さを持たない破線 1 本で示す
+   （棒と同じ塗りにすると、来ていない時間を働いた時間と読み違える） */
+.chart-gap { position: absolute; top: 0; height: 100%;
+             background-image: repeating-linear-gradient(to right, var(--text-desc) 0 2px, transparent 2px 5px);
+             background-size: 100% 2px; background-position: 0 50%; background-repeat: no-repeat; }
+/* 欠席（記録票に「欠席」と入っている日）。実働 0 分の日ではなく「来る予定で来なかった日」なので、
+   棒の色（青・赤）とは別の扱いにする。長さを持たせない（＝時間として読ませない）ため、
+   帯は必ずトラックの全幅を覆い、彩度のある色は使わない。斜線の向きは定時未満の棒（135度）と
+   反対の 45 度にして、赤い棒の白斜線と取り違えないようにする。
+   打刻がそもそも無い日（土日など）はこの帯も札も出ないので、空行との区別が付く */
+.chart-absent-band { position: absolute; inset: 0;
+                     background-image: repeating-linear-gradient(45deg, var(--text-desc) 0 1px, transparent 1px 5px); }
+/* 色だけに頼らないための札。トラックの左端に置き、記号（×）と文字（欠席）で読ませる
+   （0 の線より左の余白に収まるので、太い 0 の線を札で隠さない） */
+.chart-absent-label { position: absolute; left: 0; top: 0; height: 100%; z-index: 1;
+                      display: flex; align-items: center; padding: 0 4px;
+                      background: #FFFFFF; border: 1px solid var(--text-desc);
+                      font-size: var(--chart-font); line-height: 1; color: var(--text-body); white-space: nowrap; }
+/* 欠席の日付は「もともと来ない日」（グレー）と違い、来る予定だった日なので本文色のまま太字にする */
+.chart-day.absent { color: var(--text-body); font-weight: bold; }
+/* 定時未満の日は棒の右に実働時間を数値で出す。青と赤は明るさの比では 2.08:1 で
+   3:1 に届かないため、ガイドの「確保できない場合はグラフ近くに数値を記載」に従う
+   （色相差＋斜線＋この数値の 3 つで、色が見えない条件でも読めるようにする） */
+/* 棒の右端が基準線のすぐ手前で終わる日は数値が線と重なる。数値の方を前面に置いて読めるようにする
+   （z-index を持つ要素は、持たない .chart-rule より後に描かれる） */
+.chart-value { position: absolute; top: 0; height: 100%; z-index: 1; display: flex; align-items: center;
+               padding: 0 3px 0 5px; background: rgba(255,255,255,0.85); white-space: nowrap;
+               font-size: var(--chart-font); line-height: 1; color: var(--text-body); }
+/* 棒の右端が横軸の終わりに近い日は、そのまま右へ出すと切れるので棒の内側へ向けて出す */
+.chart-value.flip { transform: translateX(-100%); padding: 0 5px 0 3px; }
+.chart-tick { position: absolute; top: 2px; transform: translateX(-50%);
+              left: calc(var(--chart-day-w) + (100% - var(--chart-day-w)) * var(--p)); }
+/* 横軸の単位はグラフ枠の右上（目盛の数字と同じ意味の並びなので凡例には入れない） */
+.chart-unit { position: absolute; bottom: 1px; right: 0; }
+.chart-empty { font-size: 14px; color: var(--text-body); padding: 8px 0; }
+
+/* --- メタ情報（出典・対象期間・データの定義・作成日時） --- */
+.sheet .meta { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--rule);
+               font-size: 12px; color: var(--text-desc); line-height: 1.6; }
+.sheet .meta p { margin: 0; }
+/* 読み方の 1 行だけ、語を強めて拾えるようにする（色は足さない） */
+.sheet .meta strong { color: var(--text-body); }
+
+@media (max-width: 600px) {
+  body { padding: 10px; }
+  h1.app-title { font-size: 18px; margin: 0 0 4px; }
+  .intro { font-size: 14px; padding: 12px; line-height: 1.6; }
+  .dropzone { padding: 22px 12px; }
+  .dropzone .icon { font-size: 32px; }
+  .dropzone .text { font-size: 14px; }
+  .dropzone .subtext { font-size: 12px; }
+  .actions { gap: 8px; }
+  .actions button { flex: 1 1 100%; padding: 14px; }
+  .actions .clear-btn { flex: 1 1 100%; }
+  .sheet { padding: 20px 16px; margin: 12px 0; }
+  .sheet .who { font-size: 17px; }
+  .sheet .kpi { flex-wrap: wrap; }
+  .sheet .kpi-card { flex: 1 1 100%; }
+}
+
+/* 印刷用（A4 縦・1 人 1 枚）。画面用ルールを上書きするため必ず末尾に置く */
+@media print {
+  html, body { background: white !important; padding: 0 !important; margin: 0 !important; }
+  .no-print { display: none !important; }
+  #sheets { display: block !important; }
+  @page { size: A4; margin: 0; }
+  .sheet { max-width: 100% !important; margin: 0 !important; padding: 10mm 12mm !important; border: none !important;
+           page-break-after: always; page-break-inside: avoid; }
+  .sheet:last-child { page-break-after: auto; }
+  .sheet .who { font-size: 14px; }
+  .sheet .who .period { font-size: 11px; }
+  .sheet .head-sub { gap: 8px; margin-top: 1px; }
+  .sheet .doc-kind { font-size: 9px; }
+  .sheet .org { font-size: 9px; padding-left: 8px; }
+  .sheet .head-block { padding-bottom: 3px; margin-bottom: 5px; }
+  .sheet .kpi { gap: 6px; margin-bottom: 5px; }
+  .sheet .kpi-card { padding: 3px 8px; border-left-width: 3px; }
+  .sheet .kpi-card.kpi-main { border-left-width: 6px; }
+  .sheet .kpi-label { font-size: 10px; margin-bottom: 0; }
+  .sheet .kpi-line { gap: 6px; }
+  .sheet .kpi-value { font-size: 16px; }
+  .sheet .kpi-main .kpi-value { font-size: 19px; }
+  .sheet .kpi-value .u, .sheet .kpi-value .sub { font-size: 10px; }
+  .sheet .kpi-note { font-size: 10px; }
+  .sheet .chart-header { margin-bottom: 2px; }
+  .sheet .chart-title { font-size: 11px; }
+  .sheet .legend { font-size: 10px; gap: 10px; }
+  .sheet .legend i { width: 15px; height: 8px; }
+  /* 行の高さは「31 日全部出勤」でも A4 1 枚に収まる範囲で最大に取る。
+     見出し 3 行→2 行・KPI 3 行→2 行・凡例とグラフのタイトルを 1 行・メタ情報 3 段落→2 段落
+     で空いた高さを、そのまま行の高さへ回した（実測値は test_chart_page.py の
+     「シート高さ <= A4」と shoot_absent_chart.py の縦方向の使用率で押さえる） */
+  .chart { --chart-day-w: 22px; --chart-row-h: 26px; --chart-bar-h: 18px; --chart-font: 11px; margin-top: 2px; }
+  .chart-head, .chart-axis { height: 15px; }
+  .sheet .meta { font-size: 10px; line-height: 1.5; margin-top: 5px; padding-top: 4px; }
+  .chart-empty { font-size: 10px; padding: 3px 0; }
+}
+</style>
+</head>
+<body>
+<div class="container no-print">
+  <h1 class="app-title">利用時間グラフ（実働時間の日別実績）</h1>
+  <p class="app-sub">就労移行支援提供実績記録票 PDF から、1 人 1 枚の A4 レポートを作ります。</p>
+  <div class="intro">
+    実績記録票 PDF（<code>就労移行支援提供実績記録票</code>等）をドロップすると、人ごとに<strong>利用時間の横棒グラフ</strong>を作ります。<strong>最大 35 人まで一括処理可能</strong>。<br>
+    <strong>横軸は時刻</strong>（08:00〜19:00 固定）。棒は打刻の時刻そのままの位置に置くので、<strong>10:00 の太い基準線より左＝早出</strong>、<strong>10:00 の右にできる空き＝遅刻</strong>、<strong>15:45 の基準線より手前で終わる＝早退</strong>が位置だけで読めます。休憩 12:00〜13:00 は棒の中を白く抜きます。<br>
+    棒の<strong>色</strong>は別の層で、<strong>実働</strong>（滞在時間 − 12:00〜13:00 に重なった休憩）が<strong>定時 4 時間 45 分</strong>に届けば青、届かなければ赤（斜線と実働時間の数値つき）。位置で遅刻・早退が、色で実働の充足が分かります。<br>
+    その月の 1 日から末日まで全ての日を並べます。記録票に<strong>「欠席」</strong>と入っている日（来る予定で来なかった日）は<strong>「× 欠席」の札と斜線の帯</strong>で示し、打刻がそもそも無い日（土日など）は棒なしの空行のまま残すので、両者は見分けが付きます。
+  </div>
+
+  <div class="dropzone" id="dz" tabindex="0" role="button" aria-label="PDFファイルを選択またはドロップ">
+    <div class="icon">📄</div>
+    <div class="text">タップして PDF を選択</div>
+    <div class="subtext">PC ならドラッグ＆ドロップも OK（複数同時可・最大 35 人まで）</div>
+    <input type="file" id="fileInput" accept="application/pdf" multiple>
+  </div>
+
+  <div class="error" id="errorBox"></div>
+
+  <div class="people-section" id="peopleSection">
+    <h2>読み取った人 <span class="count" id="peopleCount">0 / 35</span></h2>
+    <div class="table-wrap">
+      <table class="people-table" id="peopleTable">
+        <thead>
+          <tr>
+            <th class="col-no">#</th>
+            <th>氏名</th>
+            <th>事業所</th>
+            <th>法人名</th>
+            <th>年</th>
+            <th>月</th>
+            <th class="col-punch">打刻</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="peopleTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="genBtn" disabled>グラフを作る</button>
+    <button id="printBtn" class="print-btn" disabled>印刷 / PDF 保存</button>
+    <button id="clearBtn" class="clear-btn">クリア</button>
+  </div>
+</div>
+
+<div id="sheets"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+
+const MAX_PEOPLE = 35;
+
+// 社長の実運用に合わせた基準（10:00-12:00 勤務 / 12:00-13:00 休憩 / 13:00-16:00 勤務）。
+// 労基法34条の一律控除（6h以下=0/6〜8h=45分/8h超=60分）はここでは使わない。
+const CORE_START_MIN   = 10 * 60;  // 定時の開始 10:00（これより前は早出）
+const BREAK_START_MIN  = 12 * 60;  // 休憩帯 12:00 〜
+const BREAK_END_MIN    = 13 * 60;  // 〜 13:00
+// 定時（＝合格ライン）は実働 285 分＝4 時間 45 分。名目の定時は 5 時間だが、早く来た分は
+// 加算していい／退勤が少し早くても可、という実運用に合わせて 15 分引いた値を定時として扱う。
+// 棒の色の判定も基準線の位置もこの 1 つの値だけを使う（「線は 5 時間・判定は 4 時間 45 分」と
+// いうずれを構造的に起こさないため、名目 5 時間の定数は持たない）。実働・休憩・早出の計算には
+// 一切関与しない。
+const FULL_TIME_MINUTES = 285;
+// 定時の終了時刻 15:45。独立した定数にはしない——「10:00 に来て、休憩 1 時間を挟んで
+// 実働 285 分」を満たす退勤時刻そのものなので、上の 3 つから導出する。
+// こうしておくと「線は 15:45・色の判定は 285 分」というずれが構造的に起こせない。
+const CORE_END_MIN = CORE_START_MIN + FULL_TIME_MINUTES + (BREAK_END_MIN - BREAK_START_MIN);
+
+// 横軸は「時刻」。実働の長さでは遅刻（10:00 より後に来た日）を置く場所が無いため、
+// 打刻の時刻をそのまま横位置にする。10:00 の右にできる空きがそのまま遅刻として見える。
+// 範囲は人・月で変えない固定値にする（人ごとに変えると 10:00 の線の横位置がシートごとに
+// 動いて並べて比べられなくなる）。実データ 2026-07（25 人・512 日）の実測は
+// 最も早い打刻 08:31／最も遅い打刻 18:30 なので、1 時間刻みの目盛に揃う 08:00〜19:00 を
+// 既定にする。この外に出る打刻がある時だけ 1 時間刻みで広げる（棒を切らないための逃げ）。
+const CHART_START_MIN = 8 * 60;   // 横軸の左端 08:00
+const CHART_END_MIN = 19 * 60;    // 横軸の右端 19:00
+const CHART_GRID_MINUTES = 60;    // 目盛 1 時間ごと
+
+const dz = document.getElementById("dz");
+const fileInput = document.getElementById("fileInput");
+const errorBox = document.getElementById("errorBox");
+const peopleSection = document.getElementById("peopleSection");
+const peopleTbody = document.getElementById("peopleTbody");
+const peopleCount = document.getElementById("peopleCount");
+const genBtn = document.getElementById("genBtn");
+const printBtn = document.getElementById("printBtn");
+const clearBtn = document.getElementById("clearBtn");
+const sheets = document.getElementById("sheets");
+
+let people = [];
+let nextId = 1;
+
+["dragover","dragenter"].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault();
+  dz.classList.add("drag-over");
+}));
+["dragleave","dragend","drop"].forEach(ev => dz.addEventListener(ev, e => {
+  if (ev !== "drop") e.preventDefault();
+  dz.classList.remove("drag-over");
+}));
+dz.addEventListener("drop", e => {
+  e.preventDefault();
+  if (e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener("change", e => {
+  if (e.target.files && e.target.files.length) handleFiles(e.target.files);
+  e.target.value = "";
+});
+
+clearBtn.addEventListener("click", () => {
+  if (people.length && !confirm("読み取った人を全部消します。よろしいですか？")) return;
+  people = [];
+  sheets.innerHTML = "";
+  sheets.classList.remove("shown");
+  printBtn.disabled = true;
+  hideError();
+  renderTable();
+});
+
+function showError(msg) {
+  errorBox.innerHTML = msg;
+  errorBox.style.display = "block";
+}
+function hideError() { errorBox.style.display = "none"; errorBox.innerHTML = ""; }
+
+async function handleFiles(fileList) {
+  hideError();
+  const arr = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+  const skippedNonPdf = fileList.length - arr.length;
+  if (!arr.length) {
+    showError("PDF ファイルをドロップしてください");
+    return;
+  }
+  const slots = MAX_PEOPLE - people.length;
+  if (slots <= 0) {
+    showError(`上限 ${MAX_PEOPLE} 人に達しています。クリアしてから追加してください。`);
+    return;
+  }
+  const targets = arr.slice(0, slots);
+  const skippedOverflow = arr.length - targets.length;
+  const errors = [];
+
+  let truncatedFile = null;
+  for (const file of targets) {
+    try {
+      const persons = await extractPersonsFromPdf(file);
+      if (persons.length === 0) {
+        errors.push(`<strong>${escapeHtml(file.name)}</strong>: 抽出できる人がいませんでした（実績記録票の形式を確認してください）`);
+        continue;
+      }
+      for (const data of persons) {
+        if (people.length >= MAX_PEOPLE) {
+          truncatedFile = file.name;
+          break;
+        }
+        data.id = nextId++;
+        data.fileName = file.name;
+        people.push(data);
+      }
+      if (truncatedFile) break;
+    } catch (err) {
+      errors.push(`<strong>${escapeHtml(file.name)}</strong>: ${escapeHtml(err.message)}`);
+    }
+  }
+  if (truncatedFile) errors.push(`上限 ${MAX_PEOPLE} 人に達したため <strong>${escapeHtml(truncatedFile)}</strong> 以降の人をスキップ`);
+  if (skippedOverflow > 0) errors.push(`上限 ${MAX_PEOPLE} 人を超えるため <strong>${skippedOverflow}</strong> ファイルをスキップしました`);
+  if (skippedNonPdf > 0) errors.push(`PDF 以外を <strong>${skippedNonPdf}</strong> ファイルスキップしました`);
+  if (errors.length) showError(errors.join("<br>"));
+  renderTable();
+}
+
+async function extractPdfPages(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(it => it.str).join(" "));
+  }
+  return pages;
+}
+
+// 1 PDF から複数人分を抽出する（ページ毎に試す + 全ページ結合も試す）
+async function extractPersonsFromPdf(file) {
+  const pages = await extractPdfPages(file);
+  const persons = [];
+
+  // ページ毎に parse、氏名 or 打刻が取れたページは独立した person として扱う
+  for (const text of pages) {
+    const data = parseAttendance(text);
+    const hasContent = data.name || (data.shifts && data.shifts.length > 0);
+    if (hasContent) persons.push(data);
+  }
+
+  // ページ単位で 1 件も取れない場合（記録票が複数ページに割れてる単一人 PDF 等）は
+  // 全ページ結合で 1 人として再パース
+  if (persons.length === 0) {
+    const allText = pages.join("\n");
+    const data = parseAttendance(allText);
+    if (data.name || (data.shifts && data.shifts.length > 0)) persons.push(data);
+  }
+
+  return persons;
+}
+
+// 氏名 1 文字に使える文字。漢字だけだと「成田 いちご」のように名が仮名の人が丸ごと
+// マッチせず氏名が空欄になるため、ひらがな・カタカナ・長音符・々 も許す。
+// 中点「・」(U+30FB) は事業所名（ディーキャリアいわて・盛岡オフィス）に出るので入れない。
+// 姓名の切り出し方（姓 1〜4 文字 + 空白 + 名 1〜4 文字）は変えない。
+const NAME_CHAR = "[\\u4E00-\\u9FFF\\u3005\\u3041-\\u3096\\u30A1-\\u30F4\\u30FC]";
+const NAME_PAIR = `(${NAME_CHAR}{1,4})[\\s　]+(${NAME_CHAR}{1,4})`;
+const NAME_RE_LONG  = new RegExp(`利\\s*用\\s*者?\\s*氏\\s*名\\s*[:：]?\\s*${NAME_PAIR}`);
+const NAME_RE_SHORT = new RegExp(`氏\\s*名\\s*[:：]?\\s*${NAME_PAIR}`);
+
+function parseAttendance(text) {
+  // pdf.js は CJK ラジカル字形 (U+2F00–U+2FDF) で出すことがある → NFKC で正規漢字に戻す
+  const normalized = text.normalize("NFKC");
+  const compact = normalized.replace(/[ \t]+/g, " ");
+
+  // 氏名: 「利用者氏名」or「氏名」の各文字に空白挟まる可能性も許容
+  let name = "";
+  let m = compact.match(NAME_RE_LONG);
+  if (!m) m = compact.match(NAME_RE_SHORT);
+  if (m) name = `${m[1]} ${m[2]}`;
+
+  // 事業所: 「ディーキャリア」始まりで「オフィス/事業所/センター」終わりまで（漢字・ひらがな・カナ・中点・空白許容）
+  let biz = "";
+  m = compact.match(/(ディーキャリア[^\n]{0,40}?(?:オフィス|事業所|センター))/);
+  if (m) biz = m[1].replace(/\s+/g, "").trim();
+
+  // 法人名
+  let company = "";
+  m = compact.match(/(株式会社[゠-ヿ一-鿿぀-ゟA-Za-z\s]+?(?=\s|$|ディーキャリア|利用者|氏名)|[゠-ヿ一-鿿぀-ゟA-Za-z]+株式会社)/);
+  if (m) company = m[1].replace(/\s+/g, "").trim();
+
+  // 年月（区切りに空白許容）
+  let year = null, month = null;
+  m = compact.match(/(20\d{2})\s*年\s*(\d{1,2})\s*月/);
+  if (m) { year = parseInt(m[1]); month = parseInt(m[2]); }
+
+  // 打刻記録: 「日 曜 開始 終了」のパターンを全部抽出
+  // 例: "1 月 09:55 16:05" / "1月 09:55 16:05" / "1 09:55 16:05"
+  const shifts = [];
+  const shiftRe = /(?:^|\s)(\d{1,2})\s+[月火水木金土日]?\s*(\d{1,2}:\d{2})\s+(\d{1,2}:\d{2})/g;
+  let sm;
+  while ((sm = shiftRe.exec(compact)) !== null) {
+    const day = parseInt(sm[1]);
+    if (day < 1 || day > 31) continue;
+    shifts.push({ day, start: sm[2], end: sm[3] });
+  }
+  // 重複除去（同じ日が複数回マッチした場合は最後の値を採用）
+  const shiftByDay = {};
+  for (const s of shifts) shiftByDay[s.day] = s;
+  const uniqueShifts = Object.values(shiftByDay).sort((a, b) => a.day - b.day);
+
+  // 欠席: 打刻の代わりに「欠席」が入っている日。実物の行は "4   土   欠席   川戸" の形なので、
+  // 日付 + 曜日 + 欠席 の並びだけを拾う。集計欄の「欠席数 3 回」は本来日付を伴わないが、
+  // 直前に「当月 12 日」等が来ると日付に化けるため、直後が「数」のものは拾わない。
+  const absentDaySet = new Set();
+  const absentRe = /(?:^|\s)(\d{1,2})\s+[月火水木金土日]\s*欠\s*席(?!\s*数)/g;
+  let am;
+  while ((am = absentRe.exec(compact)) !== null) {
+    const day = parseInt(am[1]);
+    if (day < 1 || day > 31) continue;
+    // 打刻のある日は欠席にしない（同じ日が両方に出たら実データの打刻を優先）
+    if (shiftByDay[day]) continue;
+    absentDaySet.add(day);
+  }
+  const absent_days = Array.from(absentDaySet).sort((a, b) => a - b);
+
+  // 出勤日数: 打刻記録の件数を最優先（ラベル盲信を防ぐ）。打刻ゼロなら fallback でラベルを拾う
+  let attendance_days = uniqueShifts.length;
+  let labelDays = null;
+  m = compact.match(/出\s*勤\s*日\s*数\s*[:：]?\s*(\d{1,3})\s*日/);
+  if (m) labelDays = parseInt(m[1]);
+  if (attendance_days === 0 && labelDays !== null) attendance_days = labelDays;
+
+  return {
+    name,
+    biz: biz || "ディーキャリアいわて•盛岡オフィス",
+    company: company || "桜千株式会社",
+    year: year || new Date().getFullYear(),
+    month: month || (new Date().getMonth() + 1),
+    shifts: uniqueShifts,
+    absent_days,
+    attendance_days: attendance_days || 0,
+  };
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function shiftMinutes(start, end) {
+  return toMinutes(end) - toMinutes(start);
+}
+
+// 休憩は「12:00〜13:00 の帯と重なっている分」だけを引く。
+// 10:00-12:00 で帰った日は帯に重ならないので 0 分（1 時間固定で必ず引く形にはしない）。
+function breakMinutes(start, end) {
+  const s = toMinutes(start), e = toMinutes(end);
+  return Math.max(0, Math.min(e, BREAK_END_MIN) - Math.max(s, BREAK_START_MIN));
+}
+
+// 1 日ごとの { worked: 実働分, early: 早出分 } を { 日: {...} } で返す。
+// 実働 = 滞在（開始〜終了）− 12:00〜13:00 と重なった休憩。
+// 早出 = 10:00 より前に来た分（その日の最も早い打刻で見る）。実働の内側の区間なので実働を超えない。
+// 打刻の無い日はキーを持たない（＝グラフでは棒ゼロの行になる）。
+function dailyStats(shifts) {
+  const byDay = {};
+  for (const s of (shifts || [])) {
+    if (!byDay[s.day]) byDay[s.day] = { worked: 0, early: 0 };
+    byDay[s.day].worked += Math.max(0, shiftMinutes(s.start, s.end) - breakMinutes(s.start, s.end));
+    byDay[s.day].early = Math.max(byDay[s.day].early, Math.max(0, CORE_START_MIN - toMinutes(s.start)));
+  }
+  for (const day of Object.keys(byDay)) {
+    byDay[day].early = Math.min(byDay[day].early, byDay[day].worked);
+  }
+  return byDay;
+}
+
+// 欠席の日の一覧。グラフ・KPI・凡例・メタ情報はどれもこの 1 箇所から引く
+// （日の一覧を各所で書き写すと、片方だけ条件が変わってずれるため）。
+// その月に実在する日で、打刻の無い日だけを欠席として扱う。
+function absentDaysOf(p, lastDay, stats) {
+  return Array.from(new Set((p.absent_days || []).map(Number)))
+    .filter(d => Number.isInteger(d) && d >= 1 && d <= lastDay && !stats[d])
+    .sort((a, b) => a - b);
+}
+
+// 横軸（時刻）の範囲。10:00 の線の横位置が動くと人・月を並べて比べられないので既定は固定値。
+// 既定の外に出る打刻がある時だけ 1 時間刻みで広げ、その場合も「今から描く全員」から 1 度だけ
+// 決めて全シートで同じ値を使う（人ごとに決めると全幅が変わり、その分 10:00 の線も左右に動く）。
+function chartScale(list) {
+  let start = CHART_START_MIN, end = CHART_END_MIN;
+  for (const p of (list || [])) {
+    for (const s of (p.shifts || [])) {
+      start = Math.min(start, Math.floor(toMinutes(s.start) / CHART_GRID_MINUTES) * CHART_GRID_MINUTES);
+      end = Math.max(end, Math.ceil(toMinutes(s.end) / CHART_GRID_MINUTES) * CHART_GRID_MINUTES);
+    }
+  }
+  return { start, end, span: end - start };
+}
+
+function renderTable() {
+  peopleCount.textContent = `${people.length} / ${MAX_PEOPLE}`;
+  if (!people.length) {
+    peopleSection.style.display = "none";
+    peopleTbody.innerHTML = "";
+    genBtn.disabled = true;
+    return;
+  }
+  peopleSection.style.display = "block";
+  peopleTbody.innerHTML = people.map((p, i) => {
+    const shiftCount = (p.shifts || []).length;
+    return `
+    <tr data-id="${p.id}">
+      <td class="col-no">${i + 1}</td>
+      <td><input data-field="name" value="${escapeAttr(p.name)}"></td>
+      <td><input data-field="biz" value="${escapeAttr(p.biz)}"></td>
+      <td><input data-field="company" value="${escapeAttr(p.company)}"></td>
+      <td><input data-field="year" type="number" value="${p.year}"></td>
+      <td><input data-field="month" type="number" min="1" max="12" value="${p.month}"></td>
+      <td class="col-punch">${shiftCount} 日分</td>
+      <td class="col-del"><button class="del-btn" data-id="${p.id}">削除</button></td>
+    </tr>
+    `;
+  }).join("");
+
+  peopleTbody.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const tr = e.target.closest("tr");
+      const id = parseInt(tr.dataset.id);
+      const field = e.target.dataset.field;
+      const p = people.find(x => x.id === id);
+      if (!p) return;
+      if (field === "year" || field === "month") {
+        p[field] = parseInt(e.target.value) || 0;
+      } else {
+        p[field] = e.target.value;
+      }
+    });
+  });
+  peopleTbody.querySelectorAll(".del-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = parseInt(btn.dataset.id);
+      people = people.filter(p => p.id !== id);
+      renderTable();
+    });
+  });
+  genBtn.disabled = false;
+}
+
+genBtn.addEventListener("click", () => {
+  if (!people.length) return;
+  // 横軸の目盛りは 1 度だけ決めて全シートへ配る（シートごとに計算すると 0 の位置がずれる）
+  const scale = chartScale(people);
+  sheets.innerHTML = people.map(p => buildSheetHTML(p, scale)).join("");
+  sheets.classList.add("shown");
+  printBtn.disabled = false;
+  sheets.scrollIntoView({ behavior: "smooth" });
+});
+
+printBtn.addEventListener("click", () => window.print());
+
+// 利用時間の横棒グラフ。その月の 1 日から末日まで全ての日を縦に並べ、
+// 休んだ日は棒ゼロのまま行を残す（空きがそのまま「まばら」の可視化になる）。
+// 横軸は「時刻」。棒は打刻の時刻そのままの位置に置くので、
+//   10:00 の線より左から始まる = 早出 ／ 10:00 の線の右に空きがある = 遅刻
+//   15:45 の線より手前で終わる = 早退
+// が位置だけで読める。棒の「色」は別の層で、実働（休憩を除いた合計）が定時に届いたかを表す。
+// 基準線は 10:00（太い）と 15:45（細い）の 2 本。休憩 12:00〜13:00 は棒の中を白く抜く。
+// scale は全シート共通（10:00 の線の横位置が人によって動かないよう、呼び出し側で 1 度だけ作る）。
+function buildChartHTML(p, scale) {
+  const year = parseInt(p.year);
+  const month = parseInt(p.month);
+  const lastDay = new Date(year, month, 0).getDate();
+  const stats = dailyStats(p.shifts);
+  const absentSet = new Set(absentDaysOf(p, lastDay, stats));
+
+  if (!(p.shifts || []).length && absentSet.size === 0) {
+    return `<div class="chart-empty">この記録票からは打刻を読み取れませんでした。</div>`;
+  }
+
+  // 位置は全て「時刻」で取る。長さ（len）と位置（pos / frac）を分けておくことで、
+  // 棒・基準線・目盛・見出しが同じ 1 つの目盛りから引かれる
+  const span = scale.span;
+  const len  = mins => (mins / span * 100).toFixed(2) + "%";                  // 長さ（棒の幅・目盛間隔）
+  const pos  = t => ((t - scale.start) / span * 100).toFixed(2) + "%";        // 時刻 t の横位置
+  const frac = t => ((t - scale.start) / span).toFixed(4);                    // calc() で掛ける位置比率
+
+  const shiftsByDay = {};
+  for (const s of (p.shifts || [])) (shiftsByDay[s.day] = shiftsByDay[s.day] || []).push(s);
+
+  const rows = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const st = stats[d];
+    const worked = st ? st.worked : 0;
+    let bar = "";
+    // 打刻のある日は、実働が 0 分でも棒と破線を出す（実データ 2026-07 の 成田 いちご 7/16 が
+    // 12:30-13:00 ＝ 全部が休憩帯の中で実働 0 分。「実働 > 0」で分けると、KPI の出勤日数には
+    // 入っているのにグラフだけ空行になり、来なかった日と見分けが付かなくなる）
+    if (st) {
+      // 色は実働（休憩を除いた合計）が定時に届いたかだけで決まる。位置とは別の層
+      const cls = worked >= FULL_TIME_MINUTES ? "over" : "under";
+      const day = shiftsByDay[d] || [];
+      // 棒は打刻の時刻そのままの区間。休憩は棒ごとに抜かず、12:00〜13:00 の帯を
+      // 全行の上から 1 枚かぶせて抜く（帯と棒の重なりが breakMinutes とそのまま一致する）
+      for (const s of day) {
+        const a = toMinutes(s.start), b = toMinutes(s.end);
+        bar += `<i class="chart-bar ${cls}" style="left:${pos(a)};width:${len(b - a)}"></i>`;
+      }
+      const first = Math.min(...day.map(s => toMinutes(s.start)));
+      const last  = Math.max(...day.map(s => toMinutes(s.end)));
+      // 定時の枠（10:00〜15:45）のうち、来ていなかった時間を破線で示す。
+      // 左端の空き = 遅刻、右端の空き = 早退。棒の色とは別の表現にする
+      if (first > CORE_START_MIN) {
+        const to = Math.min(first, CORE_END_MIN);
+        bar += `<i class="chart-gap late" style="left:${pos(CORE_START_MIN)};width:${len(to - CORE_START_MIN)}"></i>`;
+      }
+      if (last < CORE_END_MIN) {
+        const from = Math.max(last, CORE_START_MIN);
+        bar += `<i class="chart-gap leave" style="left:${pos(from)};width:${len(CORE_END_MIN - from)}"></i>`;
+      }
+      // 定時未満の日だけ、棒のすぐ右に実働時間を数値でも出す（色に頼らず読めるようにするため）。
+      // 右端が横軸の終わりに近い日は数値がはみ出て切れるので、その時だけ棒の内側へ向けて出す。
+      // 0.12 は「0 時間 00 分」の表示幅（印刷時 約 70px）がトラック幅の約 10% なので、
+      // それを置ける余りが残っているかの目安。早く反転させると数値が棒を隠す
+      if (worked < FULL_TIME_MINUTES) {
+        const flip = (scale.end - last) / span < 0.12 ? " flip" : "";
+        bar += `<b class="chart-value${flip}" style="left:${pos(last)}">${fmtShortHM(worked)}</b>`;
+      }
+    }
+    // 欠席の日は棒を出さない（実働 0 分ではなく「来なかった日」なので、長さを持つ形では描かない）。
+    // 全幅の斜線の帯 ＋「× 欠席」の札で示す。打刻がそもそも無い日は今までどおり空行のまま
+    const absent = !st && absentSet.has(d);
+    if (absent) bar = `<i class="chart-absent-band"></i><b class="chart-absent-label">× 欠席</b>`;
+    const dayCls = absent ? " absent" : (st ? "" : " off");
+    rows.push(`<div class="chart-row"><div class="chart-day${dayCls}">${d}</div><div class="chart-track">${bar}</div></div>`);
+  }
+
+  // 休憩帯（12:00〜13:00）。行のあとに置いて全行の棒を白く抜く。
+  // 位置と幅は breakMinutes が使う 2 つの定数そのままなので、抜ける幅は必ず休憩と一致する
+  const breakBand = `<i class="chart-break" style="--p:${frac(BREAK_START_MIN)};--w:${((BREAK_END_MIN - BREAK_START_MIN) / span).toFixed(4)}"></i>`;
+
+  // 基準線 2 本。休憩帯より後に置くので一番前面に描かれる。
+  // 10:00（定時の開始）は太く、15:45（定時の終了）は細く
+  const rules = `<i class="chart-rule at-start" style="--p:${frac(CORE_START_MIN)}"></i>`
+              + `<i class="chart-rule" style="--p:${frac(CORE_END_MIN)}"></i>`;
+
+  // 目盛は 1 時間ごと。時刻なので「時」の数字をそのまま出す
+  const ticks = [];
+  for (let t = scale.start; t <= scale.end; t += CHART_GRID_MINUTES) {
+    ticks.push(`<span class="chart-tick" style="--p:${frac(t)}">${t / 60}</span>`);
+  }
+
+  return `
+      <div class="chart" style="--grid-step:${len(CHART_GRID_MINUTES)}">
+        <div class="chart-head"><span class="chart-line-label at-early" style="--p:${frac((scale.start + CORE_START_MIN) / 2)}">早出</span><span class="chart-line-label at-start" style="--p:${frac(CORE_START_MIN)}">定時 ${fmtHM(CORE_START_MIN)}</span><span class="chart-line-label at-break" style="--p:${frac((BREAK_START_MIN + BREAK_END_MIN) / 2)}">休憩</span><span class="chart-line-label at-full" style="--p:${frac(CORE_END_MIN)}">${fmtHM(CORE_END_MIN)}</span><span class="chart-unit">時刻</span></div>
+        <div class="chart-rows">${rows.join("")}${breakBand}${rules}</div>
+        <div class="chart-axis">${ticks.join("")}</div>
+      </div>`;
+}
+
+// グラフ内に添える短い時間表記（例: 300 → "5 時間 00 分"、120 → "2 時間 00 分"）
+function fmtShortHM(mins) {
+  return `${Math.floor(mins / 60)} 時間 ${String(mins % 60).padStart(2, "0")} 分`;
+}
+
+// 時刻表記（例: 600 → "10:00"、945 → "15:45"）
+function fmtHM(mins) {
+  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+}
+
+// scale は横軸の目盛り（全シート共通）。呼び出し側が 1 度だけ作って全員へ配る
+function buildSheetHTML(p, scale) {
+  const year = parseInt(p.year);
+  const month = parseInt(p.month);
+  const lastDay = new Date(year, month, 0).getDate();
+  const stats = dailyStats(p.shifts);
+  const totalMinutes = Object.values(stats).reduce((sum, v) => sum + v.worked, 0);
+  const punchDays = Object.keys(stats).length;
+  // 欠席（来る予定で来なかった日）。0 日の人には凡例・メタ情報を含めて何も出さない
+  const absentDays = absentDaysOf(p, lastDay, stats).length;
+  // 主指標: 定時を満たした日。棒の色分け・基準線と同じ 1 つの値をそのまま使う
+  const fullDays = Object.values(stats).filter(v => v.worked >= FULL_TIME_MINUTES).length;
+  const fullRate = punchDays ? Math.round(fullDays / punchDays * 100) : null;
+  const name = (p.name || "").trim() || "（氏名未抽出）";
+  const orgLine = `${(p.company || "").trim()} ${(p.biz || "").trim()}`.trim();
+  const now = new Date();
+  const z = n => String(n).padStart(2, "0");
+  const madeAt = `${now.getFullYear()}-${z(now.getMonth() + 1)}-${z(now.getDate())} ${z(now.getHours())}:${z(now.getMinutes())}`;
+
+  return `
+    <div class="sheet">
+      <div class="head-block">
+        <h1 class="who">${escapeHtml(name)} 様<span class="period">${year} 年 ${month} 月分</span></h1>
+        <p class="head-sub"><span class="doc-kind">利用時間レポート（実働時間の日別実績）</span>${orgLine ? `<span class="org">${escapeHtml(orgLine)}</span>` : ""}</p>
+      </div>
+
+      <div class="kpi">
+        <div class="kpi-card kpi-main">
+          <p class="kpi-label">定時（実働 ${fmtShortHM(FULL_TIME_MINUTES)}）を満たした日</p>
+          <p class="kpi-line"><span class="kpi-value">${fullDays}<span class="u"> 日</span> <span class="sub">/ 出勤 ${punchDays} 日</span></span><span class="kpi-note">${fullRate === null ? "打刻なし" : `達成率 ${fullRate}%`}</span></p>
+        </div>
+        <div class="kpi-card">
+          <p class="kpi-label">出勤日数</p>
+          <p class="kpi-line"><span class="kpi-value">${punchDays}<span class="u"> 日</span>${absentDays ? ` <span class="sub abs">/ 欠席 ${absentDays} 日</span>` : ""}</span><span class="kpi-note">${year} 年 ${month} 月（${lastDay} 日間）</span></p>
+        </div>
+        <div class="kpi-card">
+          <p class="kpi-label">合計 実働</p>
+          <p class="kpi-line"><span class="kpi-value">${Math.floor(totalMinutes / 60)}<span class="u"> 時間 </span>${String(totalMinutes % 60).padStart(2, "0")}<span class="u"> 分</span></span><span class="kpi-note">出勤 ${punchDays} 日分の合計</span></p>
+        </div>
+      </div>
+
+      <div class="chart-header">
+        <h2 class="chart-title">日別 実働時間 — ${year} 年 ${month} 月（1 日〜${lastDay} 日）</h2>
+        <div class="legend">
+          <span><i class="k-over"></i>定時以上</span>
+          <span><i class="k-under"></i>定時未満</span>
+          <span><i class="k-gap"></i>遅刻・早退</span>${absentDays ? `
+          <span><i class="k-absent"></i>欠席</span>` : ""}
+        </div>
+      </div>
+${buildChartHTML(p, scale)}
+      <div class="meta">
+        <p>読み方は 2 層 — 棒の<strong>位置</strong> = 時刻（${fmtHM(CORE_START_MIN)} の右の空き = 遅刻／${fmtHM(CORE_END_MIN)} より手前で終わる = 早退。どちらも破線）、棒の<strong>色</strong> = 実働の充足（${fmtShortHM(FULL_TIME_MINUTES)}以上は青／未満は赤で実働時間を併記）。</p>
+        <p>実働 = 滞在時間 −「12:00〜13:00 と重なった休憩」（棒の中の白い帯）／定時 = ${fmtHM(CORE_START_MIN)} 〜 ${fmtHM(CORE_END_MIN)}／横軸と基準線 2 本は人・月によらず固定（並べて比べられる）／打刻の無い日は空行${absentDays ? `／欠席（記録票に「欠席」と入っている日・${absentDays} 日）は札と斜線の帯` : ""}</p>
+        <p>出典: 就労移行支援提供実績記録票（PDF から読み取り）／対象期間: ${year} 年 ${month} 月 1 日 〜 ${month} 月 ${lastDay} 日／作成: ${madeAt}</p>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+function escapeAttr(s) {
+  return escapeHtml(s);
+}
+</script>
+</body>
+</html>
