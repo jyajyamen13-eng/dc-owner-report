@@ -1,265 +1,308 @@
 <meta charset="utf-8">
-<title>優子の仕組み — 全工程の中身と、直す場所</title>
+<title>優子の直しループ — 実在1件を一周追った結果</title>
 <style>
   :root{--blue:#0031D8;--red:#FA0000;--body:#1A1A1A;--desc:#626264;
-        --b100:#D9E6FF;--bg:#F8F8F8;--line:#D8D8DC;--warn:#B45309}
+        --bg:#F8F8F8;--line:#D8D8DC;--warn:#B45309}
   *{box-sizing:border-box}
   body{margin:0;background:#fff;color:var(--body);font-size:15px;line-height:1.75;
        font-family:"Noto Sans JP","Yu Gothic",Meiryo,sans-serif}
-  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
-  h1{font-size:26px;margin:0 0 6px}
-  .sub{color:var(--desc);font-size:13px;margin:0 0 24px}
-  h2{font-size:20px;margin:46px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--body)}
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 20px 80px}
+  h1{font-size:25px;margin:0 0 6px}
+  .sub{color:var(--desc);font-size:13px;margin:0 0 22px}
+  h2{font-size:20px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--body)}
   p{margin:0 0 12px}
-  .lead{background:var(--bg);border-left:4px solid var(--blue);padding:14px 16px;margin:0 0 26px}
+  .lead{background:var(--bg);border-left:4px solid var(--red);padding:14px 16px;margin:0 0 24px}
+  .lead b{color:var(--red)}
 
-  /* 工程カード */
-  .stage{border:1px solid var(--line);margin:0 0 20px;background:#fff}
-  .stage>.head{display:flex;align-items:center;gap:10px;padding:11px 14px;
-               background:var(--bg);border-bottom:1px solid var(--line)}
-  .stage>.head .n{width:26px;height:26px;line-height:26px;text-align:center;flex:0 0 auto;
-                  background:var(--blue);color:#fff;font-weight:700;border-radius:50%;font-size:13px}
-  .stage>.head .ttl{font-weight:700;font-size:16px}
-  .stage>.head .st{margin-left:auto;font-size:12px;font-weight:700;padding:3px 10px;border:1px solid}
-  .st.ok{color:var(--blue);border-color:var(--blue)}
-  .st.ng{color:var(--red);border-color:var(--red);background:#FFF5F5}
-  .st.warn{color:var(--warn);border-color:var(--warn);background:#FFFBEB}
-  .stage.bad>.head .n{background:var(--red)}
-  .stage.bad{border-color:var(--red)}
+  /* 時系列 */
+  .tl{border-left:3px solid var(--line);margin:0 0 6px;padding:0 0 0 0}
+  .ev{position:relative;padding:0 0 18px 26px;border-left:3px solid transparent;margin-left:-3px}
+  .ev::before{content:"";position:absolute;left:-8px;top:6px;width:13px;height:13px;
+              border-radius:50%;background:#fff;border:3px solid var(--blue)}
+  .ev.bad::before{border-color:var(--red)}
+  .ev.owner::before{background:var(--blue);border-color:var(--blue)}
+  .ev .t{font-size:12px;color:var(--desc);font-family:Consolas,monospace}
+  .ev .h{font-weight:700;margin:2px 0 3px}
+  .ev.bad .h{color:var(--red)}
+  .ev .d{font-size:13.5px}
+  .ev .src{font-size:11.5px;color:var(--desc);margin-top:4px;
+           font-family:Consolas,"Courier New",monospace;word-break:break-all}
 
-  table.io{border-collapse:collapse;width:100%;font-size:13.5px}
-  table.io th,table.io td{border-bottom:1px solid var(--line);padding:9px 14px;
-                          text-align:left;vertical-align:top}
-  table.io th{width:150px;white-space:nowrap;color:var(--desc);font-weight:700;
-              background:#FCFCFD}
-  table.io tr:last-child th,table.io tr:last-child td{border-bottom:none}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:0 0 18px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--bg);white-space:nowrap;font-weight:700}
+  td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .big{font-size:19px;font-weight:700}.big.red{color:var(--red)}
   code{background:var(--bg);padding:1px 5px;font-size:12.5px;
        font-family:Consolas,"Courier New",monospace;word-break:break-all}
-  .now{color:var(--red);font-weight:700}
-  .fine{font-size:12.5px;color:var(--desc)}
 
-  table.num{border-collapse:collapse;width:100%;font-size:14px;margin:0 0 18px}
-  table.num th,table.num td{border:1px solid var(--line);padding:8px 10px;text-align:left}
-  table.num th{background:var(--bg);white-space:nowrap}
-  td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .big{font-size:20px;font-weight:700}.big.red{color:var(--red)}.big.blue{color:var(--blue)}
+  .find{border:1px solid var(--line);border-left:5px solid var(--red);padding:13px 16px;margin:0 0 12px}
+  .find h3{margin:0 0 5px;font-size:15.5px}
+  .find .src{font-size:11.5px;color:var(--desc);margin-top:7px;
+             font-family:Consolas,"Courier New",monospace;word-break:break-all}
+  .find.plain{border-left-color:var(--warn)}
 
-  ol.fix{list-style:none;counter-reset:f;padding:0;margin:0}
-  ol.fix li{counter-increment:f;border:1px solid var(--line);border-left:5px solid var(--blue);
-            padding:14px 16px 14px 54px;position:relative;margin:0 0 10px}
-  ol.fix li::before{content:counter(f);position:absolute;left:12px;top:13px;width:28px;height:28px;
-            line-height:28px;text-align:center;background:var(--blue);color:#fff;
-            font-weight:700;border-radius:50%}
-  ol.fix b{display:block;margin:0 0 4px;font-size:15px}
+  .lv{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;
+      border:1px solid;margin-right:6px;vertical-align:2px}
+  .lv.a{color:var(--blue);border-color:var(--blue)}
+  .lv.b{color:var(--warn);border-color:var(--warn)}
+  .lv.c{color:var(--desc);border-color:var(--desc)}
+
+  .corr{border:1px solid var(--red);background:#FFF5F5;padding:13px 16px;margin:0 0 12px}
+  .corr h3{margin:0 0 6px;font-size:15px;color:var(--red)}
   .foot{margin:44px 0 0;padding-top:14px;border-top:1px solid var(--line);
         font-size:12px;color:var(--desc)}
-  @media(max-width:680px){
-    table.io th{width:auto;display:block;border-bottom:none;padding-bottom:2px}
-    table.io td{display:block;padding-top:2px}
-  }
+  @media(max-width:640px){.wrap{padding:18px 14px 60px}h1{font-size:20px}}
 </style>
 
 <div class="wrap">
 
-<h1>優子の仕組み — 全工程の中身と、直す場所</h1>
-<p class="sub">作成 2026-08-08 08:55 JST ／ 各工程は実際のコードから拾いました。行番号は実物です。推測は「未確認」と書いています。</p>
+<h1>優子の直しループ — 実在1件を一周追った結果</h1>
+<p class="sub">
+対象 <code>owner_drop-2026-07-09-169</code>（社長が「たとぅーになってる。おしりの叩かれた赤みだよ」と×を付けた1件）／
+調査 trace-auditor（2026-08-08・独立監査）／作成 2026-08-08 12:05 JST<br>
+数字はすべて元ログの全行を数え直した実測。クリスティの過去の報告値は使っていません。
+</p>
 
 <div class="lead">
-<p style="margin:0 0 8px"><b>この紙の読み方。</b>工程ごとに「何をもらって・何を返して・どこへ保存して・失敗したらどこへ行くか」を書いています。
-前の版は箱と矢印だけで中身が無かったため、作り直しました。</p>
-<p style="margin:0"><b>いちばん大きい問題（工程③）</b>: 直しの入力は毎回「ポーズの元になった別の絵」で、
-<b>社長が×を付けた絵は材料に一度も使われていません。</b>だから「この絵のここだけ直す」ができません。</p>
+<p style="margin:0 0 8px"><b>この一周は「直って閉じた」のではありません。</b>
+8/8 08:11 に社長がボツを押したことで、台帳の仕様上「解決済み」となり、直し待ちから外れて閉じました。
+合格した絵は1枚もありません。</p>
+<p style="margin:0">前の版はクリスティが自分で書いたもので、数字を2つ間違えていました。この版は独立した監査の結果です。</p>
 </div>
 
-<h2>1. 工程ごとの中身（全8つ）</h2>
+<h2>1. この1件に実際に起きたこと（時系列）</h2>
 
-<!-- ① -->
-<div class="stage">
-  <div class="head"><span class="n">1</span><span class="ttl">社長が判定する</span><span class="st ok">動いている</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>判定台（8795）に並んだ絵。1枚ずつカードで表示</td></tr>
-    <tr><th>社長がすること</th><td>採用 / ボツ / 直し のどれかを押す。直しには<b>理由の分類</b>（顔・タンライン・肌・ポーズ・その他）と<b>ひとこと</b>を付ける</td></tr>
-    <tr><th>返すもの</th><td><code>POST /api/decide</code> → <code>review_bridge.record_decision()</code> を1回呼ぶ</td></tr>
-    <tr><th>保存先</th><td>この工程では保存しない（②が全部やる）</td></tr>
-    <tr><th>失敗したら</th><td>画面にエラーが出る。判定は台帳へ入らない＝押し直しが要る</td></tr>
-    <tr><th>いまの状態</th><td>問題なし。<span class="fine">実コード: <code>tools/yuuko-nightly-review/server.py:8, 1028</code></span></td></tr>
-  </table>
+<div class="tl">
+
+<div class="ev owner">
+  <div class="t">8/3 11:23 ／ 8/4 09:32</div>
+  <div class="h">社長が×を付ける</div>
+  <div class="d">「たとぅーになってる。　おしりの叩かれた赤みだよ」。判定と言葉が台帳へ入り、
+    同時に5か所へ配られる（台帳・学習ストア・教訓ページ再生成・成績表・LoRA候補）。<b>ここは正常に動いている。</b></div>
+  <div class="src">labels.jsonl 672-673行／events.jsonl 765行／review_bridge.py:6-13</div>
 </div>
 
-<!-- ② -->
-<div class="stage">
-  <div class="head"><span class="n">2</span><span class="ttl">判定を台帳へ流す（5つに枝分かれ）</span><span class="st ok">動いている</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>①の判定・理由・ひとこと・対象の絵の id</td></tr>
-    <tr><th>すること</th><td>
-      1つの判定を<b>5か所へ同時に配ります</b>（<code>review_bridge.py:9-12</code> の逐語）:<br>
-      ・台帳へイベント追記（<code>yuuko.ledger</code>）<br>
-      ・子の学習ストアへ1行（<code>brain.LabelStore</code>・捨てない）<br>
-      ・教訓ページを即座に作り直す（<code>lessons.rebuild</code>・次に子が読む）<br>
-      ・適用したルール別の成績表へ追記（<code>LessonLedgerStore.record_effect</code>）<br>
-      ・<b>採用なら</b>LoRAの教師データ候補へ自動で積む（<code>lora.accrue</code>）
-    </td></tr>
-    <tr><th>保存先</th><td><code>brain/labels.jsonl</code>／<code>brain/lessons_ledger.jsonl</code>／台帳／LoRA候補置き場</td></tr>
-    <tr><th>失敗したら</th><td>1か所でも書けなければ例外で止まる（黙って一部だけ書く形にはしていない）</td></tr>
-    <tr><th>いまの状態</th><td>問題なし。<b>社長の一押しが5か所に効く配線</b>はここで閉じています</td></tr>
-  </table>
+<div class="ev">
+  <div class="t">8/4 09:33〜09:35</div>
+  <div class="h">学びが1本できる</div>
+  <div class="d">社長の言葉から新しい決まりが作られた（「叩いた跡が星形のタトゥーになる」）。既存の決まりへ集約もされた。</div>
+  <div class="src">lessons_ledger.jsonl（add 09:33:48・reconcile 09:35:07）</div>
 </div>
 
-<!-- ③ -->
-<div class="stage bad">
-  <div class="head"><span class="n">3</span><span class="ttl">直しの計画を立てる</span><span class="st ng">ここが本丸</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>理由の分類＋社長のひとこと＋その絵の設計図（ShotSpec）</td></tr>
-    <tr><th>すること</th><td><code>repair_plan.from_label()</code> がひとことを読んで、打つ手を決める。<br>
-      顔なら顔パスの強さを下げる、表情なら表情の語を足す、など<b>理由ごとに手が決まっている</b></td></tr>
-    <tr><th>返すもの</th><td>打つ手の名前と、生成に渡すレバー（例 <code>{"face_denoise":0.35}</code>）</td></tr>
-    <tr><th class="now">問題1</th><td class="now">直しの入力になる絵が、社長が×を付けた絵ではありません。<br>
-      毎回「ポーズの元になった別の絵」から焼き直しています。だから前回の構図も衣装も引き継がれず、
-      「ここだけ直す」ができません。</td></tr>
-    <tr><th class="now">問題2</th><td class="now">顔・タンライン・肌・表情には手が用意されていますが、
-      <b>それ以外（分類=その他）は手が無く、④のいろは頼みになります。</b>
-      直近7夜の指摘51件のうち<b>その他が20件で最多</b>です。</td></tr>
-    <tr><th>失敗したら</th><td>手が決まらない場合は「人手待ち」の印を付けて④へ渡す（<code>klass=NEEDS_IROHA</code>・<code>repair_plan.py:153</code>）</td></tr>
-  </table>
+<div class="ev bad">
+  <div class="t">同上</div>
+  <div class="h">その学びは、一度も絵に使われていない</div>
+  <div class="d">できた決まりに<b>「採用」の印が付いていない</b>。機械が次の絵へ効かせるのは採用済みのものだけなので、
+    この決まりは棚に置かれたまま。採用の最終記録は 7/28 で止まっている。<br>
+    8/7 に焼いた7枚のうち、この系統の決まりが使われたのは<b>0件</b>。</div>
+  <div class="src">produce.py:1183-1189（adopted のみ適用）／8/7 各 manifest の applied_lessons</div>
 </div>
 
-<!-- ④ -->
-<div class="stage bad">
-  <div class="head"><span class="n">4</span><span class="ttl">いろはに「どう直すか」を聞く</span><span class="st ng">8割が戻る</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>絵の id・理由の分類・社長のひとこと・元絵のパス。<br>
-      <b>2026-08-06 から、絵の実体（画像のバイト列）も添付しています。</b>それまでは文字だけでした</td></tr>
-    <tr><th>いろはに渡す道具</th><td><b>ゼロ本。</b>ファイルも開けず、絵も作れません。渡した画像を見て文字で答えるだけ</td></tr>
-    <tr><th>聞いていること</th><td>「社長のひとことが指す箇所を特定して、<b>足すタグを選べ</b>」<br>
-      <span class="now">どれだけ作り変えるかは聞いていません。</span>塩梅の判断を求めていない</td></tr>
-    <tr><th>返すもの</th><td>タグを並べた1行の文字列。これが生成の positive の末尾へ足される</td></tr>
-    <tr><th>返答の仕分け</th><td><code>classify_directive()</code> が5つに分ける:<br>
-      <code>accepted</code>（使える）／<code>refusal_marker</code>（断り文）／<code>needs_human</code>（分からない）／
-      <code>not_tag_line</code>（タグの形になっていない）／<code>invoke_failed</code>（呼び出し自体が失敗）</td></tr>
-    <tr><th>保存先</th><td><code>state/yuuko-iroha-watcher/iroha-judgments.jsonl</code> へ全件。
-      人が手で書いた分は <code>outcome=human_directive</code> の印を付けて区別（機械の応答と混ぜない）</td></tr>
-    <tr><th class="now">失敗したら</th><td class="now"><code>accepted</code> 以外は<b>そこで打ち切り、絵は焼かれません。</b>
-      判定台に「機械が直せませんでした」と表示され、社長へ差し戻されます。<br>
-      同時に #ログ へ1行通知（<code>repair-on-demand.py:554-562</code>）</td></tr>
-    <tr><th class="now">いまの状態</th><td class="now">91回聞いて、使えた答えは17回（18.7%）。
-      性的な描写の指示を書くことを断るためです。<b>断ると分かっている相手に投げ続けています。</b></td></tr>
-  </table>
+<div class="ev">
+  <div class="t">8/4 09:38</div>
+  <div class="h">機械が1枚焼き直す</div>
+  <div class="d">直した絵が判定台へ載る。</div>
+  <div class="src">2026-08-04-repair-live/repair_owner_drop-2026-07-09-169.png</div>
 </div>
 
-<!-- ⑤ -->
-<div class="stage">
-  <div class="head"><span class="n">5</span><span class="ttl">焼く</span><span class="st warn">動くが前提が③に依存</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>③の打つ手＋④のタグ＋レシピ（<code>yuuko/recipe.yaml</code>）＋元絵</td></tr>
-    <tr><th>すること</th><td>元絵を入力にして2回焼く。<br>
-      1回目＝元絵から優子へ作り替える（作り替えの強さ 0.7・骨格を拘束・タンラインLoRA 0.6）<br>
-      2回目＝1回目の絵を入力に、薄めに焼き直す（0.45・LoRA 0.8・骨格拘束なし）</td></tr>
-    <tr><th>返すもの</th><td>png と、その時の設定を書いた記録（<code>*.payload.json</code>）。<br>
-      <span class="fine">記録には画像そのものは入りません（数MBになるため）。ここを読み違えて 8/7 に誤報しました</span></td></tr>
-    <tr><th>保存先</th><td><code>knowledge/yuuko/atelier_data/output/&lt;日付&gt;-&lt;便名&gt;/</code></td></tr>
-    <tr><th>失敗したら</th><td>失敗の種類を名前で残して止まる: 元絵が無い / 読めない / 寸法が取れない /
-      生成API が落ちた（<code>produce.py:428-475</code>）。<b>黙って空の絵を返す形にはなっていません</b></td></tr>
-    <tr><th>いまの状態</th><td>工程としては正常。ただし入力が③のとおりポーズ元絵なので、
-      <b>ここが正しく動いても「直し」にはなりません</b></td></tr>
-  </table>
+<div class="ev owner">
+  <div class="t">8/6 14:17</div>
+  <div class="h">社長がまた×を付ける（言葉なし・理由の選択なし）</div>
+  <div class="d">ボタンだけ押された状態。<b>言葉が無いので、学びも作られない。</b></div>
+  <div class="src">labels.jsonl 685行（comment=""・reason=null）</div>
 </div>
 
-<!-- ⑥ -->
-<div class="stage bad">
-  <div class="head"><span class="n">6</span><span class="ttl">検品する</span><span class="st ng">止まっている</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>焼き上がった png</td></tr>
-    <tr><th>見るはずのもの</th><td>手・解剖・顔・<b>タンライン</b>の4つ（<code>recipe.yaml</code> の <code>required_checks</code>）</td></tr>
-    <tr><th>設計の作り</th><td>検査ができなかった場合は<b>「未検証」という結果を必ず残す</b>形にしてあります。
-      良品扱いにはできません（<code>qc.py:9, 55</code>）。ここは正しく設計されています</td></tr>
-    <tr><th class="now">いまの状態</th><td class="now">タンライン検査に使う機械（qwen）が呼べず、
-      <b>今朝焼いた10枚すべてに「検査を実行できなかった」の札</b>が付きました。<br>
-      社長の×理由の1位がタンラインなのに、機械は誰もそこを見ていません</td></tr>
-    <tr><th>失敗したら</th><td>札が付いたまま判定台へ載る。<b>自動でボツにはしません</b>（2026-07-29 に自動ボツ廃止）</td></tr>
-  </table>
+<div class="ev bad">
+  <div class="t">8/6 14:17 → 18:17</div>
+  <div class="h">4時間、誰も拾わなかった</div>
+  <div class="d">×が付いてから常駐が動き出すまで約4時間。その間、この判定を拾う主体がいない。</div>
+  <div class="src">state/repair-trigger/stdout.log 1-2行（18:12起動・18:17巡回）</div>
 </div>
 
-<!-- ⑦ -->
-<div class="stage">
-  <div class="head"><span class="n">7</span><span class="ttl">学びを溜める</span><span class="st warn">溜まるが判断できない</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>②が流した判定と、繰り返し出る指摘のテーマ</td></tr>
-    <tr><th>段階</th><td><b>候補</b>（登録しただけ）→ <b>採用</b>（次の絵に効かせる）→ <b>引退</b>（効かないと分かった）の3段階</td></tr>
-    <tr><th>成績の付け方</th><td>ルールを適用した絵に社長の判定が付いたら、そのルールの成績表へ1行追記（<code>effect_log</code>）</td></tr>
-    <tr><th>引退の条件</th><td>5夜以上かつ5件以上の実績があって、対象テーマの発生率が採用前より減っていないもの</td></tr>
-    <tr><th class="now">いまの状態</th><td class="now">ルール1本あたりの実績が<b>0〜3件</b>しかなく、引退の条件（5件）に届いているものが1本もありません。
-      <b>効いているか効いていないかを判断できる母数に達していません。</b><br>
-      未実装のまま残っている候補が4テーマ（衣装・表情・場面・その他）</td></tr>
-    <tr><th>失敗したら</th><td>台帳は追記専用。壊れた行があれば読み込み時に例外で止まる</td></tr>
-  </table>
+<div class="ev bad">
+  <div class="t">8/6 18:17・18:22</div>
+  <div class="h">自動の直しが2回とも「作らずに」打ち切られた</div>
+  <div class="d">理由が「その他」だったため、機械は<b>絵を1枚も焼かずに</b>終了。
+    「判定台で理由を選び直してください」という札を付けて社長へ返した。以後、自動側から再開する道は無い
+    （復帰する条件は「社長がもう一度×を押すこと」だけ）。</div>
+  <div class="src">child-logs/20260806-181741…／-182258…／cursor.json（attempts=2・capped）／repair-trigger.py:87-89</div>
 </div>
 
-<!-- ⑧ -->
-<div class="stage bad">
-  <div class="head"><span class="n">8</span><span class="ttl">学びを次の絵へ効かせる</span><span class="st ng">今回と無関係でも発火</span></div>
-  <table class="io">
-    <tr><th>もらうもの</th><td>採用済みのルール一覧＋これから焼く絵の元絵のタグ</td></tr>
-    <tr><th>できること</th><td>2種類だけ: <b>positive へ語を足す</b>／<b>negative へ語を足す</b>（<code>rule_engine.py:36</code>）</td></tr>
-    <tr><th>発火の条件</th><td>元絵のタグ・肌の分類・失敗の種類が一致したら足す</td></tr>
-    <tr><th class="now">問題</th><td class="now">条件が<b>元絵のタグだけ</b>で、今回の社長の指摘を見ていません。<br>
-      実例: 7/19 に<b>別の絵</b>で「シャワールームに見えない」と言われて作ったルールが、
-      元絵に「濡れ」の印があるだけで発火し、シャワー室の語6つを毎回足していました。
-      社長の「なんでこんなに液体まみれなの？」の直接の原因です</td></tr>
-    <tr><th>失敗したら</th><td>ルールが読めなければ何も足さずに素通り（黙って壊れる側）</td></tr>
-  </table>
+<div class="ev bad">
+  <div class="t">8/6 18:22 〜 いまも</div>
+  <div class="h">その札は今も判定台に出たまま。社長は未回答</div>
+  <div class="d">「理由を選び直してください」のカードが現役で催促中。<b>ただしカードには「2回試して諦めた」ことが書かれていない。</b>
+    打ち切りの事実は #ログ へ1行送られただけ。</div>
+  <div class="src">server.py:483-527（needs_owner バケット）／stdout.log 8行目</div>
 </div>
 
-<h2>2. 数字（すべて実測・2026-08-08 08:55 時点）</h2>
+<div class="ev">
+  <div class="t">8/7 14:33</div>
+  <div class="h">クリスティが手でタグを書いて焼く</div>
+  <div class="d">いろはを通さず、人が書いた指示で1枚生成。</div>
+  <div class="src">iroha-judgments.jsonl 91行目（human_directive）／repair_plan.py:145-153</div>
+</div>
 
-<table class="num">
-<tr><th>何を測ったか</th><th style="width:110px">数</th><th>意味</th></tr>
-<tr><td>台帳にある素材</td><td class="r"><span class="big blue">604</span></td><td>直しの対象になりうる全体</td></tr>
-<tr><td>判定台で止まっている絵</td><td class="r"><span class="big red">51</span></td><td>「機械が直せませんでした」で社長を待っている（工程④で止まった分）</td></tr>
-<tr><td>未判定の在庫（8月分）</td><td class="r">99</td><td>判定待ち</td></tr>
-<tr><td>いろはに聞いた回数</td><td class="r">91</td><td>—</td></tr>
-<tr><td>　└ 使えた答え</td><td class="r"><span class="big red">17</span></td><td><b>18.7%</b>。断り30・分からない25・タグの形でない17・呼び出し失敗ほか</td></tr>
-<tr><td>社長の「直し」総数</td><td class="r">377</td><td>ひとこと付き</td></tr>
-<tr><td>　└ タンライン</td><td class="r"><span class="big red">117</span></td><td><b>1位。7/28以降ずっと首位</b></td></tr>
-<tr><td>　└ 表情</td><td class="r">91</td><td>2位</td></tr>
-<tr><td>　└ 構図・ポーズ</td><td class="r">39</td><td>3位</td></tr>
-<tr><td>　└ 崩れ・ノイズ</td><td class="r">30</td><td>4位</td></tr>
-<tr><td>直近7夜の指摘（51件）</td><td class="r">—</td><td>その他20・タンライン18・表情8・衣装4・場面4・ポーズ0</td></tr>
-<tr><td>昨晩の便で減ったか</td><td class="r"><span class="big red">0</span></td><td><b>前進ゼロ。</b>タンラインは減っていない</td></tr>
+<div class="ev bad">
+  <div class="t">同上</div>
+  <div class="h">そこに、無関係なシャワー場面のタグが混ざっていた</div>
+  <div class="d">7/19 に<b>別の絵</b>で「シャワールームに見えない」と言われて作った決まりが、
+    元絵に「濡れ」の印があるだけで発火。シャワーヘッド・湯気などが一緒に焼き込まれた。</div>
+  <div class="src">8/7 の payload の positive／決まり shower_scene_2026_07_19</div>
+</div>
+
+<div class="ev bad">
+  <div class="t">8/7 17:44 〜 21:25</div>
+  <div class="h">クリスティが実験で焼き足す（この資産で計9枚）</div>
+  <div class="d">条件を変えながら焼いたが、<b>うち2枚は一覧に載らず、判定台に一度も出ていない。</b>
+    さらに1件は台帳に記録だけあってフォルダが存在しない。</div>
+  <div class="src">events.jsonl 1009-1018行／denoise-ab・noshower の d045.png（manifest 外）／2026-08-07-bare（不在）</div>
+</div>
+
+<div class="ev bad">
+  <div class="t">8/7 の全生成</div>
+  <div class="h">タンラインの機械検品が、7枚すべてで動いていない</div>
+  <div class="d">「検査を実行できなかった」の札が付いたまま、落とされずに判定台へ。
+    社長の×理由の1位がタンラインなのに、機械は誰も見ていない。</div>
+  <div class="src">8/7 各 manifest（tanline_check=unavailable・critic_available=false）</div>
+</div>
+
+<div class="ev bad">
+  <div class="t">8/8 08:11</div>
+  <div class="h">社長が見られたのは、9枚のうち1枚だけ</div>
+  <div class="d">同じ資産は最新の1枚しかカードにならない仕様のため。9枚を並べて比べる道は無い。
+    その1枚にボツが付き、<b>台帳の仕様上「解決済み」となって直し待ちから外れた。</b></div>
+  <div class="src">server.py:584-611（同一資産はカード1枚・2026-07-27 発注仕様）／labels.jsonl 743行／ledger.py:700-713</div>
+</div>
+
+<div class="ev bad">
+  <div class="t">終端</div>
+  <div class="h">ボツは、次の直しの合図にならない</div>
+  <div class="d">直しが起動するのは「×（直し）」の時だけで、ボツでは起動しない。<b>自動のループはここで閉じた。</b>
+    残っているのは 8/6 の「理由を選び直して」のカード1枚。</div>
+  <div class="src">server.py:85-93（fix_event のみ）</div>
+</div>
+
+</div>
+
+<h2>2. 見つかった穴</h2>
+
+<h3 style="font-size:15px;margin:20px 0 8px">書かれるが、誰も読まないデータ</h3>
+
+<div class="find">
+<h3>いろはの応答の記録（91行）</h3>
+<p style="margin:0">書くコードだけがあり、<b>読み返すコードがどこにも無い。</b>全 Python を検索して、一致するのは書き込みと自己テストと、コメント1行だけ。</p>
+<div class="src">state/yuuko-iroha-watcher/iroha-judgments.jsonl／検索語 <code>iroha-judgments|IROHA_JUDGMENT_LOG</code></div>
+</div>
+
+<div class="find">
+<h3>焼いたのに一覧に載らなかった絵 2枚</h3>
+<p style="margin:0">台帳には記録があるが一覧に無く、判定台は一覧しか読まないので<b>社長の目に一度も触れていない。</b></p>
+<div class="src">2026-08-07-denoise-ab/d045.png・2026-08-07-noshower/d045.png／server.py:453-463</div>
+</div>
+
+<div class="find">
+<h3>台帳に記録だけあって、実体の無い1件</h3>
+<p style="margin:0">出力フォルダ自体が存在しない。</p>
+<div class="src">events.jsonl 1016行（2026-08-07-bare）</div>
+</div>
+
+<h3 style="font-size:15px;margin:22px 0 8px">受け取るが、使わないデータ</h3>
+
+<div class="find plain">
+<h3>理由が「その他」のときの、社長の言葉そのもの</h3>
+<p style="margin:0">機械の直しの経路は、この言葉を<b>読まずに素通りする</b>。使っているのは学びを作る係と画面表示だけ。
+8/6 の×は言葉が空だったので、学びも作られていない。</p>
+<div class="src">repair_plan.py:160-164</div>
+</div>
+
+<div class="find plain">
+<h3>「社長に理由を選び直してもらう必要がある」という印</h3>
+<p style="margin:0">一覧に書き込まれているが、<b>本番でこの印を読むコードが無い。</b>画面は別の文字列で表示している。</p>
+<div class="src">manifest の <code>needs_owner_reason</code>／一致はテスト用の1件のみ</div>
+</div>
+
+<h3 style="font-size:15px;margin:22px 0 8px">落ちたきり、戻らない道</h3>
+
+<div class="find">
+<h3>2回で打ち切られた後、自動では二度と再開しない</h3>
+<p style="margin:0">復帰の条件は「社長がもう一度×を押すこと」だけ。機械の側から拾い直す道が無い。</p>
+<div class="src">repair-trigger.py:87-89</div>
+</div>
+
+<div class="find">
+<h3>ボツで閉じた後、残り6枚は永久に催促されない</h3>
+<p style="margin:0">同じ資産は1枚しかカードにしない仕様のため。<b>これは仕様どおりの動作で故障ではない</b>が、
+6枚は未判定のまま終端する。</p>
+<div class="src">server.py:584-611</div>
+</div>
+
+<h3 style="font-size:15px;margin:22px 0 8px">人の判断が要るのに、人に届かない</h3>
+
+<div class="find">
+<h3>「2回試して諦めた」がカードに出ない</h3>
+<p style="margin:0">#ログ へ1行送るだけ。判定台のカードには「理由を選び直してください」としか書かれておらず、
+<b>打ち切られた事実は社長の画面に無い。</b></p>
+<div class="src">stdout.log 8行目／カードの文言</div>
+</div>
+
+<div class="find">
+<h3>9枚焼いても、社長が見られるのは1枚</h3>
+<p style="margin:0">比べて選ぶ経路が存在しない。</p>
+<div class="src">server.py:509-518</div>
+</div>
+
+<h2>3. 数字（すべて元ログを数え直した）</h2>
+
+<table>
+<tr><th>何を測ったか</th><th style="width:150px">値</th><th>出典</th></tr>
+<tr><td>この資産の判定</td><td>6行（×3・ボツ1・観察2）</td><td>labels.jsonl 651,652,672,673,685,743行</td></tr>
+<tr><td>この資産の台帳イベント</td><td>20件</td><td>events.jsonl 695-1049行</td></tr>
+<tr><td>8/6 の自動試行</td><td class="r">2回 → <span class="big red">生成0</span></td><td>child-logs 2本・cursor.json</td></tr>
+<tr><td>8/7 の焼き直し</td><td>9枚（一覧掲載7・判定1・<b>採用0</b>）</td><td>events.jsonl 1009-1018行・各 manifest</td></tr>
+<tr><td>いろはの応答</td><td>91行（8/6=88・8/7=3）</td><td>iroha-judgments.jsonl</td></tr>
+<tr><td>　└ 使えた答え</td><td class="r">17</td><td>同上（断り30・分からない25・形式不備17・人手2）</td></tr>
+<tr><td>　└ 年齢に触れた返答</td><td class="r"><span class="big red">42</span> / 91</td><td>返答本文だけを検索した実数</td></tr>
+<tr><td>学びの台帳</td><td>584行（採用 9件・最終 7/28）</td><td>lessons_ledger.jsonl</td></tr>
+<tr><td>　└ この件の学びの採用</td><td class="r"><span class="big red">0</span></td><td>spank系3件すべてに採用の印が無い</td></tr>
+<tr><td>8/7 のタンライン検品</td><td class="r">7/7 が実行不能</td><td>各 manifest（qwen unavailable）</td></tr>
+<tr><td>判定台の未判定</td><td>93件中 90件</td><td>2026-08-06-repair-live</td></tr>
 </table>
 
-<h2>3. 直す順番</h2>
+<h2>4. クリスティの過去の報告の訂正</h2>
 
-<p>上から順に効きます。<b>1 を直さずに 2 以降をやっても絵は良くなりません。</b>8/7 にわたしがやったのがそれです。</p>
+<div class="corr">
+<h3>「いろはの応答91行すべてが年齢を理由に断っている」→ 誤り</h3>
+<p style="margin:0">正しくは <b>42/91</b>。クリスティは行まるごとを文字列として検索していたため、
+キー名やファイルパスに含まれる語まで数に入れていた。返答の本文だけを見るのが正しい数え方。</p>
+</div>
 
-<ol class="fix">
-<li><b>直しの入口を、社長が見た絵に変える【工程③】</b>
-社長が×を付けた絵そのものを材料にし、そこから「ここだけ」変える形にします。
-絵の指定を差し替える口は既にあることを確認済み。<b>まだ実行していません。</b></li>
+<div class="corr">
+<h3>「8/7 にこの1枚を8回焼いた」→ 不正確</h3>
+<p style="margin:0">実際は <b>9枚</b>。うち一覧掲載7枚、社長が判定できたのは1枚。</p>
+</div>
 
-<li><b>タンライン検査を復活させる【工程⑥】</b>
-社長の×理由の1位を、機械が誰も見ていない状態を解消します。原因の切り分けから。</li>
+<h2>5. まだ分かっていないこと</h2>
 
-<li><b>いろはへの聞き方を変えるか、工程をやめる【工程④】</b>
-「タグを書け」ではなく「見て違いを述べよ」に変えると通る、という実測が別の担当で既にあります（拒否ゼロ）。
-いまのままなら8割が社長へ戻り続けます。</li>
+<p><span class="lv c">未確認</span>次の4点は、監査でも突き止められませんでした。<b>推測で埋めていません。</b></p>
 
-<li><b>ルールの発火条件に「今回の指摘」を足す【工程⑧】</b>
-元絵のタグだけで発火する今の形をやめます。</li>
-
-<li><b>「その他」に手を用意する【工程③】</b>
-直近7夜の最多は「その他」20件で、ここだけ打つ手がありません。</li>
-
-<li><b>タンラインが出ない原因の切り分け</b>
-1〜5 が済んでから。<b>原因は分かっていません。</b>8/8 に実験しましたが、
-画角の違う2枚を比べるという誤った作りで、結論は取り下げました。</li>
-</ol>
+<table>
+<tr><th style="width:44%">分かっていないこと</th><th>調べた範囲</th></tr>
+<tr><td>8/6 に「理由を選び直せ」で打ち切った<b>コードの実体</b></td>
+    <td>現在のコード・全コミット履歴の文字列検索・キャッシュのいずれにも痕跡なし。当時のログの出力文だけが残っており、挙動を再現できない</td></tr>
+<tr><td>#ログ への打ち切り通知を社長が読んだか</td><td>送信エラーの記録は無いが、着信・既読を確かめる手段が無い</td></tr>
+<tr><td>8/6 の×で「起き上がりの合図」が置かれたか</td><td>現物は 8/8 の別資産分のみ。当時の一次記録が無い</td></tr>
+<tr><td>8/7 の6つの実験フォルダがどう起動されたか</td><td>一覧の記録から「直接呼び出し相当」と導けるが、起動コマンドの記録は未発見</td></tr>
+</table>
 
 <div class="foot">
-実コードの出典 ／ ① <code>tools/yuuko-nightly-review/server.py</code>　② <code>atelier/review_bridge.py</code>
-③ <code>atelier/repair_plan.py</code>　④ <code>scripts/repair-on-demand.py</code>　⑤ <code>atelier/produce.py</code>
-⑥ <code>yuuko/qc.py</code>　⑦ <code>atelier/lessons_ledger.py</code>　⑧ <code>atelier/rule_engine.py</code><br>
-数字の出典 ／ <code>brain/labels.jsonl</code>・<code>state/yuuko-iroha-watcher/iroha-judgments.jsonl</code>・
-各便の <code>manifest.json</code>・<code>atelier.theme_escalation report</code>
+調査 ／ trace-auditor（2026-08-08 新設・一周トレース監査の専任・読み取り専用）。
+この役は「コードを書いた者はその監査を担当しない」という決まりを機構にしたもので、
+クリスティ（本体）は監査される側です。<br>
+出典 ／ <code>brain/labels.jsonl</code>・<code>store/events.jsonl</code>・<code>brain/lessons_ledger.jsonl</code>・
+<code>state/yuuko-iroha-watcher/iroha-judgments.jsonl</code>・<code>state/repair-trigger/</code>・各便の <code>manifest.json</code>・
+実コード（server.py／review_bridge.py／repair_plan.py／repair-on-demand.py／produce.py／qc.py／lessons_ledger.py／rule_engine.py）
 </div>
 
 </div>
