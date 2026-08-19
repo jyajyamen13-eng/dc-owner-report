@@ -298,7 +298,7 @@
             オーナーレポート分析
           </h1>
           <p class="text-xs text-dg-desc">
-            ディーキャリアいわて・盛岡オフィス — 2021年8月〜2026年4月
+            ディーキャリアいわて・盛岡オフィス — <span id="period-range">—</span>
           </p>
         </div>
       </div>
@@ -323,6 +323,28 @@
             適用して再計算
           </button>
           <button onclick="resetUnitPrices()" class="btn-secondary" aria-label="報酬単価設定をリセット">
+            リセット
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 1b. 期別 損益分岐点設定 ===== -->
+    <section aria-labelledby="breakeven-title">
+      <h2 id="breakeven-title" class="section-title">
+        期別 損益分岐点（月額）
+      </h2>
+      <p class="text-xs text-dg-desc mb-4">
+        6月〜翌5月が1期。未入力の期は既定値
+        <strong>¥2,500,000</strong>（第15期の一般管理費実績 月平均 2,431,478 円ベース）を使用します。入力値はブラウザに保存されます。
+      </p>
+      <div class="dg-card p-5">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="breakeven-inputs"></div>
+        <div class="mt-4 flex gap-3">
+          <button onclick="applyBreakevens()" class="btn-primary" aria-label="損益分岐点を適用して再計算">
+            適用して再計算
+          </button>
+          <button onclick="resetBreakevens()" class="btn-secondary" aria-label="損益分岐点設定をリセット">
             リセット
           </button>
         </div>
@@ -447,11 +469,58 @@
         <p class="text-xs text-dg-desc mb-4">
           月次売上（単位：円）。
           <span style="color:#FA0000; font-weight:600;">赤破線</span>
-          は損益分岐点 ¥2,300,000。損益分岐点以上の月は青、未満は赤で表示。
+          はその月が属する期の損益分岐点。分岐点以上の月は青、未満は赤で表示。
         </p>
         <div class="chart-container" style="height:280px;">
-          <canvas id="chartSales" role="img" aria-label="売上推移棒グラフ、損益分岐点230万円の赤破線付き"></canvas>
+          <canvas id="chartSales" role="img" aria-label="売上推移棒グラフ、期別損益分岐点の赤破線付き"></canvas>
         </div>
+      </div>
+    </section>
+
+    <!-- ===== 4b. 通年サマリー ===== -->
+    <section aria-labelledby="annual-title">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="annual-title" class="section-title" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+          通年サマリー
+        </h2>
+        <div class="flex items-center gap-1 border border-gray-200 rounded overflow-hidden" style="font-size:0.8rem;">
+          <button id="btn-annual-fy" onclick="switchFilterMode('fy')"
+            class="px-3 py-1" style="background:#0031D8; color:#fff; border:none; cursor:pointer; min-height:unset;">年度（4月始）</button>
+          <button id="btn-annual-dc" onclick="switchFilterMode('dc')"
+            class="px-3 py-1" style="background:#fff; color:#626264; border:none; cursor:pointer; min-height:unset;">決算期（6月始）</button>
+        </div>
+      </div>
+      <div style="border-bottom: 2px solid #4979F5; margin-bottom: 16px;"></div>
+
+      <div class="dg-card p-5 mb-6">
+        <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-annual-title">期別 売上と損益分岐点</h3>
+        <p class="text-xs text-dg-desc mb-4">棒＝期間売上合計、赤破線＝その期間の損益分岐点合計（月額×月数）</p>
+        <div class="chart-container" style="height:260px;">
+          <canvas id="chartAnnual" role="img" aria-label="期別売上と損益分岐点の棒グラフ"></canvas>
+        </div>
+      </div>
+
+      <div class="dg-card overflow-x-auto">
+        <table class="w-full text-sm text-left" aria-label="通年サマリー">
+          <thead style="background:#D9E6FF; color:#1A1A1A;">
+            <tr>
+              <th class="px-4 py-3 text-xs font-bold" scope="col">期間</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">月数</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">コマ数</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">月平均コマ</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">欠席率</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">平均利用者</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">就職</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">退所</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">売上</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">月平均売上</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">分岐点合計</th>
+              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">損益</th>
+            </tr>
+          </thead>
+          <tbody id="annual-body"></tbody>
+          <tfoot id="annual-footer"></tfoot>
+        </table>
       </div>
     </section>
 
@@ -499,7 +568,7 @@
 
     <!-- メタ情報フッター -->
     <footer class="text-xs text-dg-desc border-t border-gray-200 pt-4 pb-8" role="contentinfo">
-      <p>出典：ディーキャリアいわて・盛岡オフィス 月次オーナーレポート（2021年8月〜2026年4月）</p>
+      <p>出典：ディーキャリアいわて・盛岡オフィス 月次オーナーレポート（<span id="period-range-foot">—</span>）</p>
       <p class="mt-1">注記：推計値を含む月は利用者数に「(推計)」と表示。売上は報酬単価×コマ数で算出（一部実績値）。</p>
     </footer>
 
@@ -523,7 +592,7 @@
         pessimistic:{ label: '悲観', users: 18, attendance: 18.0, absence_rate: 6.0 }
       },
       months: ['2026-05','2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12','2027-01','2027-02','2027-03'],
-      breakeven: 2300000
+      get breakeven() { return currentBreakeven(); }
     };
 
     // 月別実績通所日数（予測コマ数計算用）
@@ -679,7 +748,7 @@
           </div>
         </div>
         <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">累計損益予測（損益分岐 ¥230万×${monthCount}ヶ月=¥${(breakevenPeriod/10000).toFixed(0)}万）</div>
+          <div class="kpi-label" style="color:#795548;">累計損益予測（損益分岐 ¥${(FORECAST_DATA.breakeven/10000).toFixed(0)}万×${monthCount}ヶ月=¥${(breakevenPeriod/10000).toFixed(0)}万）</div>
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
             ${[['楽観','#388E3C',annualOpt],['基準','#1976D2',annualBase],['悲観','#D32F2F',annualPess]].map(([label,color,val]) => {
               const pl = val - breakevenPeriod;
@@ -745,7 +814,7 @@
 
     // DC盛岡 決算期（6月始〜翌5月末）
     // 期番号: 2021-06〜2022-05 = 第1期（startYear=2021）
-    const DC_PERIOD_START_YEAR = 2021; // 第1期開始年
+    const DC_PERIOD_START_YEAR = 2011; // 第1期開始年（桜千株式会社。2025/06開始＝第15期）
 
     function getDcPeriod(monthStr) {
       // 6月〜翌5月が1期。6〜12月 → startYear=その年、1〜5月 → startYear=前年
@@ -770,16 +839,83 @@
       return `第${num}期（${startYear}/06〜${Number(startYear)+1}/05）`;
     }
 
+    // -----------------------------------------------------------------------
+    // 期別 損益分岐点（決算期＝6月始まり単位で保持）
+    //   月次固定費の水準は期ごとに違うため、月ごとにその月が属する決算期の値を引く。
+    //   年度（4月始）で集計する場合も、月単位で引いた値を合算するのでズレない。
+    // -----------------------------------------------------------------------
+    const BREAKEVEN_KEY = 'dc-morioka-breakeven';
+    const BREAKEVEN_DEFAULT = 2500000;   // 第15期の一般管理費実績（月平均 2,431,478 円）に基づく
+
+    function loadBreakevens() {
+      try { return JSON.parse(localStorage.getItem(BREAKEVEN_KEY)) || {}; } catch { return {}; }
+    }
+
+    function saveBreakevens(v) {
+      localStorage.setItem(BREAKEVEN_KEY, JSON.stringify(v));
+    }
+
+    // その月に適用される損益分岐点（月額）
+    function breakevenFor(monthStr) {
+      const saved = loadBreakevens();
+      const p = getDcPeriod(monthStr);
+      const v = Number(saved[p]);
+      return (!isNaN(v) && v > 0) ? v : BREAKEVEN_DEFAULT;
+    }
+
+    // 直近期の損益分岐点（予測カード等の代表値）
+    function currentBreakeven() {
+      if (!allData || !allData.length) return BREAKEVEN_DEFAULT;
+      const last = allData.map(d => d.month).sort().slice(-1)[0];
+      return breakevenFor(last);
+    }
+
+    function renderBreakevenInputs(data) {
+      const host = document.getElementById('breakeven-inputs');
+      if (!host) return;
+      const saved = loadBreakevens();
+      const periods = getDcPeriods(data);
+      host.innerHTML = periods.map(p => {
+        const num = Number(p) - DC_PERIOD_START_YEAR + 1;
+        const val = saved[p] || '';
+        return `
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-dg-desc font-medium" for="breakeven-${p}">第${num}期<br><span class="font-normal">${p}/6〜${Number(p)+1}/5</span></label>
+            <div class="flex items-center gap-1">
+              <span class="text-xs text-dg-desc">¥</span>
+              <input type="number" id="breakeven-${p}" data-period="${p}" value="${val}"
+                placeholder="${BREAKEVEN_DEFAULT.toLocaleString('ja-JP')}"
+                aria-label="第${num}期の月次損益分岐点（円）" style="width:100%;" />
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function applyBreakevens() {
+      const out = {};
+      document.querySelectorAll('#breakeven-inputs input[data-period]').forEach(el => {
+        const v = parseFloat(el.value);
+        if (!isNaN(v) && v > 0) out[el.dataset.period] = v;
+      });
+      saveBreakevens(out);
+      renderAll(allData);
+    }
+
+    function resetBreakevens() {
+      localStorage.removeItem(BREAKEVEN_KEY);
+      location.reload();
+    }
+
     // 累計損益を計算する（選択期間のデータから）
     function calcCumulativePL(data) {
       const filtered = filterByFiscalYear(data, selectedFy);
       const withSales = filtered.filter(d => d.sales !== null && d.sales !== undefined);
       const totalSales = withSales.reduce((sum, d) => sum + d.sales, 0);
       const months = withSales.length;
-      const breakeven = 2300000;
-      const totalBreakeven = breakeven * months;
+      const totalBreakeven = withSales.reduce((sum, d) => sum + breakevenFor(d.month), 0);
       const pl = totalSales - totalBreakeven;
-      return { totalSales, months, pl };
+      return { totalSales, months, totalBreakeven, pl };
     }
 
     // 累計損益バッジを更新する
@@ -793,6 +929,8 @@
       const absVal = Math.abs(pl).toLocaleString('ja-JP');
       const label = pl >= 0 ? '黒字' : '赤字';
       const color = pl >= 0 ? '#0031D8' : '#FA0000';
+      const { totalBreakeven } = calcCumulativePL(data);
+      el.title = `売上合計 ¥${totalSales.toLocaleString('ja-JP')} − 損益分岐点合計 ¥${totalBreakeven.toLocaleString('ja-JP')}（${months}か月）`;
       el.innerHTML = `累計損益: <strong style="color:${color};">${sign}¥${absVal}（${label}）</strong>`;
     }
 
@@ -1307,11 +1445,15 @@
       // 売上（損益分岐点ライン付き）— 棒グラフ
       // 損益分岐点以上: Blue-500, 未満: Negative (#FA0000)
       const salesData = sorted.filter(d => d.sales !== null);
-      const breakeven = 2300000;
       const salesLabels = extendLabels(salesData.map(d => d.month));
       const forecastSalesDatasets = makeForecastDatasets_Sales(salesData.map(d => d.month));
-      // 損益分岐点ラインを全ラベル分に延長
-      const breakevenLineData = salesLabels.map(() => breakeven);
+      // 損益分岐点は期ごとに違うので、月ごとに引いて階段状のラインにする
+      const breakevenLineData = salesLabels.map(m => breakevenFor(m));
+      const beMin = Math.min(...breakevenLineData);
+      const beMax = Math.max(...breakevenLineData);
+      const beLabel = beMin === beMax
+        ? `損益分岐点 ¥${beMin.toLocaleString('ja-JP')}`
+        : `損益分岐点（期別 ¥${beMin.toLocaleString('ja-JP')}〜¥${beMax.toLocaleString('ja-JP')}）`;
 
       new Chart(document.getElementById('chartSales'), {
         type: 'bar',
@@ -1321,15 +1463,16 @@
             {
               label: '売上',
               data: salesData.map(d => d.sales),
-              backgroundColor: salesData.map(d => d.sales >= breakeven ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
-              borderColor: salesData.map(d => d.sales >= breakeven ? DG_BLUE_500 : DG_NEGATIVE),
+              backgroundColor: salesData.map(d => d.sales >= breakevenFor(d.month) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
+              borderColor: salesData.map(d => d.sales >= breakevenFor(d.month) ? DG_BLUE_500 : DG_NEGATIVE),
               borderWidth: 1,
               borderRadius: 2,
             },
             {
-              label: '損益分岐点 ¥2,300,000',
+              label: beLabel,
               data: breakevenLineData,
               type: 'line',
+              stepped: 'middle',
               borderColor: DG_NEGATIVE,
               borderDash: [8, 4],
               borderWidth: 2,
@@ -1373,7 +1516,7 @@
               padding: 10,
               callbacks: {
                 label: ctx => {
-                  if (ctx.dataset.label === '損益分岐点 ¥2,300,000') return ' ¥2,300,000（損益分岐点）';
+                  if (ctx.dataset.label && ctx.dataset.label.startsWith('損益分岐点')) return ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP') + '（損益分岐点）';
                   if (ctx.parsed.y === null) return null;
                   return ` ${ctx.dataset.label || '売上'}: ¥${ctx.parsed.y?.toLocaleString('ja-JP')}`;
                 }
@@ -1783,6 +1926,7 @@
 
       // 累計損益更新
       updateCumulativePL(data);
+      renderAnnualSummary(data);
 
       // 予測サマリー更新（予測ON時のみ）
       if (forecastEnabled) renderForecastSummaryCards();
@@ -1799,9 +1943,10 @@
       selectedFy = 'all';
 
       // ボタン見た目切替
-      const btnFy = document.getElementById('btn-mode-fy');
-      const btnDc = document.getElementById('btn-mode-dc');
-      if (btnFy && btnDc) {
+      [['btn-mode-fy', 'btn-mode-dc'], ['btn-annual-fy', 'btn-annual-dc']].forEach(([idFy, idDc]) => {
+        const btnFy = document.getElementById(idFy);
+        const btnDc = document.getElementById(idDc);
+        if (!btnFy || !btnDc) return;
         if (mode === 'fy') {
           btnFy.style.background = '#0031D8'; btnFy.style.color = '#fff';
           btnDc.style.background = '#fff'; btnDc.style.color = '#626264';
@@ -1809,7 +1954,7 @@
           btnDc.style.background = '#0031D8'; btnDc.style.color = '#fff';
           btnFy.style.background = '#fff'; btnFy.style.color = '#626264';
         }
-      }
+      });
 
       // ラベルテキスト更新
       const label = document.getElementById('chart-period-label');
@@ -1857,8 +2002,163 @@
     // -----------------------------------------------------------------------
     // エントリーポイント
     // -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // 通年サマリー（年度／決算期 の切替に追従）
+    // -----------------------------------------------------------------------
+    // データの実期間を見出しと出典に反映する
+    function updatePeriodRange(data) {
+      const months = data.map(d => d.month).filter(Boolean).sort();
+      if (!months.length) return;
+      const jp = m => { const [y, mm] = m.split('-'); return `${y}年${Number(mm)}月`; };
+      const text = `${jp(months[0])}〜${jp(months[months.length - 1])}`;
+      ['period-range', 'period-range-foot'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+      });
+    }
+
+    function annualBuckets(data) {
+      const keyOf = filterMode === 'dc' ? getDcPeriod : getFiscalYear;
+      const labelOf = filterMode === 'dc' ? dcPeriodLabel : fyLabel;
+      const map = new Map();
+      data.forEach(d => {
+        const k = keyOf(d.month);
+        if (!map.has(k)) map.set(k, []);
+        map.get(k).push(d);
+      });
+      return [...map.keys()].sort((a, b) => a - b).map(k => {
+        const rows = map.get(k);
+        const withSales = rows.filter(d => d.sales !== null && d.sales !== undefined);
+        const num = v => (v === null || v === undefined || isNaN(v)) ? 0 : Number(v);
+        const koma     = rows.reduce((s, d) => s + num(d.koma), 0);
+        const absence  = rows.reduce((s, d) => s + num(d.absence), 0);
+        const sales    = withSales.reduce((s, d) => s + d.sales, 0);
+        const be       = withSales.reduce((s, d) => s + breakevenFor(d.month), 0);
+        const uRows    = rows.filter(d => d.total_users !== null && d.total_users !== undefined);
+        const komaRows = rows.filter(d => d.koma !== null && d.koma !== undefined);
+        return {
+          key: k,
+          label: labelOf(k),
+          months: withSales.length,
+          koma,
+          komaAvg: komaRows.length ? koma / komaRows.length : null,
+          absenceRate: (koma + absence) > 0 ? absence / (koma + absence) * 100 : null,
+          users: uRows.length ? uRows.reduce((s, d) => s + Number(d.total_users), 0) / uRows.length : null,
+          graduates: rows.reduce((s, d) => s + num(d.graduates), 0),
+          exits: rows.reduce((s, d) => s + num(d.exits), 0),
+          sales,
+          salesAvg: withSales.length ? sales / withSales.length : null,
+          breakeven: be,
+          pl: sales - be
+        };
+      });
+    }
+
+    function renderAnnualSummary(data) {
+      const body = document.getElementById('annual-body');
+      if (!body) return;
+      const buckets = annualBuckets(data);
+      const money = v => '¥' + Math.round(v).toLocaleString('ja-JP');
+      const plCell = v => {
+        const c = v >= 0 ? '#0031D8' : '#FA0000';
+        return `<td class="px-4 py-3 text-right" style="color:${c}; font-weight:700;">${v >= 0 ? '+' : '−'}${money(Math.abs(v))}</td>`;
+      };
+
+      body.innerHTML = buckets.map(b => `
+        <tr style="border-top:1px solid #EFEFEF;">
+          <td class="px-4 py-3 font-bold">${b.label}</td>
+          <td class="px-4 py-3 text-right">${b.months}</td>
+          <td class="px-4 py-3 text-right">${b.koma.toLocaleString('ja-JP')}</td>
+          <td class="px-4 py-3 text-right">${b.komaAvg === null ? '<span class="null-val">—</span>' : b.komaAvg.toFixed(1)}</td>
+          <td class="px-4 py-3 text-right">${b.absenceRate === null ? '<span class="null-val">—</span>' : b.absenceRate.toFixed(2) + '%'}</td>
+          <td class="px-4 py-3 text-right">${b.users === null ? '<span class="null-val">—</span>' : b.users.toFixed(1)}</td>
+          <td class="px-4 py-3 text-right">${b.graduates}</td>
+          <td class="px-4 py-3 text-right">${b.exits}</td>
+          <td class="px-4 py-3 text-right">${money(b.sales)}</td>
+          <td class="px-4 py-3 text-right">${b.salesAvg === null ? '<span class="null-val">—</span>' : money(b.salesAvg)}</td>
+          <td class="px-4 py-3 text-right" style="color:#626264;">${money(b.breakeven)}</td>
+          ${plCell(b.pl)}
+        </tr>
+      `).join('');
+
+      const tot = buckets.reduce((a, b) => ({
+        months: a.months + b.months, koma: a.koma + b.koma,
+        graduates: a.graduates + b.graduates, exits: a.exits + b.exits,
+        sales: a.sales + b.sales, breakeven: a.breakeven + b.breakeven
+      }), { months: 0, koma: 0, graduates: 0, exits: 0, sales: 0, breakeven: 0 });
+
+      const foot = document.getElementById('annual-footer');
+      if (foot) {
+        foot.innerHTML = `
+          <tr style="background:#D9E6FF; border-top:2px solid #4979F5; font-weight:700;">
+            <td class="px-4 py-3" style="color:#0031D8;">合計</td>
+            <td class="px-4 py-3 text-right">${tot.months}</td>
+            <td class="px-4 py-3 text-right">${tot.koma.toLocaleString('ja-JP')}</td>
+            <td class="px-4 py-3 text-right">—</td>
+            <td class="px-4 py-3 text-right">—</td>
+            <td class="px-4 py-3 text-right">—</td>
+            <td class="px-4 py-3 text-right">${tot.graduates}</td>
+            <td class="px-4 py-3 text-right">${tot.exits}</td>
+            <td class="px-4 py-3 text-right">${money(tot.sales)}</td>
+            <td class="px-4 py-3 text-right">—</td>
+            <td class="px-4 py-3 text-right" style="color:#626264;">${money(tot.breakeven)}</td>
+            ${plCell(tot.sales - tot.breakeven)}
+          </tr>`;
+      }
+
+      // 期別グラフ
+      const cv = document.getElementById('chartAnnual');
+      if (cv && typeof Chart !== 'undefined') {
+        const old = Chart.getChart(cv);
+        if (old) old.destroy();
+        new Chart(cv, {
+          type: 'bar',
+          data: {
+            labels: buckets.map(b => b.label.replace(/（.*/, '')),
+            datasets: [
+              {
+                label: '売上',
+                data: buckets.map(b => b.sales),
+                backgroundColor: buckets.map(b => b.pl >= 0 ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
+                borderColor: buckets.map(b => b.pl >= 0 ? DG_BLUE_500 : DG_NEGATIVE),
+                borderWidth: 1, borderRadius: 2
+              },
+              {
+                label: '損益分岐点合計',
+                data: buckets.map(b => b.breakeven),
+                type: 'line', stepped: 'middle',
+                borderColor: DG_NEGATIVE, borderDash: [8, 4], borderWidth: 2,
+                pointRadius: 0, fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ' ' + ctx.dataset.label + ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP')
+                }
+              }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+              y: {
+                beginAtZero: true,
+                ticks: { callback: v => '¥' + (v / 10000).toLocaleString('ja-JP') + '万', font: { size: 11 } },
+                grid: { color: '#EFEFEF' }
+              }
+            }
+          }
+        });
+      }
+    }
+
     function renderAll(data) {
+      updatePeriodRange(data);
       renderUnitPriceInputs(data);
+      renderBreakevenInputs(data);
       renderKpiCards(data);
       renderCompareCards(data);
 
@@ -1873,6 +2173,7 @@
       });
       renderCharts(data);
       updateCumulativePL(data);
+      renderAnnualSummary(data);
 
       sortCol = 'month';
       sortDir = 'desc';
