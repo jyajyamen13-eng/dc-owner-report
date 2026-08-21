@@ -382,7 +382,7 @@
 </div><!-- /#app -->
 <script>
 /* ───────── パスワードゲート JS ───────── */
-var PW_HASH = "";
+var PW_HASH = "f92dc212a36561d454235ef45b0ac15179bd20a857c6b2845c30321d6a098b7f";
 async function _sha256(s) {
   var buf = new TextEncoder().encode(s);
   var h = await crypto.subtle.digest("SHA-256", buf);
