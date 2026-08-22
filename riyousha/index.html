@@ -124,6 +124,7 @@
     .kpi-grid { grid-template-columns: 1fr; }
     .chart-wrap { height: 300px; }
   }
+  /*GATE*/
   /* ── パスワードゲート ── */
   #login-overlay {
     position: fixed; inset: 0;
@@ -153,10 +154,12 @@
   }
   .login-card button:hover { background: #1e40af; }
   .login-card .err { margin-top: 10px; font-size: .78rem; color: #dc2626; min-height: 1.1em; font-weight: 500; }
+  /*/GATE*/
 </style>
 </head>
 <body>
 
+<!--GATE-->
 <!-- ───────── パスワードゲート ───────── -->
 <div id="login-overlay">
   <form class="login-card" id="login-form" autocomplete="off">
@@ -168,13 +171,14 @@
     <div class="err" id="login-err">&nbsp;</div>
   </form>
 </div>
+<!--/GATE-->
 
 <!-- ───────── 本体 ───────── -->
 <div id="app" style="display:none;">
 
 <div class="page-header">
   <h1>利用者ダッシュボード — 2026年度（4月〜2027年3月）</h1>
-  <div class="meta">ビルド: 2026-08-22 08:24 JST &nbsp;|&nbsp; 今月: <strong>8月</strong></div>
+  <div class="meta">ビルド: 2026-08-22 12:16 JST &nbsp;|&nbsp; 今月: <strong>8月</strong></div>
 </div>
 
 <div class="kpi-grid">
@@ -182,8 +186,8 @@
     <div class="kpi-label">
       <span class="kpi-dot" style="background:#1D4ED8;"></span>利用者数（8月）
     </div>
-    <div class="kpi-value">22<span class="kpi-unit">人</span></div>
-    <div class="kpi-sub">既存 19 + 新規 3</div>
+    <div class="kpi-value">28<span class="kpi-unit">人</span></div>
+    <div class="kpi-sub">既存 24 + 新規 4</div>
   </div>
   <div class="kpi-card">
     <div class="kpi-label">
@@ -241,7 +245,7 @@
 </script>
 <script>
 (function() {
-  var data = [{"label": "4月", "riyousha_base": 19, "riyousha_new": 0, "riyousha_total": 19, "mikomi_count": 7, "sotsugyou_cum": 2, "sotsugyou_new": 5, "taisha_count": 0, "has_data": true}, {"label": "5月", "riyousha_base": 21, "riyousha_new": 0, "riyousha_total": 21, "mikomi_count": 7, "sotsugyou_cum": 7, "sotsugyou_new": 0, "taisha_count": 0, "has_data": true}, {"label": "6月", "riyousha_base": 20, "riyousha_new": 0, "riyousha_total": 20, "mikomi_count": 7, "sotsugyou_cum": 7, "sotsugyou_new": 0, "taisha_count": 1, "has_data": true}, {"label": "7月", "riyousha_base": 19, "riyousha_new": 0, "riyousha_total": 19, "mikomi_count": 7, "sotsugyou_cum": 7, "sotsugyou_new": 1, "taisha_count": 0, "has_data": true}, {"label": "8月", "riyousha_base": 19, "riyousha_new": 3, "riyousha_total": 22, "mikomi_count": 7, "sotsugyou_cum": 8, "sotsugyou_new": 0, "taisha_count": 0, "has_data": true}, {"label": "9月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "10月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "11月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "12月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "1月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "2月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "3月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}];
+  var data = [{"label": "4月", "riyousha_base": 19, "riyousha_new": 0, "riyousha_total": 19, "mikomi_count": 7, "sotsugyou_cum": 2, "sotsugyou_new": 5, "taisha_count": 0, "has_data": true}, {"label": "5月", "riyousha_base": 21, "riyousha_new": 0, "riyousha_total": 21, "mikomi_count": 7, "sotsugyou_cum": 7, "sotsugyou_new": 0, "taisha_count": 0, "has_data": true}, {"label": "6月", "riyousha_base": 20, "riyousha_new": 1, "riyousha_total": 21, "mikomi_count": 7, "sotsugyou_cum": 7, "sotsugyou_new": 0, "taisha_count": 1, "has_data": true}, {"label": "7月", "riyousha_base": 20, "riyousha_new": 4, "riyousha_total": 24, "mikomi_count": 7, "sotsugyou_cum": 7, "sotsugyou_new": 1, "taisha_count": 0, "has_data": true}, {"label": "8月", "riyousha_base": 24, "riyousha_new": 4, "riyousha_total": 28, "mikomi_count": 7, "sotsugyou_cum": 8, "sotsugyou_new": 0, "taisha_count": 0, "has_data": true}, {"label": "9月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "10月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "11月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "12月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "1月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "2月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}, {"label": "3月", "riyousha_base": null, "riyousha_new": null, "riyousha_total": null, "mikomi_count": null, "sotsugyou_cum": null, "sotsugyou_new": null, "taisha_count": null, "has_data": false}];
 
   var labels        = data.map(function(d){ return d.label; });
   // 利用者数 積み上げ
@@ -380,6 +384,7 @@
 })();
 </script>
 </div><!-- /#app -->
+<!--GATE-->
 <script>
 /* ───────── パスワードゲート JS ───────── */
 var PW_HASH = "f92dc212a36561d454235ef45b0ac15179bd20a857c6b2845c30321d6a098b7f";
@@ -403,6 +408,7 @@ document.getElementById("login-form").addEventListener("submit", async function(
   }
 });
 </script>
+<!--/GATE-->
 
 </body>
 </html>
