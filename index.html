@@ -586,12 +586,15 @@
     // -----------------------------------------------------------------------
     const FORECAST_DATA = {
       unit_price: 10200,  // 2026-04以降確定
+      // 前提は単価10200以降の実績(2026-04〜08)で置き直した(2026-09-22)。
+      //   利用者 19〜27人(直近3か月 21〜27) / 平均出席 18.0〜19.7日 / 欠席率 2.10〜6.57%(直近3か月 2.10〜3.93)
+      //   置き直す前は 楽観25人/出席21.0日/欠席4.0% で、利用者は実績に追い越され、出席日数には一度も届いていなかった。
       scenarios: {
-        optimistic: { label: '楽観', users: 25, attendance: 21.0, absence_rate: 4.0 },
-        baseline:   { label: '基準', users: 22, attendance: 19.0, absence_rate: 5.0 },
-        pessimistic:{ label: '悲観', users: 18, attendance: 18.0, absence_rate: 6.0 }
+        optimistic: { label: '楽観', users: 27, attendance: 19.7, absence_rate: 2.5 },
+        baseline:   { label: '基準', users: 24, attendance: 18.9, absence_rate: 3.5 },
+        pessimistic:{ label: '悲観', users: 21, attendance: 18.0, absence_rate: 5.0 }
       },
-      months: ['2026-05','2026-06','2026-07','2026-08','2026-09','2026-10','2026-11','2026-12','2027-01','2027-02','2027-03'],
+      months: ['2026-09','2026-10','2026-11','2026-12','2027-01','2027-02','2027-03'],
       get breakeven() { return currentBreakeven(); }
     };
 
@@ -618,9 +621,17 @@
       });
     }
 
+    // 実績が出ている月は予測から外す(予測の線が実績に重ならないようにする)
+    function forecastBaseMonths() {
+      const lastActual = EMBEDDED_DATA
+        .filter(d => d.koma !== null && d.koma !== undefined)
+        .map(d => d.month).sort().slice(-1)[0] || '';
+      return FORECAST_DATA.months.filter(m => m > lastActual);
+    }
+
     // フィルタに連動した予測月リストを返す
     function getFilteredForecastMonths() {
-      const allForecastMonths = FORECAST_DATA.months;
+      const allForecastMonths = forecastBaseMonths();
       if (selectedFy === 'all' || selectedFy === null || selectedFy === undefined) {
         return allForecastMonths;
       }
