@@ -1799,7 +1799,9 @@
       `).join('');
 
       // 予測行HTML（選んだシナリオの値を1マスに1つ）
-      const forecastRowsHtml = forecastRows.map(f => `
+      // 月の新しい順（既定）のときは、予測月（実績より先の月）を実績の上に新しい順で置く
+      const monthDesc = sortCol === 'month' && sortDir === 'desc';
+      const forecastRowsHtml = (monthDesc ? [...forecastRows].reverse() : forecastRows).map(f => `
         <tr class="forecast-row" role="row"
             onmouseover="this.style.background='#FFF9C4'"
             onmouseout="this.style.background=''">
@@ -1819,7 +1821,9 @@
         </tr>
       `).join('');
 
-      document.getElementById('table-body').innerHTML = actualRowsHtml + forecastRowsHtml;
+      document.getElementById('table-body').innerHTML = monthDesc
+        ? forecastRowsHtml + actualRowsHtml
+        : actualRowsHtml + forecastRowsHtml;
 
       // -----------------------------------------------------------------------
       // 合計/平均行
