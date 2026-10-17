@@ -1860,9 +1860,6 @@
       const totalGrads       = sumValid(filtered, 'graduates');
       const totalExits       = sumValid(filtered, 'exits');
       const avgAttendance    = avgValid(filtered, 'avg_attendance_days', 1);
-      // 報酬単価平均：有効な行のみ
-      const unitVals         = filtered.filter(d => d.basic_unit !== null && d.basic_unit !== undefined);
-      const avgUnit          = unitVals.length > 0 ? unitVals.reduce((s, d) => s + Number(d.basic_unit), 0) / unitVals.length : null;
       const totalSales       = sumValid(filtered, 'sales');
 
       const tdStyle = 'px-4 py-2.5 text-right tabular-nums text-sm font-bold';
@@ -1884,7 +1881,7 @@
           <td class="${tdStyle}">${filtered.some(d => d.graduates !== null) ? totalGrads.toLocaleString('ja-JP') : nullCell}</td>
           <td class="${tdStyle}">${filtered.some(d => d.exits !== null) ? totalExits.toLocaleString('ja-JP') : nullCell}</td>
           <td class="${tdStyle}">${avgAttendance !== null ? avgAttendance.toFixed(1) : nullCell}</td>
-          <td class="${tdStyle}">${avgUnit !== null ? '¥' + Math.round(avgUnit).toLocaleString('ja-JP') : nullCell}</td>
+          <td class="${tdStyle}">${nullCell}</td>
           <td class="${tdStyle}">${filtered.some(d => d.sales !== null) ? '¥' + totalSales.toLocaleString('ja-JP') : nullCell}</td>
         </tr>
       `;
@@ -1893,8 +1890,6 @@
       if (forecastEnabled && forecastRows.length > 0) {
         const fMonths = forecastRows; // already filtered by getFilteredForecastMonths() + text filter
         const n = fMonths.length;
-        // 単価は月ごとに違いうるので、実績行と同じく単純平均を出す
-        const unit = Math.round(fMonths.reduce((s, f) => s + f.basic_unit, 0) / n);
 
         // シナリオ別の見た目（既存の3色をそのまま使い、選んだ1つだけ出す）
         const scenarios = [
@@ -1946,7 +1941,7 @@
               <td class="${tdStyle}">${nullCell}</td>
               <td class="${tdStyle}">${nullCell}</td>
               <td class="${tdStyle}" style="color:${sc.textColor};">${attendance !== null ? attendance.toFixed(1) : nullCell}</td>
-              <td class="${tdStyle}" style="color:${sc.textColor};">¥${unit.toLocaleString('ja-JP')}</td>
+              <td class="${tdStyle}">${nullCell}</td>
               <td class="${tdStyle}" style="color:${sc.textColor};">¥${totalFSales.toLocaleString('ja-JP')}</td>
             </tr>
           `;
