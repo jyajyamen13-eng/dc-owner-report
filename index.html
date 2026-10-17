@@ -376,6 +376,7 @@
         <span class="text-sm font-normal text-dg-desc ml-2">（単価 ¥10,200：〜2027/3・¥12,100：2027/4〜）</span>
       </h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="forecast-summary-cards"></div>
+      <p id="forecast-bizdays-note" class="mt-2 text-xs text-dg-desc" style="line-height:1.6;"></p>
     </section>
 
     <!-- ===== 3. 前月比・前年同月比 ===== -->
@@ -654,15 +655,111 @@
       return FORECAST_UNIT_PRICE_BY_FY[key];
     }
 
-    // 予測コマ数（今の式のまま: users × attendance を四捨五入）
-    function forecastKoma(scenario) {
+    // -----------------------------------------------------------------------
+    // 営業日数（2026-10-17 社長指示: 月の日数を予測に反映する）
+    //   営業日 = 月〜土。日曜・国民の祝日・お盆 8/13〜8/15・年末年始 12/29〜1/3 は休み。
+    //   決まりは実績 PDF の営業日数（2026年3〜9月）から確認した。
+    // -----------------------------------------------------------------------
+    // 実績 PDF の営業日数（実績月はこちらを優先する）
+    const ACTUAL_BIZ_DAYS = { '2026-06': 26, '2026-07': 26, '2026-08': 22, '2026-09': 23 };
+    // 春分・秋分の日（内閣府の公表値。月-日）。ここに無い年は近似式で出す
+    const EQUINOX_DAYS = {
+      2026: ['03-20', '09-23'],
+      2027: ['03-21', '09-23'],
+    };
+
+    // その年の国民の祝日（振替休日・国民の休日を含む）を 'MM-DD' の Set で返す
+    const _holidayCache = {};
+    function jpHolidays(y) {
+      if (_holidayCache[y]) return _holidayCache[y];
+      const pad = n => String(n).padStart(2, '0');
+      const key = (m, d) => `${pad(m)}-${pad(d)}`;
+      const nthMonday = (m, n) => {
+        const first = new Date(y, m - 1, 1).getDay();       // 0=日
+        return 1 + ((8 - first) % 7) + (n - 1) * 7;
+      };
+      let eq = EQUINOX_DAYS[y];
+      if (!eq) {
+        const d = y - 1980, q = Math.floor(d / 4);
+        eq = [key(3, Math.floor(20.8431 + 0.242194 * d - q)), key(9, Math.floor(23.2488 + 0.242194 * d - q))];
+      }
+      const base = new Set([
+        '01-01', key(1, nthMonday(1, 2)), '02-11', '02-23', eq[0], '04-29',
+        '05-03', '05-04', '05-05', key(7, nthMonday(7, 3)), '08-11',
+        key(9, nthMonday(9, 3)), eq[1], key(10, nthMonday(10, 2)), '11-03', '11-23',
+      ]);
+      const out = new Set(base);
+      const isHol = dt => out.has(key(dt.getMonth() + 1, dt.getDate()));
+      // 国民の休日: 祝日に挟まれた平日
+      for (const k of base) {
+        const [m, d] = k.split('-').map(Number);
+        const next = new Date(y, m - 1, d + 1), after = new Date(y, m - 1, d + 2);
+        if (next.getFullYear() === y && after.getFullYear() === y &&
+            base.has(key(after.getMonth() + 1, after.getDate())) && !base.has(key(next.getMonth() + 1, next.getDate())) &&
+            next.getDay() !== 0) {
+          out.add(key(next.getMonth() + 1, next.getDate()));
+        }
+      }
+      // 振替休日: 日曜の祝日 → その後の最初の祝日でない日
+      for (const k of base) {
+        const [m, d] = k.split('-').map(Number);
+        if (new Date(y, m - 1, d).getDay() !== 0) continue;
+        const dt = new Date(y, m - 1, d + 1);
+        while (isHol(dt)) dt.setDate(dt.getDate() + 1);
+        if (dt.getFullYear() === y) out.add(key(dt.getMonth() + 1, dt.getDate()));
+      }
+      _holidayCache[y] = out;
+      return out;
+    }
+
+    // 決まりで数えた月の営業日数
+    function ruleBizDays(monthStr) {
+      const [y, m] = monthStr.split('-').map(Number);
+      const hol = jpHolidays(y);
+      const last = new Date(y, m, 0).getDate();
+      let n = 0;
+      for (let d = 1; d <= last; d++) {
+        if (new Date(y, m - 1, d).getDay() === 0) continue;                    // 日曜
+        if (hol.has(`${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`)) continue; // 祝日
+        if (m === 8 && d >= 13 && d <= 15) continue;                            // お盆
+        if ((m === 12 && d >= 29) || (m === 1 && d <= 3)) continue;             // 年末年始
+        n++;
+      }
+      return n;
+    }
+
+    // 月の営業日数（実績月は PDF の値、それ以外は決まりで数える）
+    function bizDays(monthStr) {
+      return ACTUAL_BIZ_DAYS[monthStr] !== undefined ? ACTUAL_BIZ_DAYS[monthStr] : ruleBizDays(monthStr);
+    }
+
+    // その月が属する決算期（6月〜翌5月）12か月の営業日数の平均
+    function fyAvgBizDays(monthStr) {
+      const [y, m] = monthStr.split('-').map(Number);
+      const sy = m >= 6 ? y : y - 1;
+      let sum = 0;
+      for (let i = 0; i < 12; i++) {
+        const mm = 6 + i, yy = sy + (mm > 12 ? 1 : 0);
+        sum += bizDays(`${yy}-${String(((mm - 1) % 12) + 1).padStart(2, '0')}`);
+      }
+      return sum / 12;
+    }
+
+    // 月の予測通所日数 = シナリオの通所日数 × その月の営業日数 ÷ 決算期の年平均営業日数
+    function forecastAttendance(monthStr, scenario) {
       const s = FORECAST_DATA.scenarios[scenario];
-      return Math.round(s.users * s.attendance);
+      return s.attendance * bizDays(monthStr) / fyAvgBizDays(monthStr);
+    }
+
+    // 予測コマ数 = round(利用者数 × 月の予測通所日数)
+    function forecastKoma(monthStr, scenario) {
+      const s = FORECAST_DATA.scenarios[scenario];
+      return Math.round(s.users * forecastAttendance(monthStr, scenario));
     }
 
     // 予測売上 = 予測コマ数 × その月の年度の報酬単価
     function forecastSales(monthStr, scenario) {
-      return forecastKoma(scenario) * forecastUnitPrice(monthStr);
+      return forecastKoma(monthStr, scenario) * forecastUnitPrice(monthStr);
     }
 
     // 単価の表示文字列（例: ¥10,200 / ¥10,200〜¥12,100）
@@ -672,21 +769,14 @@
       return ps.map(p => '¥' + p.toLocaleString('ja-JP')).join('・');
     }
 
-    // 月別実績通所日数（予測コマ数計算用）
-    const MONTHLY_AVG_DAYS = {
-      '04': 19.0, '05': 19.9, '06': 21.4, '07': 18.9,
-      '08': 18.6, '09': 16.6, '10': 19.5, '11': 19.6,
-      '12': 19.4, '01': 19.5, '02': 18.4, '03': 21.5
-    };
-
     // 予測データからシナリオ別月次売上を計算
     function calcForecastSales(scenario) {
       return FORECAST_DATA.months.map(m => forecastSales(m, scenario));
     }
 
-    // 予測データからシナリオ別月次コマ数を計算（売上と統一: users × attendance）
+    // 予測データからシナリオ別月次コマ数を計算（売上と同じ forecastKoma）
     function calcForecastKoma(scenario) {
-      return FORECAST_DATA.months.map(m => forecastKoma(scenario));
+      return FORECAST_DATA.months.map(m => forecastKoma(m, scenario));
     }
 
     // 実績が出ている月は予測から外す(予測の線が実績に重ならないようにする)
@@ -737,8 +827,9 @@
       // 単価は選択期間の最初の予測月のもの
       const s = FORECAST_DATA.scenarios[forecastScenario];
       const fm = getFilteredForecastMonths();
-      const unit = forecastUnitPrice(fm.length ? fm[0] : lastActualMonth());
-      const minUsers = FORECAST_DATA.breakeven / (s.attendance * unit);
+      const m0 = fm.length ? fm[0] : lastActualMonth();
+      const unit = forecastUnitPrice(m0);
+      const minUsers = FORECAST_DATA.breakeven / (forecastAttendance(m0, forecastScenario) * unit);
       return (s.users - minUsers).toFixed(1);
     }
 
@@ -800,7 +891,20 @@
         // タイトル更新
         const titleEl = document.getElementById('forecast-summary-title');
         if (titleEl) titleEl.innerHTML = '📈 予測サマリー <span class="text-sm font-normal text-dg-desc ml-2">（選択期間に予測月なし）</span>';
+        const noteEl0 = document.getElementById('forecast-bizdays-note');
+        if (noteEl0) noteEl0.innerHTML = '';
         return;
+      }
+
+      // 営業日数の注記（予測コマ数の根拠）
+      const noteEl = document.getElementById('forecast-bizdays-note');
+      if (noteEl) {
+        const scA = FORECAST_DATA.scenarios[forecastScenario].attendance;
+        const avgs = [...new Set(filteredMonths.map(m => fyAvgBizDays(m).toFixed(2)))].join('・');
+        noteEl.innerHTML =
+          `営業日数: 月〜土・日祝休み・お盆 8/13〜15・年末年始 12/29〜1/3（実績 PDF の営業日数から）。` +
+          `月の予測通所日数 = ${scA}日 × その月の営業日数 ÷ 決算期の年平均営業日数（${avgs}日）。<br>` +
+          filteredMonths.map(m => `${m}: ${bizDays(m)}日`).join(' / ');
       }
 
       const sc = FORECAST_DATA.scenarios[forecastScenario];
@@ -1326,11 +1430,7 @@
 
       function makeForecastDatasets_Koma(actualLabels) {
         if (!forecastEnabled || filteredForecastMonths.length === 0) return [];
-        const selKoma = filteredForecastMonths.map(m => {
-          const mm = m.split('-')[1];
-          const days = MONTHLY_AVG_DAYS[mm] || 19.0;
-          return Math.round(FORECAST_DATA.scenarios[forecastScenario].users * days);
-        });
+        const selKoma = filteredForecastMonths.map(m => forecastKoma(m, forecastScenario));
         return [
           {
             label: FORECAST_DATA.scenarios[forecastScenario].label + '予測',
@@ -1660,16 +1760,16 @@
           .filter(m => !filterVal2 || m.includes(filterVal2))
           .map(m => {
             const s = FORECAST_DATA.scenarios[forecastScenario];
-            // コマ数・売上ともにシナリオ固定の attendance_days ベースで統一
-            // koma = users × attendance, sales = koma × その月の年度の単価
+            // コマ数・売上ともに月の予測通所日数（営業日数で調整）ベースで統一
+            // koma = round(users × 月の予測通所日数), sales = koma × その月の年度の単価
             return {
               month: m,
               isForecast: true,
-              koma:  forecastKoma(forecastScenario),
+              koma:  forecastKoma(m, forecastScenario),
               users: s.users,
               sales: forecastSales(m, forecastScenario),
               absence_rate: s.absence_rate,
-              avg_attendance: s.attendance,
+              avg_attendance: forecastAttendance(m, forecastScenario),
               basic_unit: forecastUnitPrice(m),
             };
           });
@@ -1713,7 +1813,7 @@
           <td class="px-4 py-2.5 text-right tabular-nums text-sm null-val">—</td>
           <td class="px-4 py-2.5 text-right tabular-nums text-sm null-val">—</td>
           <td class="px-4 py-2.5 text-right tabular-nums text-sm null-val">—</td>
-          <td class="px-4 py-2.5 text-right tabular-nums text-sm" style="color:${fColor};">${f.avg_attendance}</td>
+          <td class="px-4 py-2.5 text-right tabular-nums text-sm" style="color:${fColor};">${f.avg_attendance.toFixed(1)}</td>
           <td class="px-4 py-2.5 text-right tabular-nums text-sm" style="color:#795548;">¥${fmt(f.basic_unit)}</td>
           <td class="px-4 py-2.5 text-right tabular-nums text-sm" style="color:${fColor};">¥${f.sales.toLocaleString('ja-JP')}</td>
         </tr>
@@ -1828,9 +1928,9 @@
           const totalFSales = fMonths.reduce((s, f) => s + f[sc.salesKey], 0);
           // 利用者数は全月同一シナリオ値なので代表値（最初の行）を平均として表示
           const avgFUsers   = fMonths.length > 0 ? fMonths[0][sc.usersKey] : null;
-          // 欠席率・出席日数も全月同一シナリオ値
+          // 欠席率は全月同一シナリオ値。通所日数は月ごとに違うので予測月の単純平均
           const absRate     = fMonths.length > 0 ? fMonths[0][sc.absRateKey] : null;
-          const attendance  = fMonths.length > 0 ? fMonths[0][sc.attendKey] : null;
+          const attendance  = fMonths.length > 0 ? fMonths.reduce((s, f) => s + f[sc.attendKey], 0) / fMonths.length : null;
           const borderTop   = sc.borderStyle
             ? `border-top:${sc.borderStyle} ${sc.borderColor};`
             : `border-top:2px solid ${sc.borderColor};`;
