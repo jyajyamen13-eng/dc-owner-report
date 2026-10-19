@@ -254,7 +254,7 @@
 
 <script>
 (function() {
-  // SHA-256 hash of "dc2025morioka"
+  // SHA-256 hash of the password
   var HASH = '90023ad424bf6bae98c9d490d71835578c523acc06bf378233c38296bf4e1834';
   var SESSION_KEY = 'dc_owner_report_auth';
 
@@ -506,7 +506,7 @@
 
       <div class="dg-card p-5 mb-6">
         <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-annual-title">期別 売上と損益分岐点</h3>
-        <p class="text-xs text-dg-desc mb-4">棒＝期間売上合計、赤破線＝その期間の損益分岐点合計（月額×月数）</p>
+        <p class="text-xs text-dg-desc mb-4">棒＝期間売上合計、赤破線＝その期間の損益分岐点合計（月額×月数）。予測ON時は ◆＝実績＋予測の着地見込み（楽観・基準・悲観、選択中は大きい◆）、赤の横棒＝着地見込み期間の分岐点合計</p>
         <div class="chart-container" style="height:260px;">
           <canvas id="chartAnnual" role="img" aria-label="期別売上と損益分岐点の棒グラフ"></canvas>
         </div>
@@ -821,15 +821,15 @@
     }
 
     // 損益分岐ライン安全余裕（選んだシナリオで何名まで減っても黒字か）
-    function calcBreakevenMargin() {
+    function calcBreakevenMargin(scenario = forecastScenario) {
       // 損益分岐: X × avg_attendance × unit_price = breakeven
       // X = breakeven / (avg_attendance × unit_price)
       // 単価は選択期間の最初の予測月のもの
-      const s = FORECAST_DATA.scenarios[forecastScenario];
+      const s = FORECAST_DATA.scenarios[scenario];
       const fm = getFilteredForecastMonths();
       const m0 = fm.length ? fm[0] : lastActualMonth();
       const unit = forecastUnitPrice(m0);
-      const minUsers = FORECAST_DATA.breakeven / (forecastAttendance(m0, forecastScenario) * unit);
+      const minUsers = FORECAST_DATA.breakeven / (forecastAttendance(m0, scenario) * unit);
       return (s.users - minUsers).toFixed(1);
     }
 
@@ -876,6 +876,9 @@
       });
       renderCharts(allData);
 
+      // 通年サマリー（着地見込み行・期別グラフ）も予測ON/シナリオに追従させる
+      renderAnnualSummary(allData);
+
       // テーブル更新
       renderTable(allData);
     }
@@ -908,10 +911,19 @@
       }
 
       const sc = FORECAST_DATA.scenarios[forecastScenario];
-      const scColor = SCENARIO_COLORS[forecastScenario];
-      const annualSel = calcForecastAnnualSales(forecastScenario);
       const breakevenPeriod = FORECAST_DATA.breakeven * monthCount;
-      const margin = calcBreakevenMargin();
+      // 3シナリオを並べ、選んだものを強調する（2026-10-19: 1つだけだと差が見えない）
+      const rowsAll = Object.keys(FORECAST_DATA.scenarios).map(key => {
+        const s = FORECAST_DATA.scenarios[key];
+        const sales = calcForecastAnnualSales(key);
+        const komaAvg = filteredMonths.reduce((a, m) => a + forecastKoma(m, key), 0) / monthCount;
+        return { key, label: s.label, users: s.users, color: SCENARIO_COLORS[key], on: key === forecastScenario,
+                 sales, komaAvg, pl: sales - breakevenPeriod, margin: Number(calcBreakevenMargin(key)) };
+      });
+      const rowStyle = r => r.on
+        ? `background:#FFFFFF; border:2px solid ${r.color}; border-radius:4px; padding:4px 6px;`
+        : 'padding:6px 8px; opacity:0.75;';
+      const tag = r => `<span style="font-size:0.75rem; color:${r.color}; font-weight:700;">${r.label}${r.on ? '（選択中）' : ''}</span>`;
 
       // タイトルをフィルタ期間に連動して更新
       const titleEl = document.getElementById('forecast-summary-title');
@@ -932,37 +944,38 @@
 
       el.innerHTML = `
         <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">${monthCount}ヶ月 売上予測合計</div>
+          <div class="kpi-label" style="color:#795548;">${monthCount}ヶ月 売上予測合計（月平均コマ数）</div>
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:0.75rem; color:${scColor}; font-weight:600;">${sc.label}</span>
-              <span style="font-size:1.1rem; font-weight:700; color:#1A1A1A;">¥${annualSel.toLocaleString('ja-JP')}</span>
-            </div>
+            ${rowsAll.map(r => `<div style="display:flex; justify-content:space-between; align-items:center; ${rowStyle(r)}">
+              ${tag(r)}
+              <span style="text-align:right;"><span style="font-size:${r.on ? '1.1rem' : '0.95rem'}; font-weight:700; color:#1A1A1A;">¥${r.sales.toLocaleString('ja-JP')}</span><br>
+              <span style="font-size:0.7rem; color:#626264;">月平均 ${r.komaAvg.toFixed(1)}コマ</span></span>
+            </div>`).join('')}
           </div>
         </div>
         <div class="forecast-card p-5">
           <div class="kpi-label" style="color:#795548;">累計損益予測（損益分岐 ¥${(FORECAST_DATA.breakeven/10000).toFixed(0)}万×${monthCount}ヶ月=¥${(breakevenPeriod/10000).toFixed(0)}万）</div>
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            ${[[sc.label, scColor, annualSel]].map(([label,color,val]) => {
-              const pl = val - breakevenPeriod;
-              const plColor = pl >= 0 ? '#0031D8' : '#FA0000';
-              const sign = pl >= 0 ? '+' : '';
-              return `<div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:0.75rem; color:${color}; font-weight:600;">${label}</span>
-              <span style="font-size:1.1rem; font-weight:700; color:${plColor};">${sign}¥${pl.toLocaleString('ja-JP')}</span>
+            ${rowsAll.map(r => {
+              const plColor = r.pl >= 0 ? '#0031D8' : '#FA0000';
+              const sign = r.pl >= 0 ? '+' : '−';
+              return `<div style="display:flex; justify-content:space-between; align-items:center; ${rowStyle(r)}">
+              ${tag(r)}
+              <span style="font-size:${r.on ? '1.1rem' : '0.95rem'}; font-weight:700; color:${plColor};">${sign}¥${Math.abs(r.pl).toLocaleString('ja-JP')}</span>
             </div>`;
             }).join('')}
           </div>
         </div>
         <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">損益分岐ライン安全余裕（${sc.label}シナリオ）</div>
-          <div style="margin-top:8px;">
-            <div class="kpi-value" style="color:#0031D8;">−${margin}名</div>
-            <div class="kpi-sub" style="margin-top:8px; color:#626264; line-height:1.5;">
-              ${sc.label}シナリオ（${sc.users}名）から<br>
-              <strong>${margin}名減っても黒字を維持</strong><br>
-              損益分岐: 月売上 ¥${FORECAST_DATA.breakeven.toLocaleString('ja-JP')} 以上
-            </div>
+          <div class="kpi-label" style="color:#795548;">損益分岐ライン安全余裕（何名減っても黒字か）</div>
+          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+            ${rowsAll.map(r => `<div style="display:flex; justify-content:space-between; align-items:center; ${rowStyle(r)}">
+              ${tag(r)}
+              <span style="font-size:${r.on ? '1.1rem' : '0.95rem'}; font-weight:700; color:${r.margin >= 0 ? '#0031D8' : '#FA0000'};">${r.margin >= 0
+                ? `${r.users}名から${r.margin.toFixed(1)}名減っても黒字`
+                : `${r.users}名 → あと${Math.abs(r.margin).toFixed(1)}名で黒字`}</span>
+            </div>`).join('')}
+            <div class="kpi-sub" style="color:#626264;">損益分岐: 月売上 ¥${FORECAST_DATA.breakeven.toLocaleString('ja-JP')} 以上（${sc.label}を選択中）</div>
           </div>
         </div>
       `;
@@ -1238,9 +1251,10 @@
 
       const cards = [
         { label: 'コマ数',      value: fmt(latest.koma),             unit: 'コマ',  sub: '' },
-        { label: '当月売上',     value: fmtSales(latest.sales),       unit: '',      sub: latest.unit_price ? `単価 ¥${fmt(latest.unit_price)}` : '' },
+        // データの単価は basic_unit、営業日数は ACTUAL_BIZ_DAYS（PDF値・2026-06以降のみ）にある（旧: 存在しない unit_price / business_days を読んで常に空・「—日」だった）
+        { label: '当月売上',     value: fmtSales(latest.sales),       unit: '',      sub: latest.basic_unit ? `単価 ¥${fmt(latest.basic_unit)}` : '' },
         { label: '利用者数',     value: fmt(latest.total_users) + estLabel, unit: '名', sub: `新規 ${fmt(latest.new_contracts)} 名` },
-        { label: '平均通所日数', value: latest.avg_attendance_days !== null && latest.avg_attendance_days !== undefined ? latest.avg_attendance_days + '日' : '<span class="null-val">—</span>', unit: '', sub: `営業日数 ${latest.business_days || '—'}日` },
+        { label: '平均通所日数', value: latest.avg_attendance_days !== null && latest.avg_attendance_days !== undefined ? latest.avg_attendance_days + '日' : '<span class="null-val">—</span>', unit: '', sub: ACTUAL_BIZ_DAYS[latest.month] !== undefined ? `営業日数 ${ACTUAL_BIZ_DAYS[latest.month]}日` : '' },
         { label: '欠席率',      value: fmtRate(latest.absence_rate), unit: '',      sub: latest.absence !== null ? `欠席${fmt(latest.absence)}コマ` : '' },
         { label: '就職者数',     value: fmt(latest.graduates),        unit: '名',    sub: '' },
         { label: '退所者数',     value: fmt(latest.exits),            unit: '名',    sub: '' },
@@ -1337,7 +1351,12 @@
           borderWidth: 1,
           padding: 10,
           callbacks: {
-            label: ctx => ` ${ctx.parsed.y?.toLocaleString('ja-JP', {maximumFractionDigits:2})}${suffix}`
+            // 予測を重ねた時に線の区別がつくよう、系列名（実績／楽観予測…）を前に付ける
+            label: ctx => {
+              if (ctx.parsed.y === null || ctx.parsed.y === undefined) return null;
+              const v = `${ctx.parsed.y.toLocaleString('ja-JP', {maximumFractionDigits:2})}${suffix}`;
+              return ctx.dataset.label ? ` ${ctx.dataset.label}: ${v}` : ` ${v}`;
+            }
           }
         }
       },
@@ -1391,54 +1410,52 @@
       // フィルタ済み予測月
       const filteredForecastMonths = getFilteredForecastMonths();
 
-      function makeForecastDatasets_Sales(actualLabels) {
+      // 予測は楽観・基準・悲観の3本を同じグラフに重ねる（2026-10-19 社長指摘「楽観と基準一緒じゃね？」）。
+      //   1本だけだと縦軸が自動で伸び縮みしてどれも同じ形に見えるため。同じグラフに3本なら縦軸も共通になる。
+      //   選んだシナリオは太線・不透明、残り2本は細線・半透明。
+      //   valueOf(月, シナリオキー) で各月の値を返す。
+      function makeScenarioDatasets(actualLabels, valueOf) {
         if (!forecastEnabled || filteredForecastMonths.length === 0) return [];
-        // 実績の最後の値 → 予測の最初に繋ぐための接続点
-        const lastActualSales = sorted.filter(d => d.sales !== null).slice(-1)[0]?.sales || null;
-        const lastActualMonth = sorted.filter(d => d.sales !== null).slice(-1)[0]?.month || null;
-
-        // 選んだシナリオ1本だけ描く
-        const scLabel = FORECAST_DATA.scenarios[forecastScenario].label + '予測';
-        const scColor = SCENARIO_COLORS[forecastScenario];
-        const selSales = filteredForecastMonths.map(m => forecastSales(m, forecastScenario));
-
-        return [
-          {
-            label: scLabel,
-            data: [...new Array(actualLabels.length).fill(null), ...selSales],
-            borderColor: scColor,
-            borderDash: [5, 5],
-            borderWidth: 2,
-            pointRadius: 0,
+        return Object.keys(FORECAST_DATA.scenarios).map(key => {
+          const on = key === forecastScenario;
+          return {
+            label: FORECAST_DATA.scenarios[key].label + '予測' + (on ? '（選択中）' : ''),
+            data: [...new Array(actualLabels.length).fill(null), ...filteredForecastMonths.map(m => valueOf(m, key))],
+            borderColor: on ? SCENARIO_COLORS[key] : SCENARIO_COLORS[key] + '80',
+            backgroundColor: SCENARIO_COLORS[key],
+            borderDash: on ? [6, 3] : [3, 3],
+            borderWidth: on ? 3 : 1.5,
+            pointRadius: on ? 2 : 0,
             fill: false,
             type: 'line',
-          },
-        ];
+            order: on ? 0 : 1,
+          };
+        });
+      }
+
+      function makeForecastDatasets_Sales(actualLabels) {
+        return makeScenarioDatasets(actualLabels, (m, key) => forecastSales(m, key));
       }
 
       function makeForecastDatasets_Users(actualLabels) {
-        if (!forecastEnabled || filteredForecastMonths.length === 0) return [];
-        const selUsers = filteredForecastMonths.map(() => FORECAST_DATA.scenarios[forecastScenario].users);
-        return [
-          {
-            label: FORECAST_DATA.scenarios[forecastScenario].label + '予測',
-            data: [...new Array(actualLabels.length).fill(null), ...selUsers],
-            borderColor: SCENARIO_COLORS[forecastScenario], borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
-          },
-        ];
+        return makeScenarioDatasets(actualLabels, (m, key) => FORECAST_DATA.scenarios[key].users);
       }
 
       function makeForecastDatasets_Koma(actualLabels) {
-        if (!forecastEnabled || filteredForecastMonths.length === 0) return [];
-        const selKoma = filteredForecastMonths.map(m => forecastKoma(m, forecastScenario));
-        return [
-          {
-            label: FORECAST_DATA.scenarios[forecastScenario].label + '予測',
-            data: [...new Array(actualLabels.length).fill(null), ...selKoma],
-            borderColor: SCENARIO_COLORS[forecastScenario], borderDash: [5,5], borderWidth: 2, pointRadius: 0, fill: false, type: 'line',
-          },
-        ];
+        return makeScenarioDatasets(actualLabels, (m, key) => forecastKoma(m, key));
       }
+
+      function makeForecastDatasets_Absence(actualLabels) {
+        return makeScenarioDatasets(actualLabels, (m, key) => FORECAST_DATA.scenarios[key].absence_rate);
+      }
+
+      function makeForecastDatasets_AvgDays(actualLabels) {
+        return makeScenarioDatasets(actualLabels, (m, key) => Math.round(forecastAttendance(m, key) * 10) / 10);
+      }
+
+      // 予測ON時の凡例（実績＋3シナリオ）
+      //   選んだ線を上に描くため order を使うが、凡例の並びは 実績→楽観→基準→悲観 に固定する
+      const forecastLegend = { display: forecastEnabled, position: 'top', align: 'end', labels: { color: '#626264', font: { size: 10 }, boxWidth: 20, padding: 8, sort: (a, b) => a.datasetIndex - b.datasetIndex } };
 
       // 予測有効時はラベルに予測月を追加（フィルタ連動）
       function extendLabels(labels) {
@@ -1457,6 +1474,7 @@
         data: {
           labels: komaLabels,
           datasets: [{
+            label: '実績',   // 無いと凡例が「undefined」になる
             data: komaData.map(d => d.koma),
             borderColor: DG_BLUE_500,
             backgroundColor: DG_POSITIVE_FILL,
@@ -1473,18 +1491,19 @@
           ...baseChartOpts('コマ数', 'コマ'),
           plugins: {
             ...baseChartOpts('コマ数', 'コマ').plugins,
-            legend: { display: forecastEnabled, position: 'top', align: 'end', labels: { color: '#626264', font: { size: 10 }, boxWidth: 20, padding: 8 } }
+            legend: forecastLegend
           }
         }
       });
 
-      // 欠席率 — 折れ線
+      // 欠席率 — 折れ線（予測ON時はシナリオの欠席率 2.0/2.5/3.5% を重ねる）
       const absData = sorted.filter(d => d.absence_rate !== null);
       new Chart(document.getElementById('chartAbsence'), {
         type: 'line',
         data: {
-          labels: absData.map(d => d.month),
+          labels: extendLabels(absData.map(d => d.month)),
           datasets: [{
+            label: '実績',
             data: absData.map(d => d.absence_rate),
             borderColor: '#264AF4',
             backgroundColor: 'rgba(38,74,244,0.08)',
@@ -1495,9 +1514,12 @@
             pointBackgroundColor: '#264AF4',
             pointBorderColor: '#FFFFFF',
             pointBorderWidth: 1.5,
-          }]
+          }, ...makeForecastDatasets_Absence(absData.map(d => d.month))]
         },
-        options: baseChartOpts('欠席率', '%')
+        options: {
+          ...baseChartOpts('欠席率', '%'),
+          plugins: { ...baseChartOpts('欠席率', '%').plugins, legend: forecastLegend }
+        }
       });
 
       // 利用者数 — 折れ線
@@ -1508,6 +1530,7 @@
         data: {
           labels: usersLabels,
           datasets: [{
+            label: '実績',   // 無いと凡例が「undefined」になる
             data: usersData.map(d => d.total_users),
             borderColor: '#264AF4',
             backgroundColor: 'rgba(38,74,244,0.08)',
@@ -1524,7 +1547,7 @@
           ...baseChartOpts('利用者数', '名'),
           plugins: {
             ...baseChartOpts('利用者数', '名').plugins,
-            legend: { display: forecastEnabled, position: 'top', align: 'end', labels: { color: '#626264', font: { size: 10 }, boxWidth: 20, padding: 8 } }
+            legend: forecastLegend
           }
         }
       });
@@ -1546,13 +1569,14 @@
         options: baseChartOpts('新規契約者数', '名')
       });
 
-      // 平均通所日数 — 折れ線
+      // 平均通所日数 — 折れ線（予測ON時は月の予測通所日数＝シナリオ値×営業日数補正 を重ねる）
       const avgDaysData = sorted.filter(d => d.avg_attendance_days !== null && d.avg_attendance_days !== undefined);
       new Chart(document.getElementById('chartAvgDays'), {
         type: 'line',
         data: {
-          labels: avgDaysData.map(d => d.month),
+          labels: extendLabels(avgDaysData.map(d => d.month)),
           datasets: [{
+            label: '実績',
             data: avgDaysData.map(d => d.avg_attendance_days),
             borderColor: DG_BLUE_500,
             backgroundColor: DG_POSITIVE_FILL,
@@ -1563,9 +1587,12 @@
             pointBackgroundColor: DG_BLUE_500,
             pointBorderColor: '#FFFFFF',
             pointBorderWidth: 1.5,
-          }]
+          }, ...makeForecastDatasets_AvgDays(avgDaysData.map(d => d.month))]
         },
-        options: baseChartOpts('平均通所日数', '日')
+        options: {
+          ...baseChartOpts('平均通所日数', '日'),
+          plugins: { ...baseChartOpts('平均通所日数', '日').plugins, legend: forecastLegend }
+        }
       });
 
       // 売上（損益分岐点ライン付き）— 棒グラフ
@@ -1631,6 +1658,7 @@
                 boxWidth: 24,
                 padding: 12,
                 usePointStyle: false,
+                sort: (a, b) => a.datasetIndex - b.datasetIndex,
               }
             },
             tooltip: {
@@ -1890,7 +1918,7 @@
         </tr>
       `;
 
-      // 予測ON時：選んだシナリオの合計行を1本追加（実績＋選んだシナリオの2本）
+      // 予測ON時：楽観・基準・悲観の合計行を3本追加（実績＋3シナリオ）
       if (forecastEnabled && forecastRows.length > 0) {
         const fMonths = forecastRows; // already filtered by getFilteredForecastMonths() + text filter
         const n = fMonths.length;
@@ -1910,7 +1938,6 @@
             bgColor: '#E3F0FF',
             borderColor: '#1976D2',
             textColor: '#0031D8',
-            borderStyle: '2px dashed',
           },
           {
             key:    'pessimistic',
@@ -1919,24 +1946,27 @@
             borderColor: '#D32F2F',
             textColor: '#B71C1C',
           },
-        ].filter(sc => sc.key === forecastScenario)
-         .map(sc => ({ ...sc, komaKey: 'koma', usersKey: 'users', salesKey: 'sales', absRateKey: 'absence_rate', attendKey: 'avg_attendance' }));
+        ];
+        // 3シナリオの合計行を全部出す（2026-10-19: 1行だけだと差が見えない）。選んだ行を太枠で強調、他は薄く。
+        //   予測行（上の月別行）は選んだシナリオの値。合計行は月リストを同じにして各シナリオで計算し直す。
+        const fMonthList = fMonths.map(f => f.month);
 
         scenarios.forEach(sc => {
-          const totalFKoma  = fMonths.reduce((s, f) => s + f[sc.komaKey], 0);
-          const totalFSales = fMonths.reduce((s, f) => s + f[sc.salesKey], 0);
-          // 利用者数は全月同一シナリオ値なので代表値（最初の行）を平均として表示
-          const avgFUsers   = fMonths.length > 0 ? fMonths[0][sc.usersKey] : null;
-          // 欠席率は全月同一シナリオ値。通所日数は月ごとに違うので予測月の単純平均
-          const absRate     = fMonths.length > 0 ? fMonths[0][sc.absRateKey] : null;
-          const attendance  = fMonths.length > 0 ? fMonths.reduce((s, f) => s + f[sc.attendKey], 0) / fMonths.length : null;
-          const borderTop   = sc.borderStyle
-            ? `border-top:${sc.borderStyle} ${sc.borderColor};`
-            : `border-top:2px solid ${sc.borderColor};`;
+          const s           = FORECAST_DATA.scenarios[sc.key];
+          const on          = sc.key === forecastScenario;
+          const totalFKoma  = fMonthList.reduce((a, m) => a + forecastKoma(m, sc.key), 0);
+          const totalFSales = fMonthList.reduce((a, m) => a + forecastSales(m, sc.key), 0);
+          // 利用者数・欠席率は全月同一のシナリオ値。通所日数は月ごとに違うので予測月の単純平均
+          const avgFUsers   = s.users;
+          const absRate     = s.absence_rate;
+          const attendance  = fMonthList.reduce((a, m) => a + forecastAttendance(m, sc.key), 0) / n;
+          const borderTop   = on
+            ? `border-top:3px solid ${sc.borderColor}; border-bottom:3px solid ${sc.borderColor};`
+            : `border-top:1px solid ${sc.borderColor}; opacity:0.7;`;
 
           footerHtml += `
             <tr style="background:${sc.bgColor}; ${borderTop}" role="row">
-              <td class="px-4 py-2.5 text-sm font-bold" style="color:${sc.textColor}; white-space:nowrap;">${sc.label}</td>
+              <td class="px-4 py-2.5 text-sm font-bold" style="color:${sc.textColor}; white-space:nowrap;">${sc.label}${on ? '（選択中）' : ''}</td>
               <td class="${tdStyle}" style="color:${sc.textColor};">${totalFKoma.toLocaleString('ja-JP')}</td>
               <td class="${tdStyle}">${nullCell}</td>
               <td class="${tdStyle}" style="color:${sc.textColor};">${absRate !== null ? absRate + '%' : nullCell}</td>
@@ -2120,6 +2150,7 @@
           months: withSales.length,
           koma,
           komaAvg: komaRows.length ? koma / komaRows.length : null,
+          komaMonths: komaRows.length,
           absenceRate: (koma + absence) > 0 ? absence / (koma + absence) * 100 : null,
           users: uRows.length ? uRows.reduce((s, d) => s + Number(d.total_users), 0) / uRows.length : null,
           graduates: rows.reduce((s, d) => s + num(d.graduates), 0),
@@ -2137,6 +2168,38 @@
       if (!body) return;
       const buckets = annualBuckets(data);
       const money = v => '¥' + Math.round(v).toLocaleString('ja-JP');
+
+      // 予測ON時: 予測月を含む期間ごとに「実績＋各シナリオの予測」の着地見込みを3行出す（2026-10-19）
+      //   旧: 通年サマリーは予測ON/シナリオ切替に一切反応しなかった。実績の行と合計行は変えない。
+      const landing = [];
+      if (forecastEnabled) {
+        const keyOf = filterMode === 'dc' ? getDcPeriod : getFiscalYear;
+        const labelOf = filterMode === 'dc' ? dcPeriodLabel : fyLabel;
+        const fms = forecastBaseMonths();
+        [...new Set(fms.map(keyOf))].sort((a, b) => a - b).forEach(k => {
+          const fm = fms.filter(m => keyOf(m) === k);
+          const b = buckets.find(x => x.key === k);
+          const aKoma = b ? b.koma : 0, aSales = b ? b.sales : 0, aBe = b ? b.breakeven : 0;
+          const aMonths = b ? b.months : 0, aKomaMonths = b ? b.komaMonths : 0;
+          // 実績＋予測で12か月に満たない期間（例: 2027年度＝予測2か月だけ）は「着地」と呼べないので出さない
+          if (aMonths + fm.length < 12) return;
+          const fBe = fm.reduce((s, m) => s + breakevenFor(m), 0);
+          Object.keys(FORECAST_DATA.scenarios).forEach(sk => {
+            const koma = aKoma + fm.reduce((s, m) => s + forecastKoma(m, sk), 0);
+            const sales = aSales + fm.reduce((s, m) => s + forecastSales(m, sk), 0);
+            const be = aBe + fBe;
+            const on = sk === forecastScenario;
+            landing.push({
+              key: k, scenario: sk, on,
+              label: `${labelOf(k).replace(/（.*/, '')} 着地見込み・${FORECAST_DATA.scenarios[sk].label}${on ? '（選択中）' : ''}（実績${aMonths}＋予測${fm.length}か月）`,
+              months: aMonths + fm.length,
+              koma, komaAvg: koma / (aKomaMonths + fm.length),
+              sales, salesAvg: sales / (aMonths + fm.length),
+              breakeven: be, pl: sales - be
+            });
+          });
+        });
+      }
       const plCell = v => {
         const c = v >= 0 ? '#0031D8' : '#FA0000';
         return `<td class="px-4 py-3 text-right" style="color:${c}; font-weight:700;">${v >= 0 ? '+' : '−'}${money(Math.abs(v))}</td>`;
@@ -2157,7 +2220,25 @@
           <td class="px-4 py-3 text-right" style="color:#626264;">${money(b.breakeven)}</td>
           ${plCell(b.pl)}
         </tr>
-      `).join('');
+      `).join('') + landing.map(r => {
+        const c = SCENARIO_COLORS[r.scenario];
+        const st = r.on
+          ? `background:#FFFDE7; border-top:2px solid ${c}; border-bottom:2px solid ${c};`
+          : `background:#FFFDE7; border-top:1px solid #EFEFEF; opacity:0.7;`;
+        const na = '<td class="px-4 py-3 text-right"><span class="null-val">—</span></td>';
+        return `
+        <tr style="${st}">
+          <td class="px-4 py-3 font-bold" style="color:${c};">${r.label}<span class="forecast-badge">※予測込み</span></td>
+          <td class="px-4 py-3 text-right">${r.months}</td>
+          <td class="px-4 py-3 text-right" style="color:${c};">${r.koma.toLocaleString('ja-JP')}</td>
+          <td class="px-4 py-3 text-right" style="color:${c};">${r.komaAvg.toFixed(1)}</td>
+          ${na}${na}${na}${na}
+          <td class="px-4 py-3 text-right" style="color:${c};">${money(r.sales)}</td>
+          <td class="px-4 py-3 text-right" style="color:${c};">${money(r.salesAvg)}</td>
+          <td class="px-4 py-3 text-right" style="color:#626264;">${money(r.breakeven)}</td>
+          ${plCell(r.pl)}
+        </tr>`;
+      }).join('');
 
       const tot = buckets.reduce((a, b) => ({
         months: a.months + b.months, koma: a.koma + b.koma,
@@ -2169,7 +2250,7 @@
       if (foot) {
         foot.innerHTML = `
           <tr style="background:#D9E6FF; border-top:2px solid #4979F5; font-weight:700;">
-            <td class="px-4 py-3" style="color:#0031D8;">合計</td>
+            <td class="px-4 py-3" style="color:#0031D8;">${landing.length ? '合計（実績のみ）' : '合計'}</td>
             <td class="px-4 py-3 text-right">${tot.months}</td>
             <td class="px-4 py-3 text-right">${tot.koma.toLocaleString('ja-JP')}</td>
             <td class="px-4 py-3 text-right">—</td>
@@ -2189,34 +2270,59 @@
       if (cv && typeof Chart !== 'undefined') {
         const old = Chart.getChart(cv);
         if (old) old.destroy();
+        // 予測ON時は、予測だけの期間（例: 2027年度）も横軸に足し、着地見込みを3シナリオの点で重ねる
+        const keysAll = [...new Set([...buckets.map(b => b.key), ...landing.map(r => r.key)])].sort((a, b) => a - b);
+        const labelOfK = filterMode === 'dc' ? dcPeriodLabel : fyLabel;
+        const bOf = k => buckets.find(b => b.key === k);
+        // 予測OFF・着地なしの時は系列を作らない（凡例に中身のない着地が出ないように）
+        const landingDatasets = !landing.length ? [] : Object.keys(FORECAST_DATA.scenarios).map(sk => {
+          const on = sk === forecastScenario;
+          return {
+            label: `着地見込み・${FORECAST_DATA.scenarios[sk].label}${on ? '（選択中）' : ''}`,
+            data: keysAll.map(k => { const r = landing.find(x => x.key === k && x.scenario === sk); return r ? r.sales : null; }),
+            type: 'line', showLine: false,
+            pointStyle: 'rectRot', pointRadius: on ? 9 : 6, pointHoverRadius: on ? 11 : 8,
+            backgroundColor: on ? SCENARIO_COLORS[sk] : SCENARIO_COLORS[sk] + '99',
+            borderColor: on ? '#1A1A1A' : SCENARIO_COLORS[sk], borderWidth: on ? 2 : 1,
+            order: on ? 0 : 1
+          };
+        });
+        const landingBe = landing.length ? [{
+          label: '損益分岐点合計（着地見込み期間）',
+          data: keysAll.map(k => { const r = landing.find(x => x.key === k); return r ? r.breakeven : null; }),
+          type: 'line', showLine: false, pointStyle: 'line', pointRadius: 18, pointHoverRadius: 18,
+          borderColor: DG_NEGATIVE, borderWidth: 2
+        }] : [];
         new Chart(cv, {
           type: 'bar',
           data: {
-            labels: buckets.map(b => b.label.replace(/（.*/, '')),
+            labels: keysAll.map(k => labelOfK(k).replace(/（.*/, '')),
             datasets: [
               {
-                label: '売上',
-                data: buckets.map(b => b.sales),
-                backgroundColor: buckets.map(b => b.pl >= 0 ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
-                borderColor: buckets.map(b => b.pl >= 0 ? DG_BLUE_500 : DG_NEGATIVE),
-                borderWidth: 1, borderRadius: 2
+                label: '売上（実績）',
+                data: keysAll.map(k => bOf(k) ? bOf(k).sales : null),
+                backgroundColor: keysAll.map(k => (bOf(k) && bOf(k).pl >= 0) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
+                borderColor: keysAll.map(k => (bOf(k) && bOf(k).pl >= 0) ? DG_BLUE_500 : DG_NEGATIVE),
+                borderWidth: 1, borderRadius: 2, order: 2
               },
               {
-                label: '損益分岐点合計',
-                data: buckets.map(b => b.breakeven),
+                label: '損益分岐点合計（実績期間）',
+                data: keysAll.map(k => bOf(k) ? bOf(k).breakeven : null),
                 type: 'line', stepped: 'middle',
                 borderColor: DG_NEGATIVE, borderDash: [8, 4], borderWidth: 2,
                 pointRadius: 0, fill: false
-              }
+              },
+              ...landingDatasets,
+              ...landingBe
             ]
           },
           options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-              legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+              legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 }, sort: (a, b) => a.datasetIndex - b.datasetIndex } },
               tooltip: {
                 callbacks: {
-                  label: ctx => ' ' + ctx.dataset.label + ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP')
+                  label: ctx => ctx.parsed.y === null ? null : ' ' + ctx.dataset.label + ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP')
                 }
               }
             },
