@@ -218,6 +218,7 @@
     /* 損益分岐点の表示を外す（2026-10-19 社長「今は黒字なんだからその指標はいらない」→「なら損益でいい」）。
        計算関数・設定欄は残し、SHOW_BREAKEVEN = true で元に戻る */
     body.hide-breakeven .be-only { display: none !important; }
+    body.hide-breakeven-sales .be-sales-only { display: none !important; }
 
     /* ヘッダー */
     .page-header {
@@ -478,7 +479,7 @@
         </div>
         <p class="text-xs text-dg-desc mb-4">
           月次売上（単位：円）。
-          <span class="be-only"><span style="color:#FA0000; font-weight:600;">赤破線</span>
+          <span class="be-sales-only"><span style="color:#FA0000; font-weight:600;">赤破線</span>
           はその月が属する期の損益分岐点。分岐点以上の月は青、未満は赤で表示。</span>
         </p>
         <div class="chart-container" style="height:280px;">
@@ -1141,9 +1142,12 @@
     // -----------------------------------------------------------------------
     const BREAKEVEN_KEY = 'dc-morioka-breakeven';
     // 損益分岐点の表示（グラフの線・分岐点での色分け・通年サマリーの分岐点合計の列）を出すか。
+    //   売上推移グラフ（chartSales）だけは SHOW_BREAKEVEN_SALES で別に制御する
     //   計算と設定欄はどちらでも残る。損益（売上−分岐点）の表示は常に出す（2026-10-19 社長「なら損益でいい」）
     //   安全余裕（黒字に必要な人数）は 10/19 社長判断で削除。戻すなら .bak-readability-20261019 の 970-976 行
     const SHOW_BREAKEVEN = false;
+    // 売上推移グラフの分岐点の線・色分けだけは出す（2026-10-20 社長「なんで売上推移の損益分岐点消したの？」→戻す）
+    const SHOW_BREAKEVEN_SALES = true;
     const BREAKEVEN_DEFAULT = 2500000;   // 第15期の一般管理費実績（月平均 2,431,478 円）に基づく
 
     function loadBreakevens() {
@@ -1710,15 +1714,15 @@
             {
               label: '売上',
               data: salesData.map(d => d.sales),
-              backgroundColor: salesData.map(d => (!SHOW_BREAKEVEN || d.sales >= breakevenFor(d.month)) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
-              borderColor: salesData.map(d => (!SHOW_BREAKEVEN || d.sales >= breakevenFor(d.month)) ? DG_BLUE_500 : DG_NEGATIVE),
+              backgroundColor: salesData.map(d => (!SHOW_BREAKEVEN_SALES || d.sales >= breakevenFor(d.month)) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
+              borderColor: salesData.map(d => (!SHOW_BREAKEVEN_SALES || d.sales >= breakevenFor(d.month)) ? DG_BLUE_500 : DG_NEGATIVE),
               borderWidth: 1,
               borderRadius: 2,
             },
             {
               label: beLabel,
               data: breakevenLineData,
-              hidden: !SHOW_BREAKEVEN,
+              hidden: !SHOW_BREAKEVEN_SALES,
               type: 'line',
               stepped: 'middle',
               borderColor: DG_NEGATIVE,
@@ -1754,7 +1758,7 @@
                 padding: 12,
                 usePointStyle: false,
                 sort: (a, b) => a.datasetIndex - b.datasetIndex,
-                filter: item => SHOW_BREAKEVEN || !String(item.text).startsWith('損益分岐点'),
+                filter: item => SHOW_BREAKEVEN_SALES || !String(item.text).startsWith('損益分岐点'),
               }
             },
             tooltip: {
@@ -1766,7 +1770,7 @@
               padding: 10,
               callbacks: {
                 label: ctx => {
-                  if (ctx.dataset.label && ctx.dataset.label.startsWith('損益分岐点')) return SHOW_BREAKEVEN ? ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP') + '（損益分岐点）' : null;
+                  if (ctx.dataset.label && ctx.dataset.label.startsWith('損益分岐点')) return SHOW_BREAKEVEN_SALES ? ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP') + '（損益分岐点）' : null;
                   if (ctx.parsed.y === null) return null;
                   return ` ${ctx.dataset.label || '売上'}: ¥${ctx.parsed.y?.toLocaleString('ja-JP')}`;
                 }
@@ -2460,8 +2464,11 @@
 
     function renderAll(data) {
       document.body.classList.toggle('hide-breakeven', !SHOW_BREAKEVEN);
-      if (!SHOW_BREAKEVEN) {
+      document.body.classList.toggle('hide-breakeven-sales', !SHOW_BREAKEVEN_SALES);
+      if (!SHOW_BREAKEVEN_SALES) {
         document.getElementById('chartSales').setAttribute('aria-label', '売上推移棒グラフ');
+      }
+      if (!SHOW_BREAKEVEN) {
         document.getElementById('chartAnnual').setAttribute('aria-label', '期別売上の棒グラフ');
       }
       updatePeriodRange(data);
