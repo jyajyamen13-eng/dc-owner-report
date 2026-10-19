@@ -74,6 +74,7 @@
       border: 1px solid #F9A825;
       font-weight: 600;
       margin-left: 4px;
+      white-space: nowrap;
     }
 
     /* 予測トグルボタン */
@@ -183,6 +184,40 @@
     .chart-container {
       position: relative;
     }
+
+    /* 結論の1行（2026-10-19 社長指摘「ぱっと見理解できんの？」） */
+    .conclusion-bar {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-left: 6px solid #0031D8;
+      border-radius: 6px;
+      padding: 14px 18px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+    .conclusion-bar.is-negative { border-left-color: #FA0000; }
+    .conclusion-bar .conclusion-sub { font-size: 0.75rem; font-weight: 400; color: #626264; margin-top: 2px; }
+
+    /* 予測サマリー表（シナリオ＝行、指標＝列） */
+    .fs-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .fs-table th { cursor: default; background: transparent; font-size: 0.75rem; font-weight: 600; color: #795548; padding: 6px 10px; border-bottom: 1px solid #F9A825; white-space: nowrap; }
+    .fs-table th:hover { background: transparent; }
+    .fs-table td { padding: 8px 10px; border-bottom: 1px solid #F3E5AB; white-space: nowrap; }
+    .fs-table tr.fs-on td { background: #FFFFFF; font-weight: 700; }
+    .fs-table tr.fs-on td:first-child { box-shadow: inset 5px 0 0 var(--sc); }
+
+    /* 計算のしかた（既定で畳む） */
+    details.calc-note summary { cursor: pointer; color: #0031D8; font-size: 0.75rem; display: inline-block; }
+    details.calc-note summary:hover { text-decoration: underline; }
+
+    /* 表の数字は折り返さない（符号と金額が2行に割れないように） */
+    #annual-body td.text-right, #annual-footer td.text-right,
+    #table-footer td { white-space: nowrap; }
+
+    /* 損益分岐点の表示を外す（2026-10-19 社長「今は黒字なんだからその指標はいらない」→「なら損益でいい」）。
+       計算関数・設定欄は残し、SHOW_BREAKEVEN = true で元に戻る */
+    body.hide-breakeven .be-only { display: none !important; }
 
     /* ヘッダー */
     .page-header {
@@ -308,49 +343,9 @@
 
   <main class="max-w-7xl mx-auto px-6 py-8 space-y-10" role="main">
 
-    <!-- ===== 1. 報酬単価設定 ===== -->
-    <section aria-labelledby="unit-price-title">
-      <h2 id="unit-price-title" class="section-title">
-        年度別 報酬単価設定
-      </h2>
-      <p class="text-xs text-dg-desc mb-4">
-        4月〜3月が1年度。入力値はブラウザに保存されます。
-        <strong style="color:#795548;">予測にだけ使います</strong>（実績の売上は月次レポートPDFの値のまま変わりません。未入力の年度は 2026年度 ¥10,200・2027年度以降 ¥12,100）。
-      </p>
-      <div class="dg-card p-5">
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="unit-price-inputs"></div>
-        <div class="mt-4 flex gap-3 items-center flex-wrap">
-          <button onclick="applyUnitPrices()" class="btn-primary" aria-label="報酬単価を適用して予測を再計算">
-            適用して再計算
-          </button>
-          <button onclick="resetUnitPrices()" class="btn-secondary" aria-label="報酬単価設定をリセット">
-            リセット
-          </button>
-          <span id="unit-price-note" class="text-xs" style="color:#795548;">予測にだけ使います</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== 1b. 期別 損益分岐点設定 ===== -->
-    <section aria-labelledby="breakeven-title">
-      <h2 id="breakeven-title" class="section-title">
-        期別 損益分岐点（月額）
-      </h2>
-      <p class="text-xs text-dg-desc mb-4">
-        6月〜翌5月が1期。未入力の期は既定値
-        <strong>¥2,500,000</strong>（第15期の一般管理費実績 月平均 2,431,478 円ベース）を使用します。入力値はブラウザに保存されます。
-      </p>
-      <div class="dg-card p-5">
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="breakeven-inputs"></div>
-        <div class="mt-4 flex gap-3">
-          <button onclick="applyBreakevens()" class="btn-primary" aria-label="損益分岐点を適用して再計算">
-            適用して再計算
-          </button>
-          <button onclick="resetBreakevens()" class="btn-secondary" aria-label="損益分岐点設定をリセット">
-            リセット
-          </button>
-        </div>
-      </div>
+    <!-- ===== 0. 結論の1行（予測の計算結果から作る。シナリオ・期間の切替に追従） ===== -->
+    <section aria-label="結論">
+      <div id="conclusion-bar" class="conclusion-bar" aria-live="polite">—</div>
     </section>
 
     <!-- ===== 2. 月別 KPI サマリー（最上部の全体指標） ===== -->
@@ -375,8 +370,11 @@
         📈 予測サマリー
         <span class="text-sm font-normal text-dg-desc ml-2">（単価 ¥10,200：〜2027/3・¥12,100：2027/4〜）</span>
       </h2>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="forecast-summary-cards"></div>
-      <p id="forecast-bizdays-note" class="mt-2 text-xs text-dg-desc" style="line-height:1.6;"></p>
+      <div id="forecast-summary-cards"></div>
+      <details class="calc-note mt-2">
+        <summary>計算のしかた</summary>
+        <p id="forecast-bizdays-note" class="mt-1 text-xs text-dg-desc" style="line-height:1.6;"></p>
+      </details>
     </section>
 
     <!-- ===== 3. 前月比・前年同月比 ===== -->
@@ -480,8 +478,8 @@
         </div>
         <p class="text-xs text-dg-desc mb-4">
           月次売上（単位：円）。
-          <span style="color:#FA0000; font-weight:600;">赤破線</span>
-          はその月が属する期の損益分岐点。分岐点以上の月は青、未満は赤で表示。
+          <span class="be-only"><span style="color:#FA0000; font-weight:600;">赤破線</span>
+          はその月が属する期の損益分岐点。分岐点以上の月は青、未満は赤で表示。</span>
         </p>
         <div class="chart-container" style="height:280px;">
           <canvas id="chartSales" role="img" aria-label="売上推移棒グラフ、期別損益分岐点の赤破線付き"></canvas>
@@ -505,8 +503,8 @@
       <div style="border-bottom: 2px solid #4979F5; margin-bottom: 16px;"></div>
 
       <div class="dg-card p-5 mb-6">
-        <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-annual-title">期別 売上と損益分岐点</h3>
-        <p class="text-xs text-dg-desc mb-4">棒＝期間売上合計、赤破線＝その期間の損益分岐点合計（月額×月数）。予測ON時は ◆＝実績＋予測の着地見込み（楽観・基準・悲観、選択中は大きい◆）、赤の横棒＝着地見込み期間の分岐点合計</p>
+        <h3 class="text-sm font-bold text-dg-body mb-1" id="chart-annual-title">期別 売上<span class="be-only">と損益分岐点</span></h3>
+        <p class="text-xs text-dg-desc mb-4">棒＝期間売上合計<span class="be-only">、赤破線＝その期間の損益分岐点合計（月額×月数）</span>。予測ON時は ◆＝実績＋予測の着地見込み（楽観・基準・悲観、選択中は大きい◆）<span class="be-only">、赤の横棒＝着地見込み期間の分岐点合計</span></p>
         <div class="chart-container" style="height:260px;">
           <canvas id="chartAnnual" role="img" aria-label="期別売上と損益分岐点の棒グラフ"></canvas>
         </div>
@@ -526,7 +524,7 @@
               <th class="px-4 py-3 text-xs font-bold text-right" scope="col">退所</th>
               <th class="px-4 py-3 text-xs font-bold text-right" scope="col">売上</th>
               <th class="px-4 py-3 text-xs font-bold text-right" scope="col">月平均売上</th>
-              <th class="px-4 py-3 text-xs font-bold text-right" scope="col">分岐点合計</th>
+              <th class="px-4 py-3 text-xs font-bold text-right be-only" scope="col">分岐点合計</th>
               <th class="px-4 py-3 text-xs font-bold text-right" scope="col">損益</th>
             </tr>
           </thead>
@@ -534,6 +532,7 @@
           <tfoot id="annual-footer"></tfoot>
         </table>
       </div>
+      <p id="annual-landing-note" class="mt-2 text-xs text-dg-desc" style="line-height:1.6; display:none;"></p>
     </section>
 
     <!-- ===== 5. 月次データ一覧テーブル ===== -->
@@ -575,6 +574,52 @@
           <tbody id="table-body"></tbody>
           <tfoot id="table-footer"></tfoot>
         </table>
+      </div>
+    </section>
+
+    <!-- 設定（報酬単価・損益分岐点）は 2026-10-19 にページ末尾へ移した。最初の画面を結論と数字にするため。中身・ID は変えていない -->
+    <!-- ===== 1. 報酬単価設定 ===== -->
+    <section aria-labelledby="unit-price-title">
+      <h2 id="unit-price-title" class="section-title">
+        年度別 報酬単価設定
+      </h2>
+      <p class="text-xs text-dg-desc mb-4">
+        4月〜3月が1年度。入力値はブラウザに保存されます。
+        <strong style="color:#795548;">予測にだけ使います</strong>（実績の売上は月次レポートPDFの値のまま変わりません。未入力の年度は 2026年度 ¥10,200・2027年度以降 ¥12,100）。
+      </p>
+      <div class="dg-card p-5">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="unit-price-inputs"></div>
+        <div class="mt-4 flex gap-3 items-center flex-wrap">
+          <button onclick="applyUnitPrices()" class="btn-primary" aria-label="報酬単価を適用して予測を再計算">
+            適用して再計算
+          </button>
+          <button onclick="resetUnitPrices()" class="btn-secondary" aria-label="報酬単価設定をリセット">
+            リセット
+          </button>
+          <span id="unit-price-note" class="text-xs" style="color:#795548;">予測にだけ使います</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 1b. 期別 損益分岐点設定 ===== -->
+    <section aria-labelledby="breakeven-title">
+      <h2 id="breakeven-title" class="section-title">
+        期別 損益分岐点（月額）
+      </h2>
+      <p class="text-xs text-dg-desc mb-4">
+        6月〜翌5月が1期。未入力の期は既定値
+        <strong>¥2,500,000</strong>（第15期の一般管理費実績 月平均 2,431,478 円ベース）を使用します。入力値はブラウザに保存されます。
+      </p>
+      <div class="dg-card p-5">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="breakeven-inputs"></div>
+        <div class="mt-4 flex gap-3">
+          <button onclick="applyBreakevens()" class="btn-primary" aria-label="損益分岐点を適用して再計算">
+            適用して再計算
+          </button>
+          <button onclick="resetBreakevens()" class="btn-secondary" aria-label="損益分岐点設定をリセット">
+            リセット
+          </button>
+        </div>
       </div>
     </section>
 
@@ -866,6 +911,7 @@
 
     // 予測を使う表示（予測サマリー・グラフ・表）を描き直す
     function refreshForecastViews() {
+      renderConclusion();
       if (forecastEnabled) renderForecastSummaryCards();
 
       // グラフ再描画
@@ -883,14 +929,83 @@
       renderTable(allData);
     }
 
-    // 予測サマリーカード描画
-    function renderForecastSummaryCards() {
-      const filteredMonths = getFilteredForecastMonths();
-      const monthCount = filteredMonths.length;
+    // 予測サマリー・結論の1行で見せる「通期の売上見込み」＝ その期間の実績の月 ＋ 予測の月（2026-10-19 社長指摘
+    //   「売上予測ってこれ残りの期間の合計なの？…予測含めての合計出すのが常識では？」→ 最終「なら損益でいい」）。
+    //   期間 = 最初の予測月が入る決算期（6月〜翌5月）。足し算は通年サマリーの着地見込み（決算期表示）と同じ
+    //   （売上 = 実績の売上 ＋ 予測月の売上、損益 = 売上 −（実績月の分岐点 ＋ 予測月の分岐点））。
+    function forecastFullPeriod() {
+      const fms = forecastBaseMonths();
+      if (!fms.length) return null;
+      // 常に決算期（最初の予測月が入る期＝今の期）で出す。年度/決算期の切替・期間の選択はグラフと通年サマリーにだけ効く
+      //   （2026-10-19 auditor HIGH-1: 開いた直後の年度表示で 2026年度 になっていた）
+      const k = getDcPeriod(fms[0]);
+      const fm = fms.filter(m => getDcPeriod(m) === k);
+      if (!fm.length) return null;
+      // 実績の足し方は annualBuckets と同じ（売上のある月の sales と breakevenFor を足す）。annualBuckets は表示モードで期間が変わるので直接数える
+      const aRows = allData.filter(d => getDcPeriod(d.month) === k && d.sales !== null && d.sales !== undefined);
+      const aSales = aRows.reduce((s, d) => s + d.sales, 0), aMonths = aRows.length;
+      const aBe = aRows.reduce((s, d) => s + breakevenFor(d.month), 0);
+      const fBe = fm.reduce((s, m) => s + breakevenFor(m), 0);
+      const aMonthList = aRows.map(d => d.month).sort();
+      const jp = m => { const [y, mm] = m.split('-'); return `${y}年${Number(mm)}月`; };
+      const months = aMonths + fm.length;
+      return {
+        key: k, fm, aSales, aMonths, breakeven: aBe + fBe, months,
+        // 12か月そろう時だけ「通期」と呼ぶ（通年サマリーの着地見込みと同じ条件）
+        full: months >= 12, term: months >= 12 ? '通期' : `${months}か月分`,
+        label: `第${k - DC_PERIOD_START_YEAR + 1}期（${jp(`${k}-06`)}〜${jp(`${k + 1}-05`)}）`,
+        actualRange: aMonths ? `${jp(aMonthList[0])}〜${jp(aMonthList[aMonthList.length - 1])}` : '',
+        forecastRange: `${jp(fm[0])}〜${jp(fm[fm.length - 1])}`,
+      };
+    }
 
-      if (monthCount === 0) {
+    // 3シナリオの通期の売上・損益（予測サマリーと結論の1行で同じものを使う）
+    function forecastScenarioRows(P) {
+      return Object.keys(FORECAST_DATA.scenarios).map(key => {
+        const s = FORECAST_DATA.scenarios[key];
+        const fSales = P.fm.reduce((a, m) => a + forecastSales(m, key), 0);
+        const komaAvg = P.fm.reduce((a, m) => a + forecastKoma(m, key), 0) / P.fm.length;
+        return { key, label: s.label, users: s.users, attendance: s.attendance, absence_rate: s.absence_rate,
+                 color: SCENARIO_COLORS[key], on: key === forecastScenario,
+                 fSales, sales: P.aSales + fSales, pl: P.aSales + fSales - P.breakeven, komaAvg };
+      });
+    }
+
+    // 万円表示（四捨五入）。結論の1行で使う
+    const man = v => Math.round(v / 10000).toLocaleString('ja-JP') + '万円';
+
+    // 損益の表示（+/−付き万円）
+    const manPl = v => (v >= 0 ? '＋' : '−') + man(Math.abs(v));
+
+    // 結論の1行（ページ最上部）。予測ボタンの ON/OFF に関係なく出す（選んでいるシナリオ・今の決算期の売上・損益）
+    function renderConclusion() {
+      const el = document.getElementById('conclusion-bar');
+      if (!el) return;
+      const P = forecastFullPeriod();
+      if (!P) {
+        el.innerHTML = `この期間には予測の月がありません（予測は ${lastActualMonth()} の翌月から決算期末まで）。`;
+        return;
+      }
+      const rows = forecastScenarioRows(P);
+      const sel = rows.find(r => r.on);
+      const others = rows.filter(r => !r.on).map(r => `${r.label} ${man(r.sales)}／${manPl(r.pl)}`).join('、');
+      el.innerHTML = `<span id="conclusion-text">${P.label}の見込みは、${sel.label}で売上${man(sel.sales)}・損益${manPl(sel.pl)}` +
+        `（実績${P.aMonths}か月＋予測${P.fm.length}か月）。${others}。</span>` +
+        `<div class="conclusion-sub">売上の内訳: 実績${P.aMonths}か月 ${man(P.aSales)}（${P.actualRange || 'なし'}・月次レポートPDFの値）＋ 予測${P.fm.length}か月 ${man(sel.fSales)}（${P.forecastRange}）。` +
+        `${sel.label}シナリオの前提: 利用者${sel.users}名・通所${sel.attendance}日・欠席率${sel.absence_rate}%。` +
+        (forecastEnabled ? '' : '内訳は「📈 予測データ」ボタンで表示。') + `</div>`;
+    }
+
+    // 予測サマリー描画（3シナリオ × 指標を1つの表に。選んだシナリオの行を強調）
+    //   2026-10-19: 3枚のカードに3シナリオずつ（9個）並べていたのを、シナリオ＝行・指標＝列の表1つにした。
+    //   同じシナリオの数字が横1行にそろい、シナリオ同士の比較は縦に1列見るだけで済むため。
+    //   主役は通期の売上見込み（実績＋予測）。内訳として実績・予測を並べる。
+    function renderForecastSummaryCards() {
+      const P = forecastFullPeriod();
+
+      if (!P) {
         const el = document.getElementById('forecast-summary-cards');
-        if (el) el.innerHTML = '<div class="col-span-3 text-center py-4 text-sm" style="color:#626264;">選択期間に予測月がありません</div>';
+        if (el) el.innerHTML = '<div class="text-center py-4 text-sm" style="color:#626264;">選択期間に予測月がありません</div>';
         // タイトル更新
         const titleEl = document.getElementById('forecast-summary-title');
         if (titleEl) titleEl.innerHTML = '📈 予測サマリー <span class="text-sm font-normal text-dg-desc ml-2">（選択期間に予測月なし）</span>';
@@ -898,6 +1013,7 @@
         if (noteEl0) noteEl0.innerHTML = '';
         return;
       }
+      const filteredMonths = P.fm;
 
       // 営業日数の注記（予測コマ数の根拠）
       const noteEl = document.getElementById('forecast-bizdays-note');
@@ -905,78 +1021,49 @@
         const scA = FORECAST_DATA.scenarios[forecastScenario].attendance;
         const avgs = [...new Set(filteredMonths.map(m => fyAvgBizDays(m).toFixed(2)))].join('・');
         noteEl.innerHTML =
+          `${P.term}売上 = 実績の月の売上（月次レポートPDFの値）＋ 予測の月の売上（予測コマ数 × その月の年度の単価）。<br>` +
           `営業日数: 月〜土・日祝休み・お盆 8/13〜15・年末年始 12/29〜1/3（実績 PDF の営業日数から）。` +
           `月の予測通所日数 = ${scA}日 × その月の営業日数 ÷ 決算期の年平均営業日数（${avgs}日）。<br>` +
-          filteredMonths.map(m => `${m}: ${bizDays(m)}日`).join(' / ');
+          filteredMonths.map(m => `${m}: ${bizDays(m)}日`).join(' / ') +
+          `<br>損益 = 売上 − 損益分岐点 月¥${FORECAST_DATA.breakeven.toLocaleString('ja-JP')} × 月数（${P.months}か月）。既定の月¥2,500,000 は第15期の一般管理費の月平均 2,431,478円に基づく。`;
       }
 
       const sc = FORECAST_DATA.scenarios[forecastScenario];
-      const breakevenPeriod = FORECAST_DATA.breakeven * monthCount;
-      // 3シナリオを並べ、選んだものを強調する（2026-10-19: 1つだけだと差が見えない）
-      const rowsAll = Object.keys(FORECAST_DATA.scenarios).map(key => {
-        const s = FORECAST_DATA.scenarios[key];
-        const sales = calcForecastAnnualSales(key);
-        const komaAvg = filteredMonths.reduce((a, m) => a + forecastKoma(m, key), 0) / monthCount;
-        return { key, label: s.label, users: s.users, color: SCENARIO_COLORS[key], on: key === forecastScenario,
-                 sales, komaAvg, pl: sales - breakevenPeriod, margin: Number(calcBreakevenMargin(key)) };
-      });
-      const rowStyle = r => r.on
-        ? `background:#FFFFFF; border:2px solid ${r.color}; border-radius:4px; padding:4px 6px;`
-        : 'padding:6px 8px; opacity:0.75;';
-      const tag = r => `<span style="font-size:0.75rem; color:${r.color}; font-weight:700;">${r.label}${r.on ? '（選択中）' : ''}</span>`;
+      const rowsAll = forecastScenarioRows(P);
 
-      // タイトルをフィルタ期間に連動して更新
+      // タイトル: どの期間の見込みかを必ず書く
       const titleEl = document.getElementById('forecast-summary-title');
       if (titleEl) {
-        let periodText = '全予測期間';
-        if (selectedFy !== 'all' && selectedFy !== null && selectedFy !== undefined) {
-          if (filterMode === 'dc') {
-            periodText = dcPeriodLabel(selectedFy);
-          } else {
-            periodText = `${selectedFy}年度（${selectedFy}/4〜${Number(selectedFy)+1}/3）`;
-          }
-        }
-        titleEl.innerHTML = `📈 予測サマリー（${periodText}） <span class="text-sm font-normal text-dg-desc ml-2">（${monthCount}ヶ月分・${sc.label}シナリオ・単価 ${forecastUnitText(filteredMonths)}）</span>`;
+        titleEl.innerHTML = `📈 予測サマリー：${P.label}の${P.term}見込み（売上・損益） <span class="text-sm font-normal text-dg-desc ml-2">（${sc.label}を選択中・予測の単価 ${forecastUnitText(filteredMonths)}）</span>`;
       }
 
       const el = document.getElementById('forecast-summary-cards');
       if (!el) return;
 
+      const yen = v => '¥' + Math.abs(v).toLocaleString('ja-JP');
       el.innerHTML = `
-        <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">${monthCount}ヶ月 売上予測合計（月平均コマ数）</div>
-          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            ${rowsAll.map(r => `<div style="display:flex; justify-content:space-between; align-items:center; ${rowStyle(r)}">
-              ${tag(r)}
-              <span style="text-align:right;"><span style="font-size:${r.on ? '1.1rem' : '0.95rem'}; font-weight:700; color:#1A1A1A;">¥${r.sales.toLocaleString('ja-JP')}</span><br>
-              <span style="font-size:0.7rem; color:#626264;">月平均 ${r.komaAvg.toFixed(1)}コマ</span></span>
-            </div>`).join('')}
-          </div>
-        </div>
-        <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">累計損益予測（損益分岐 ¥${(FORECAST_DATA.breakeven/10000).toFixed(0)}万×${monthCount}ヶ月=¥${(breakevenPeriod/10000).toFixed(0)}万）</div>
-          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            ${rowsAll.map(r => {
-              const plColor = r.pl >= 0 ? '#0031D8' : '#FA0000';
-              const sign = r.pl >= 0 ? '+' : '−';
-              return `<div style="display:flex; justify-content:space-between; align-items:center; ${rowStyle(r)}">
-              ${tag(r)}
-              <span style="font-size:${r.on ? '1.1rem' : '0.95rem'}; font-weight:700; color:${plColor};">${sign}¥${Math.abs(r.pl).toLocaleString('ja-JP')}</span>
-            </div>`;
-            }).join('')}
-          </div>
-        </div>
-        <div class="forecast-card p-5">
-          <div class="kpi-label" style="color:#795548;">損益分岐ライン安全余裕（何名減っても黒字か）</div>
-          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-            ${rowsAll.map(r => `<div style="display:flex; justify-content:space-between; align-items:center; ${rowStyle(r)}">
-              ${tag(r)}
-              <span style="font-size:${r.on ? '1.1rem' : '0.95rem'}; font-weight:700; color:${r.margin >= 0 ? '#0031D8' : '#FA0000'};">${r.margin >= 0
-                ? `${r.users}名から${r.margin.toFixed(1)}名減っても黒字`
-                : `${r.users}名 → あと${Math.abs(r.margin).toFixed(1)}名で黒字`}</span>
-            </div>`).join('')}
-            <div class="kpi-sub" style="color:#626264;">損益分岐: 月売上 ¥${FORECAST_DATA.breakeven.toLocaleString('ja-JP')} 以上（${sc.label}を選択中）</div>
-          </div>
+        <div class="forecast-card p-4 overflow-x-auto">
+          <table class="fs-table" aria-label="予測サマリー（シナリオ別）">
+            <thead><tr>
+              <th style="text-align:left;">シナリオ（前提）</th>
+              <th style="text-align:right;">${P.term}売上<br><span style="font-weight:400;">${P.label.replace(/（.*/, '')}・${P.months}か月</span></th>
+              <th style="text-align:right;">うち実績${P.aMonths}か月<br><span style="font-weight:400;">${P.actualRange}</span></th>
+              <th style="text-align:right;">うち予測${filteredMonths.length}か月<br><span style="font-weight:400;">${P.forecastRange}</span></th>
+              <th style="text-align:right;">${P.term}損益<br><span style="font-weight:400;">売上 − 損益分岐点×${P.months}か月</span></th>
+              <th style="text-align:right;">予測月の<br>月平均コマ数</th>
+            </tr></thead>
+            <tbody>
+              ${rowsAll.map(r => `<tr class="${r.on ? 'fs-on' : ''}" data-scenario="${r.key}" style="--sc:${r.color};">
+                <td style="text-align:left;"><span style="color:${r.color}; font-weight:700;">${r.label}${r.on ? '（選択中）' : ''}</span>
+                  <span style="font-size:0.7rem; color:#626264; font-weight:400; margin-left:6px;">${r.users}名・通所${r.attendance}日・欠席率${r.absence_rate}%</span></td>
+                <td class="fs-sales" style="text-align:right; color:#1A1A1A; font-size:1rem;">${yen(r.sales)}</td>
+                <td class="fs-asales" style="text-align:right; color:#626264; font-weight:400;">${yen(P.aSales)}</td>
+                <td class="fs-fsales" style="text-align:right; color:#626264; font-weight:400;">${yen(r.fSales)}</td>
+                <td class="fs-pl" style="text-align:right; color:${r.pl >= 0 ? '#0031D8' : '#FA0000'}; font-size:1rem;">${r.pl >= 0 ? '+' : '−'}${yen(r.pl)}</td>
+                <td style="text-align:right;">${r.komaAvg.toFixed(1)}コマ</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
         </div>
       `;
     }
@@ -1053,6 +1140,10 @@
     //   年度（4月始）で集計する場合も、月単位で引いた値を合算するのでズレない。
     // -----------------------------------------------------------------------
     const BREAKEVEN_KEY = 'dc-morioka-breakeven';
+    // 損益分岐点の表示（グラフの線・分岐点での色分け・通年サマリーの分岐点合計の列）を出すか。
+    //   計算と設定欄はどちらでも残る。損益（売上−分岐点）の表示は常に出す（2026-10-19 社長「なら損益でいい」）
+    //   安全余裕（黒字に必要な人数）は 10/19 社長判断で削除。戻すなら .bak-readability-20261019 の 970-976 行
+    const SHOW_BREAKEVEN = false;
     const BREAKEVEN_DEFAULT = 2500000;   // 第15期の一般管理費実績（月平均 2,431,478 円）に基づく
 
     function loadBreakevens() {
@@ -1139,7 +1230,9 @@
       const color = pl >= 0 ? '#0031D8' : '#FA0000';
       const { totalBreakeven } = calcCumulativePL(data);
       el.title = `売上合計 ¥${totalSales.toLocaleString('ja-JP')} − 損益分岐点合計 ¥${totalBreakeven.toLocaleString('ja-JP')}（${months}か月）`;
-      el.innerHTML = `累計損益: <strong style="color:${color};">${sign}¥${absVal}（${label}）</strong>`;
+      // 期間を書く（全期間を選んでいると2021年からの累計になり、予測サマリーの第16期の損益と別物に見えるため。2026-10-19）
+      const periodName = selectedFy === 'all' ? '全期間' : (filterMode === 'dc' ? dcPeriodLabel(selectedFy) : fyLabel(selectedFy));
+      el.innerHTML = `累計損益（${periodName}・実績${months}か月）: <strong style="color:${color};">${sign}¥${absVal}（${label}）</strong>`;
     }
 
     function loadSavedPrices() {
@@ -1278,7 +1371,8 @@
       const latest = sorted[sorted.length - 1];
       if (!latest) return;
 
-      document.getElementById('compare-month-label').textContent = `（${latest.month} 基準）`;
+      // 「基準」はシナリオ名にも使うので、比べる相手の意味では使わない（2026-10-19）
+      document.getElementById('compare-month-label').textContent = `（${latest.month} の値と比べた増減）`;
 
       const prev = sorted.find(d => d.month === prevMonth(latest.month));
       const prevYear = sorted.find(d => d.month === prevYearMonth(latest.month));
@@ -1294,10 +1388,10 @@
       }
 
       const comparisons = [
-        { label: 'コマ数（前月比）',     cur: latest.koma,         base: prev?.koma,              unit: 'コマ', hib: true },
-        { label: '欠席率（前月比）',     cur: latest.absence_rate, base: prev?.absence_rate,      unit: '%',   hib: false },
-        { label: 'コマ数（前年同月比）', cur: latest.koma,         base: prevYear?.koma,          unit: 'コマ', hib: true },
-        { label: '欠席率（前年同月比）', cur: latest.absence_rate, base: prevYear?.absence_rate,  unit: '%',   hib: false },
+        { label: 'コマ数（前月比）',     cur: latest.koma,         base: prev?.koma,              unit: 'コマ', hib: true,  baseName: '前月' },
+        { label: '欠席率（前月比）',     cur: latest.absence_rate, base: prev?.absence_rate,      unit: '%',   hib: false, baseName: '前月' },
+        { label: 'コマ数（前年同月比）', cur: latest.koma,         base: prevYear?.koma,          unit: 'コマ', hib: true,  baseName: '前年同月' },
+        { label: '欠席率（前年同月比）', cur: latest.absence_rate, base: prevYear?.absence_rate,  unit: '%',   hib: false, baseName: '前年同月' },
       ];
 
       document.getElementById('compare-cards').innerHTML = comparisons.map(c => {
@@ -1316,7 +1410,7 @@
               <span class="kpi-value">${c.cur !== null ? c.cur.toLocaleString('ja-JP', {maximumFractionDigits:2}) + c.unit : '—'}</span>
               ${diff !== null ? `<span class="${diffClass}" style="font-size:0.875rem;">${arrow}${diffAbs}${c.unit}</span>` : '<span class="diff-neutral" style="font-size:0.875rem;">—</span>'}
             </div>
-            <div class="kpi-sub mt-1">基準: ${c.base !== null ? c.base.toLocaleString('ja-JP', {maximumFractionDigits:2}) + c.unit : '—'}</div>
+            <div class="kpi-sub mt-1">${c.baseName}: ${c.base !== null ? c.base.toLocaleString('ja-JP', {maximumFractionDigits:2}) + c.unit : '—'}</div>
           </div>
         `;
       }).join('');
@@ -1616,14 +1710,15 @@
             {
               label: '売上',
               data: salesData.map(d => d.sales),
-              backgroundColor: salesData.map(d => d.sales >= breakevenFor(d.month) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
-              borderColor: salesData.map(d => d.sales >= breakevenFor(d.month) ? DG_BLUE_500 : DG_NEGATIVE),
+              backgroundColor: salesData.map(d => (!SHOW_BREAKEVEN || d.sales >= breakevenFor(d.month)) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
+              borderColor: salesData.map(d => (!SHOW_BREAKEVEN || d.sales >= breakevenFor(d.month)) ? DG_BLUE_500 : DG_NEGATIVE),
               borderWidth: 1,
               borderRadius: 2,
             },
             {
               label: beLabel,
               data: breakevenLineData,
+              hidden: !SHOW_BREAKEVEN,
               type: 'line',
               stepped: 'middle',
               borderColor: DG_NEGATIVE,
@@ -1659,6 +1754,7 @@
                 padding: 12,
                 usePointStyle: false,
                 sort: (a, b) => a.datasetIndex - b.datasetIndex,
+                filter: item => SHOW_BREAKEVEN || !String(item.text).startsWith('損益分岐点'),
               }
             },
             tooltip: {
@@ -1670,7 +1766,7 @@
               padding: 10,
               callbacks: {
                 label: ctx => {
-                  if (ctx.dataset.label && ctx.dataset.label.startsWith('損益分岐点')) return ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP') + '（損益分岐点）';
+                  if (ctx.dataset.label && ctx.dataset.label.startsWith('損益分岐点')) return SHOW_BREAKEVEN ? ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP') + '（損益分岐点）' : null;
                   if (ctx.parsed.y === null) return null;
                   return ` ${ctx.dataset.label || '売上'}: ¥${ctx.parsed.y?.toLocaleString('ja-JP')}`;
                 }
@@ -1960,13 +2056,12 @@
           const avgFUsers   = s.users;
           const absRate     = s.absence_rate;
           const attendance  = fMonthList.reduce((a, m) => a + forecastAttendance(m, sc.key), 0) / n;
-          const borderTop   = on
-            ? `border-top:3px solid ${sc.borderColor}; border-bottom:3px solid ${sc.borderColor};`
-            : `border-top:1px solid ${sc.borderColor}; opacity:0.7;`;
+          // 3行とも同じ枠（上下 1px）。選んだ行は左端に色の帯（2026-10-19: 選んだ行だけ太枠で揃っていなかった）
+          const borderTop   = `border-top:1px solid ${sc.borderColor}; border-bottom:1px solid ${sc.borderColor};`;
 
           footerHtml += `
             <tr style="background:${sc.bgColor}; ${borderTop}" role="row">
-              <td class="px-4 py-2.5 text-sm font-bold" style="color:${sc.textColor}; white-space:nowrap;">${sc.label}${on ? '（選択中）' : ''}</td>
+              <td class="px-4 py-2.5 text-sm font-bold" style="color:${sc.textColor}; white-space:nowrap;${on ? ` box-shadow: inset 5px 0 0 ${sc.borderColor};` : ''}">${sc.label}${on ? '（選択中）' : ''}</td>
               <td class="${tdStyle}" style="color:${sc.textColor};">${totalFKoma.toLocaleString('ja-JP')}</td>
               <td class="${tdStyle}">${nullCell}</td>
               <td class="${tdStyle}" style="color:${sc.textColor};">${absRate !== null ? absRate + '%' : nullCell}</td>
@@ -2036,7 +2131,8 @@
       updateCumulativePL(data);
       renderAnnualSummary(data);
 
-      // 予測サマリー更新（予測ON時のみ）
+      // 結論の1行・予測サマリー更新（サマリーは予測ON時のみ）
+      renderConclusion();
       if (forecastEnabled) renderForecastSummaryCards();
 
       // テーブル更新
@@ -2191,7 +2287,9 @@
             const on = sk === forecastScenario;
             landing.push({
               key: k, scenario: sk, on,
-              label: `${labelOf(k).replace(/（.*/, '')} 着地見込み・${FORECAST_DATA.scenarios[sk].label}${on ? '（選択中）' : ''}（実績${aMonths}＋予測${fm.length}か月）`,
+              // 行名に期間（年度 4月〜翌3月／決算期 6月〜翌5月）を残す。予測サマリーと期間が違うことが行名で分かるように（2026-10-19）
+              label: `${labelOf(k)}<br>着地見込み・${FORECAST_DATA.scenarios[sk].label}${on ? '（選択中）' : ''}（実績${aMonths}＋予測${fm.length}か月）`,
+              periodKey: k, fmCount: fm.length,
               months: aMonths + fm.length,
               koma, komaAvg: koma / (aKomaMonths + fm.length),
               sales, salesAvg: sales / (aMonths + fm.length),
@@ -2217,28 +2315,47 @@
           <td class="px-4 py-3 text-right">${b.exits}</td>
           <td class="px-4 py-3 text-right">${money(b.sales)}</td>
           <td class="px-4 py-3 text-right">${b.salesAvg === null ? '<span class="null-val">—</span>' : money(b.salesAvg)}</td>
-          <td class="px-4 py-3 text-right" style="color:#626264;">${money(b.breakeven)}</td>
+          <td class="px-4 py-3 text-right be-only" style="color:#626264;">${money(b.breakeven)}</td>
           ${plCell(b.pl)}
         </tr>
-      `).join('') + landing.map(r => {
+      `).join('') + landing.map((r, i) => {
         const c = SCENARIO_COLORS[r.scenario];
-        const st = r.on
-          ? `background:#FFFDE7; border-top:2px solid ${c}; border-bottom:2px solid ${c};`
-          : `background:#FFFDE7; border-top:1px solid #EFEFEF; opacity:0.7;`;
+        // 3行とも同じ枠（上下 1px）。選んだ行は背景を白に・左端に色の帯で示す（2026-10-19: 選んだ行だけ枠があり揃っていなかった）
+        const st = `background:${r.on ? '#FFFFFF' : '#FFFDE7'}; border-top:${i === 0 ? '2px solid #F9A825' : '1px solid #F3E5AB'}; border-bottom:1px solid #F3E5AB;`;
         const na = '<td class="px-4 py-3 text-right"><span class="null-val">—</span></td>';
         return `
         <tr style="${st}">
-          <td class="px-4 py-3 font-bold" style="color:${c};">${r.label}<span class="forecast-badge">※予測込み</span></td>
+          <td class="px-4 py-3 font-bold" style="color:${c};${r.on ? ` box-shadow: inset 5px 0 0 ${c};` : ''}">${r.label}<span class="forecast-badge">※予測込み</span></td>
           <td class="px-4 py-3 text-right">${r.months}</td>
           <td class="px-4 py-3 text-right" style="color:${c};">${r.koma.toLocaleString('ja-JP')}</td>
           <td class="px-4 py-3 text-right" style="color:${c};">${r.komaAvg.toFixed(1)}</td>
           ${na}${na}${na}${na}
           <td class="px-4 py-3 text-right" style="color:${c};">${money(r.sales)}</td>
           <td class="px-4 py-3 text-right" style="color:${c};">${money(r.salesAvg)}</td>
-          <td class="px-4 py-3 text-right" style="color:#626264;">${money(r.breakeven)}</td>
+          <td class="px-4 py-3 text-right be-only" style="color:#626264;">${money(r.breakeven)}</td>
           ${plCell(r.pl)}
         </tr>`;
       }).join('');
+
+      // 着地見込みの期間と、予測サマリーの期間の違いを書く（同じ予測が別の金額に見えないように）
+      const lnote = document.getElementById('annual-landing-note');
+      if (lnote) {
+        if (landing.length) {
+          const labelOfN = filterMode === 'dc' ? dcPeriodLabel : fyLabel;
+          const keys = [...new Set(landing.map(r => r.periodKey))];
+          const keyOfN = filterMode === 'dc' ? getDcPeriod : getFiscalYear;
+          const left = forecastBaseMonths().filter(m => !keys.includes(keyOfN(m)));
+          lnote.style.display = '';
+          lnote.innerHTML = `着地見込み＝${keys.map(labelOfN).join('・')}の実績＋予測の合計。` +
+            (filterMode === 'dc'
+              ? '上の予測サマリー（今の決算期）と同じ足し算です。'
+              : '上の結論・予測サマリーは決算期（6月〜翌5月）で出しているので、年度の着地見込みとは金額が違います。') +
+            (left.length ? `${left[0]}〜${left[left.length - 1]} の予測は、その${filterMode === 'dc' ? '決算期' : '年度'}が12か月そろわないため着地見込みに入れていません。` : '');
+        } else {
+          lnote.style.display = 'none';
+          lnote.innerHTML = '';
+        }
+      }
 
       const tot = buckets.reduce((a, b) => ({
         months: a.months + b.months, koma: a.koma + b.koma,
@@ -2260,7 +2377,7 @@
             <td class="px-4 py-3 text-right">${tot.exits}</td>
             <td class="px-4 py-3 text-right">${money(tot.sales)}</td>
             <td class="px-4 py-3 text-right">—</td>
-            <td class="px-4 py-3 text-right" style="color:#626264;">${money(tot.breakeven)}</td>
+            <td class="px-4 py-3 text-right be-only" style="color:#626264;">${money(tot.breakeven)}</td>
             ${plCell(tot.sales - tot.breakeven)}
           </tr>`;
       }
@@ -2291,7 +2408,8 @@
           label: '損益分岐点合計（着地見込み期間）',
           data: keysAll.map(k => { const r = landing.find(x => x.key === k); return r ? r.breakeven : null; }),
           type: 'line', showLine: false, pointStyle: 'line', pointRadius: 18, pointHoverRadius: 18,
-          borderColor: DG_NEGATIVE, borderWidth: 2
+          borderColor: DG_NEGATIVE, borderWidth: 2,
+          hidden: !SHOW_BREAKEVEN
         }] : [];
         new Chart(cv, {
           type: 'bar',
@@ -2301,12 +2419,13 @@
               {
                 label: '売上（実績）',
                 data: keysAll.map(k => bOf(k) ? bOf(k).sales : null),
-                backgroundColor: keysAll.map(k => (bOf(k) && bOf(k).pl >= 0) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
-                borderColor: keysAll.map(k => (bOf(k) && bOf(k).pl >= 0) ? DG_BLUE_500 : DG_NEGATIVE),
+                backgroundColor: keysAll.map(k => (!SHOW_BREAKEVEN || (bOf(k) && bOf(k).pl >= 0)) ? 'rgba(73,121,245,0.7)' : 'rgba(250,0,0,0.5)'),
+                borderColor: keysAll.map(k => (!SHOW_BREAKEVEN || (bOf(k) && bOf(k).pl >= 0)) ? DG_BLUE_500 : DG_NEGATIVE),
                 borderWidth: 1, borderRadius: 2, order: 2
               },
               {
                 label: '損益分岐点合計（実績期間）',
+                hidden: !SHOW_BREAKEVEN,
                 data: keysAll.map(k => bOf(k) ? bOf(k).breakeven : null),
                 type: 'line', stepped: 'middle',
                 borderColor: DG_NEGATIVE, borderDash: [8, 4], borderWidth: 2,
@@ -2319,7 +2438,7 @@
           options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-              legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 }, sort: (a, b) => a.datasetIndex - b.datasetIndex } },
+              legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 }, sort: (a, b) => a.datasetIndex - b.datasetIndex, filter: item => SHOW_BREAKEVEN || !String(item.text).startsWith('損益分岐点'), } },
               tooltip: {
                 callbacks: {
                   label: ctx => ctx.parsed.y === null ? null : ' ' + ctx.dataset.label + ' ¥' + Number(ctx.parsed.y).toLocaleString('ja-JP')
@@ -2340,6 +2459,11 @@
     }
 
     function renderAll(data) {
+      document.body.classList.toggle('hide-breakeven', !SHOW_BREAKEVEN);
+      if (!SHOW_BREAKEVEN) {
+        document.getElementById('chartSales').setAttribute('aria-label', '売上推移棒グラフ');
+        document.getElementById('chartAnnual').setAttribute('aria-label', '期別売上の棒グラフ');
+      }
       updatePeriodRange(data);
       renderUnitPriceInputs(data);
       renderBreakevenInputs(data);
@@ -2358,6 +2482,7 @@
       renderCharts(data);
       updateCumulativePL(data);
       renderAnnualSummary(data);
+      renderConclusion();
 
       sortCol = 'month';
       sortDir = 'desc';
