@@ -228,6 +228,53 @@
       top: 0;
       z-index: 10;
     }
+
+    /* 印刷（2026-11-04 社長「実績と予測を年度で印刷しようとするとぐちゃぐちゃになる」）。
+       画面の見た目は変えない。数字・計算には触らない。A4横・余白10mm に収める */
+    @page { size: A4 landscape; margin: 10mm; }
+    @media screen { img.print-chart-img { display: none; } } /* 印刷用の一時画像は画面に出さない */
+    @media print {
+      /* 背景色（表の見出し・予測行の黄色など）を残す。ブラウザ側の設定が優先されることはある */
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background: #FFFFFF; }
+      .page-header { position: static; }
+      main { max-width: none; padding: 0; }
+      main > * + * { margin-top: 16px !important; }
+      .page-header > div { padding-top: 0; padding-bottom: 8px; }
+      .kpi-value { font-size: 1.05rem; }
+
+      /* 操作部品を隠す（押しても紙では動かないもの）。選択中の年度・対象月はただの文字として残す */
+      header a[href], main button, #forecast-scenario-switch,
+      label[for="filter-input"], #filter-input { display: none !important; }
+      section[aria-labelledby="unit-price-title"], section[aria-labelledby="breakeven-title"] { display: none !important; }
+      select { -webkit-appearance: none; appearance: none; border: none; background: none; padding: 0; font-weight: 700; color: #1A1A1A; }
+
+      /* グラフ: 印刷直前に撮った画像（下の beforeprint）を枠の幅に縮めて出す。右が切れない・棒と目盛りがずれない */
+      .chart-container:has(> img.print-chart-img) { height: auto !important; }
+      .chart-container:has(> img.print-chart-img) > canvas { display: none !important; }
+      img.print-chart-img { display: block; width: 100%; height: auto; }
+      /* 画像が作れなかった時の保険: 右が切れないように幅だけ枠に収める */
+      .chart-container canvas { max-width: 100% !important; }
+      .dg-card, .forecast-card, .conclusion-bar, main > footer { break-inside: avoid; }
+      .dg-card.overflow-x-auto, .forecast-card.overflow-x-auto { overflow: visible; }
+      /* 長い表の枠は途中で改ページしてよい（行の途中では切らない） */
+      .dg-card:has(> table) { break-inside: auto; }
+
+      /* 表: 1ページ幅に収める・行の途中で改ページしない・見出し行を各ページに繰り返す */
+      table { width: 100% !important; font-size: 10px; }
+      thead { display: table-header-group; }
+      tfoot { display: table-row-group; }
+      tr { break-inside: avoid; }
+      #annual-body td, #annual-footer td, #table-body td, #table-footer td,
+      table th { padding: 4px 6px !important; }
+      h2, h3, .section-title { break-after: avoid; }
+      section > .flex:first-child, section > .flex:first-child + div { break-after: avoid; }
+
+      /* 紙の上の並び（ブラウザの余白設定で横幅が変わっても同じ並びにする） */
+      #kpi-cards { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+      #compare-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      section[aria-labelledby="charts-title"] > .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -2530,6 +2577,27 @@
     }
 
     main();
+
+    // 印刷（2026-11-04）: Chart.js は印刷の紙幅へ正しく描き直せない（公式 docs「Printing Resizable Charts」。
+    //   実測: beforeprint の時点ではまだ画面幅で、印刷中の描き直しで棒と目盛りがずれた）。
+    //   そこで印刷の直前に、画面に描けているグラフをそのまま画像にして紙にはその画像を出す（幅は枠に合わせて縮む）。
+    //   印刷が終わったら画像を消す。数値・データには触らない
+    window.addEventListener('beforeprint', () => {
+      document.querySelectorAll('img.print-chart-img').forEach(img => img.remove());
+      if (typeof Chart === 'undefined') return;
+      Object.values(Chart.instances).forEach(c => {
+        try {
+          const img = document.createElement('img');
+          img.className = 'print-chart-img';
+          img.alt = c.canvas.getAttribute('aria-label') || '';
+          img.src = c.toBase64Image();
+          c.canvas.after(img);
+        } catch (e) { /* 1つ失敗しても残りのグラフは画像にする */ }
+      });
+    });
+    window.addEventListener('afterprint', () => {
+      document.querySelectorAll('img.print-chart-img').forEach(img => img.remove());
+    });
   </script>
 </body>
 </html>
