@@ -2074,21 +2074,21 @@
         const scenarios = [
           {
             key:    'optimistic',
-            label:  '合計 / 平均（楽観）',
+            label:  '合計 / 平均（楽観・実績＋予測）',
             bgColor: '#E8F5E9',
             borderColor: '#388E3C',
             textColor: '#1B5E20',
           },
           {
             key:    'baseline',
-            label:  '合計 / 平均（基準）',
+            label:  '合計 / 平均（基準・実績＋予測）',
             bgColor: '#E3F0FF',
             borderColor: '#1976D2',
             textColor: '#0031D8',
           },
           {
             key:    'pessimistic',
-            label:  '合計 / 平均（悲観）',
+            label:  '合計 / 平均（悲観・実績＋予測）',
             bgColor: '#FFEBEE',
             borderColor: '#D32F2F',
             textColor: '#B71C1C',
@@ -2096,17 +2096,28 @@
         ];
         // 3シナリオの合計行を全部出す（2026-10-19: 1行だけだと差が見えない）。選んだ行を太枠で強調、他は薄く。
         //   予測行（上の月別行）は選んだシナリオの値。合計行は月リストを同じにして各シナリオで計算し直す。
+        // 2026-11-04: 合計行は「表に出ている実績＋そのシナリオの予測」にする（旧: 予測月だけの和で、
+        //   通年サマリーの着地見込み＝実績＋予測と食い違っていた）。足し方は renderAnnualSummary の landing と同じ。
         const fMonthList = fMonths.map(f => f.month);
+        const aUserRows  = filtered.filter(d => d.total_users !== null && d.total_users !== undefined);
+        const aAttRows   = filtered.filter(d => d.avg_attendance_days !== null && d.avg_attendance_days !== undefined);
+        const aRateRows  = filtered.filter(d => d.absence_rate !== null && d.absence_rate !== undefined && d.koma !== null && d.koma !== undefined);
 
         scenarios.forEach(sc => {
           const s           = FORECAST_DATA.scenarios[sc.key];
           const on          = sc.key === forecastScenario;
-          const totalFKoma  = fMonthList.reduce((a, m) => a + forecastKoma(m, sc.key), 0);
-          const totalFSales = fMonthList.reduce((a, m) => a + forecastSales(m, sc.key), 0);
-          // 利用者数・欠席率は全月同一のシナリオ値。通所日数は月ごとに違うので予測月の単純平均
-          const avgFUsers   = s.users;
-          const absRate     = s.absence_rate;
-          const attendance  = fMonthList.reduce((a, m) => a + forecastAttendance(m, sc.key), 0) / n;
+          const fKomaSum    = fMonthList.reduce((a, m) => a + forecastKoma(m, sc.key), 0);
+          const totalFKoma  = totalKoma + fKomaSum;
+          const totalFSales = totalSales + fMonthList.reduce((a, m) => a + forecastSales(m, sc.key), 0);
+          // 平均は実績月と予測月を合わせて出す。利用者数・通所日数は月の単純平均（実績行と同じ数え方）。
+          //   欠席率は各月の欠席率をコマ数で重み付けした平均（予測月はシナリオの欠席率）
+          const avgFUsers   = (aUserRows.reduce((a, d) => a + Number(d.total_users), 0) + s.users * n) / (aUserRows.length + n);
+          const rateKoma    = aRateRows.reduce((a, d) => a + Number(d.koma), 0) + fKomaSum;
+          const absRate     = rateKoma > 0
+            ? (aRateRows.reduce((a, d) => a + Number(d.absence_rate) * Number(d.koma), 0) + s.absence_rate * fKomaSum) / rateKoma
+            : null;
+          const attendance  = (aAttRows.reduce((a, d) => a + Number(d.avg_attendance_days), 0) +
+            fMonthList.reduce((a, m) => a + forecastAttendance(m, sc.key), 0)) / (aAttRows.length + n);
           // 3行とも同じ枠（上下 1px）。選んだ行は左端に色の帯（2026-10-19: 選んだ行だけ太枠で揃っていなかった）
           const borderTop   = `border-top:1px solid ${sc.borderColor}; border-bottom:1px solid ${sc.borderColor};`;
 
@@ -2115,8 +2126,8 @@
               <td class="px-4 py-2.5 text-sm font-bold" style="color:${sc.textColor}; white-space:nowrap;${on ? ` box-shadow: inset 5px 0 0 ${sc.borderColor};` : ''}">${sc.label}${on ? '（選択中）' : ''}</td>
               <td class="${tdStyle}" style="color:${sc.textColor};">${totalFKoma.toLocaleString('ja-JP')}</td>
               <td class="${tdStyle}">${nullCell}</td>
-              <td class="${tdStyle}" style="color:${sc.textColor};">${absRate !== null ? absRate + '%' : nullCell}</td>
-              <td class="${tdStyle}" style="color:${sc.textColor};">${avgFUsers !== null ? avgFUsers : nullCell}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">${absRate !== null ? absRate.toFixed(2) + '%' : nullCell}</td>
+              <td class="${tdStyle}" style="color:${sc.textColor};">${avgFUsers !== null ? avgFUsers.toFixed(1) : nullCell}</td>
               <td class="${tdStyle}">${nullCell}</td>
               <td class="${tdStyle}">${nullCell}</td>
               <td class="${tdStyle}">${nullCell}</td>
